@@ -4,3 +4,5 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+arbitrary-int = "1.2"
+ribbit-derive = { path = "../ribbit-derive" }
