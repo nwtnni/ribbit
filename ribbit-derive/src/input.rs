@@ -1,3 +1,4 @@
+use darling::util::SpannedValue;
 use darling::FromDeriveInput;
 use darling::FromField;
 use darling::FromMeta;
@@ -6,11 +7,11 @@ use proc_macro2::TokenStream;
 
 #[derive(FromMeta)]
 pub(crate) struct Attr {
-    pub(crate) size: u8,
+    pub(crate) size: SpannedValue<usize>,
 }
 
 impl Attr {
-    pub(crate) fn from_token_stream(attr: TokenStream) -> darling::Result<Self> {
+    pub(crate) fn new(attr: TokenStream) -> darling::Result<Self> {
         darling::ast::NestedMeta::parse_meta_list(attr)
             .map_err(darling::Error::from)
             .and_then(|meta| Self::from_list(&meta))
@@ -18,8 +19,7 @@ impl Attr {
 }
 
 #[derive(FromDeriveInput, Debug)]
-pub(crate) struct Item {
-    pub(crate) ident: syn::Ident,
+pub struct Item {
     pub(crate) data: darling::ast::Data<Variant, Field>,
 }
 
@@ -27,4 +27,8 @@ pub(crate) struct Item {
 pub(crate) struct Variant {}
 
 #[derive(FromField, Debug)]
-pub(crate) struct Field {}
+pub(crate) struct Field {
+    pub(crate) ident: Option<syn::Ident>,
+    pub(crate) vis: syn::Visibility,
+    pub(crate) ty: syn::Type,
+}
