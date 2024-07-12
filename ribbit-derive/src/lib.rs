@@ -1,8 +1,9 @@
-use darling::FromDeriveInput;
-use darling::FromField;
-use darling::FromMeta;
-use darling::FromVariant;
+mod input;
+
+use darling::FromDeriveInput as _;
+use proc_macro2::Span;
 use proc_macro2::TokenStream;
+use quote::quote;
 use quote::ToTokens;
 use syn::parse_macro_input;
 
@@ -19,35 +20,41 @@ pub fn pack(
         .into()
 }
 
-fn pack_inner(attr: TokenStream, item: syn::DeriveInput) -> Result<Output, darling::Error> {
-    let input = darling::ast::NestedMeta::parse_meta_list(attr)
-        .map_err(darling::Error::from)
-        .and_then(|meta| Input::from_list(&meta))?;
+fn pack_inner(attr: TokenStream, input: syn::DeriveInput) -> Result<Output, darling::Error> {
+    let attr = input::Attr::from_token_stream(attr)?;
+    let item = input::Item::from_derive_input(&input)?;
 
-    let item = Item::from_derive_input(&item)?;
-
-    Ok(Output {})
+    Ok(Output {
+        item,
+        attrs: input.attrs,
+        size: attr.size,
+    })
 }
 
-#[derive(FromMeta)]
-struct Input {
-    size: usize,
+struct Output {
+    item: input::Item,
+    attrs: Vec<syn::Attribute>,
+    size: u8,
 }
-
-#[derive(FromDeriveInput, Debug)]
-struct Item {
-    ident: syn::Ident,
-    data: darling::ast::Data<Variant, Field>,
-}
-
-struct Output {}
 
 impl ToTokens for Output {
-    fn to_tokens(&self, _tokens: &mut TokenStream) {}
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let ident = &self.item.ident;
+        let attrs = &self.attrs;
+
+        let repr = syn::Ident::new(&format!("u{}", self.size), Span::call_site());
+        let repr = match self.size {
+            8 | 16 | 32 | 64 => quote!(#repr),
+            _ => quote!(::ribbit::private::arbitrary_int::#repr),
+        };
+
+        let output = quote! {
+            #( #attrs )*
+            struct #ident {
+                value: #repr,
+            }
+        };
+
+        output.to_tokens(tokens);
+    }
 }
-
-#[derive(FromVariant, Debug)]
-struct Variant {}
-
-#[derive(FromField, Debug)]
-struct Field {}
