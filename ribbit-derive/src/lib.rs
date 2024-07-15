@@ -1,6 +1,9 @@
+mod error;
 mod get;
 mod input;
 mod ir;
+
+pub(crate) use error::Error;
 
 use darling::FromDeriveInput as _;
 use proc_macro2::TokenStream;
@@ -24,7 +27,7 @@ fn pack_inner(attr: TokenStream, input: syn::DeriveInput) -> Result<TokenStream,
     let attr = input::Attr::new(attr)?;
     let item = input::Item::from_derive_input(&input)?;
 
-    let ir = ir::new(&attr, &input, &item);
+    let ir = ir::new(&attr, &input, &item)?;
     Ok(Output { ir }.to_token_stream())
 }
 

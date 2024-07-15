@@ -20,7 +20,7 @@ impl Attr {
 
 #[derive(FromDeriveInput, Debug)]
 pub struct Item {
-    pub(crate) data: darling::ast::Data<Variant, Field>,
+    pub(crate) data: darling::ast::Data<Variant, SpannedValue<Field>>,
 }
 
 #[derive(FromVariant, Debug)]

@@ -5,13 +5,14 @@ use quote::format_ident;
 use quote::quote;
 use quote::ToTokens;
 
+use crate::error::bail;
 use crate::input;
 
 pub(crate) fn new<'input>(
     attr: &'input input::Attr,
     input: &'input syn::DeriveInput,
     item: &'input input::Item,
-) -> Struct<'input> {
+) -> darling::Result<Struct<'input>> {
     match &item.data {
         darling::ast::Data::Enum(_) => todo!(),
         darling::ast::Data::Struct(r#struct) => {
@@ -20,27 +21,49 @@ pub(crate) fn new<'input>(
                 Style::Struct => (),
             }
 
-            let mut storage = bitbox![0; *attr.size];
-            let fields = r#struct
-                .fields
-                .iter()
-                .map(|field| {
-                    let offset = storage.first_zero().unwrap();
-                    let field = Field::new(field, offset);
-                    storage[offset..][..field.size()].fill(true);
-                    field
+            let mut bits = bitbox![0; *attr.size];
+            let mut fields = Vec::new();
+
+            for field in &r#struct.fields {
+                let uninit = FieldUninit::new(field);
+                let size = uninit.size();
+                let offset = match uninit.offset() {
+                    Offset::Implicit => match bits.first_zero() {
+                        Some(offset) => offset,
+                        None => bail!(field => crate::Error::Overflow {
+                            offset: 0,
+                            available: 0,
+                            required: size
+                        }),
+                    },
+                };
+
+                let prefix = &mut bits[offset..];
+                match prefix.first_one().unwrap_or_else(|| prefix.len()) {
+                    len if len < size => bail!(field => crate::Error::Overflow {
+                        offset,
+                        available: len,
+                        required: size
+                    }),
+                    _ => prefix[..size].fill(true),
+                }
+
+                fields.push(uninit.with_offset(offset));
+            }
+
+            if bits.not_all() {
+                bail!(input => crate::Error::Underflow {
+                    bits,
                 })
-                .collect();
+            }
 
-            assert!(storage.all());
-
-            Struct {
+            Ok(Struct {
                 size: &attr.size,
                 attrs: &input.attrs,
                 vis: &input.vis,
                 ident: &input.ident,
                 fields,
-            }
+            })
         }
     }
 }
@@ -85,27 +108,48 @@ impl ToTokens for Struct<'_> {
     }
 }
 
-pub(crate) struct Field<'input> {
+pub(crate) type Field<'input> = FieldInner<'input, usize>;
+pub(crate) type FieldUninit<'input> = FieldInner<'input, Offset>;
+
+#[derive(Copy, Clone, Debug)]
+pub(crate) enum Offset {
+    Implicit,
+}
+
+pub(crate) struct FieldInner<'input, O> {
     vis: &'input syn::Visibility,
     ident: Option<&'input syn::Ident>,
     ty: Type<'input>,
-    offset: usize,
+    offset: O,
 }
 
-impl<'input> Field<'input> {
-    fn new(field: &'input input::Field, offset: usize) -> Self {
-        Field {
+impl<'input> FieldUninit<'input> {
+    fn new(field: &'input input::Field) -> Self {
+        Self {
             vis: &field.vis,
             ident: field.ident.as_ref(),
             ty: Type::new(&field.ty),
-            offset,
+            offset: Offset::Implicit,
         }
     }
 
-    pub(crate) fn offset(&self) -> usize {
+    fn with_offset(self, offset: usize) -> Field<'input> {
+        Field {
+            vis: self.vis,
+            ident: self.ident,
+            ty: self.ty,
+            offset,
+        }
+    }
+}
+
+impl<'input, O: Copy> FieldInner<'input, O> {
+    pub(crate) fn offset(&self) -> O {
         self.offset
     }
+}
 
+impl<'input, O: Copy> FieldInner<'input, O> {
     pub(crate) fn size(&self) -> usize {
         self.ty.size()
     }
