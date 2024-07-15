@@ -169,8 +169,12 @@ impl<'input, O: Copy> FieldInner<'input, O> {
 
 pub(crate) enum Type<'input> {
     Builtin {
-        ident: &'input syn::Ident,
+        path: &'input syn::TypePath,
         builtin: Builtin,
+    },
+    Arbitrary {
+        path: &'input syn::TypePath,
+        size: usize,
     },
 }
 
@@ -196,7 +200,7 @@ impl<'input> Type<'input> {
         }
     }
 
-    fn from_path(syn::TypePath { qself, path }: &'input syn::TypePath) -> Self {
+    fn from_path(type_path @ syn::TypePath { qself, path }: &'input syn::TypePath) -> Self {
         if qself.is_some() {
             todo!();
         }
@@ -215,22 +219,43 @@ impl<'input> Type<'input> {
             todo!();
         }
 
-        if let Some(builtin) = [Builtin::U8, Builtin::U16, Builtin::U32, Builtin::U64]
-            .into_iter()
-            .find(|builtin| segment.ident == builtin)
-        {
-            Type::Builtin {
-                ident: &segment.ident,
+        let ident = segment.ident.to_string();
+
+        if !ident.is_ascii() {
+            todo!();
+        }
+
+        let signed = match &ident[0..1] {
+            "u" => false,
+            "i" => true,
+            _ => todo!(),
+        };
+
+        let size = ident[1..].parse::<usize>().unwrap();
+
+        if let Some(builtin) = match (signed, size) {
+            (false, 8) => Some(Builtin::U8),
+            (false, 16) => Some(Builtin::U16),
+            (false, 32) => Some(Builtin::U32),
+            (false, 64) => Some(Builtin::U64),
+            _ => None,
+        } {
+            return Type::Builtin {
+                path: type_path,
                 builtin,
-            }
-        } else {
-            todo!()
+            };
+        }
+
+        Type::Arbitrary {
+            path: type_path,
+            size,
         }
     }
 
     fn size(&self) -> usize {
         match self {
-            Type::Builtin { ident: _, builtin } => builtin.size(),
+            Type::Builtin { path: _, builtin } => builtin.size(),
+            Type::Arbitrary { path: _, size } => *size,
         }
     }
 }
@@ -238,8 +263,10 @@ impl<'input> Type<'input> {
 impl ToTokens for Type<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         match self {
-            Type::Builtin { ident, builtin: _ } => ident.to_tokens(tokens),
+            Type::Builtin { path, builtin: _ } => path,
+            Type::Arbitrary { path, size: _ } => path,
         }
+        .to_tokens(tokens)
     }
 }
 

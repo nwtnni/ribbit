@@ -33,18 +33,25 @@ impl ToTokens for Field<'_> {
         let ident = self.0.ident();
         let offset = self.0.offset();
 
+        let shifted = match offset {
+            0 => quote! { self.value },
+            _ => quote! { (self.value >> #offset) },
+        };
+
         let body = match ty {
-            ir::Type::Builtin { .. } => {
-                let shifted = match offset {
-                    0 => quote! { self.value },
-                    _ => quote! { (self.value >> #offset) },
+            ir::Type::Builtin { path, builtin: _ } => quote!(#shifted as #path),
+            ir::Type::Arbitrary { path, size } => {
+                let repr = match size {
+                    0..=7 => quote!(u8),
+                    8..=15 => quote!(u16),
+                    16..=31 => quote!(u32),
+                    32..=63 => quote!(u64),
+                    _ => todo!(),
                 };
 
-                match ty {
-                    ir::Type::Builtin { ident, builtin: _ } => quote! {
-                        #shifted as #ident
-                    },
-                }
+                let mask = quote!(((1 << #size) - 1));
+
+                quote!(#path::new((#shifted as #repr) & #mask))
             }
         };
 
