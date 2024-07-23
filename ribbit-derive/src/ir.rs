@@ -93,10 +93,7 @@ impl ToTokens for Struct<'_> {
         let attrs = self.attrs;
 
         let repr = format_ident!("u{}", **self.size, span = self.size.span());
-        let repr = match **self.size {
-            8 | 16 | 32 | 64 => quote!(#repr),
-            _ => quote!(::ribbit::private::arbitrary_int::#repr),
-        };
+        let repr = quote!(::ribbit::private::#repr);
 
         quote! {
             #( #attrs )*
