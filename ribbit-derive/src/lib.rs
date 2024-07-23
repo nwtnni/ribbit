@@ -2,6 +2,7 @@ mod error;
 mod get;
 mod input;
 mod ir;
+mod set;
 
 pub(crate) use error::Error;
 
@@ -39,11 +40,14 @@ impl ToTokens for Output<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let ir = &self.ir;
         let get = crate::get::Struct::new(ir);
+        let set = crate::set::Struct::new(ir);
 
         let output = quote! {
             #ir
 
             #get
+
+            #set
         };
 
         output.to_tokens(tokens);

@@ -1,6 +1,7 @@
 use bitvec::bitbox;
 use darling::ast::Style;
 use darling::util::SpannedValue;
+use proc_macro2::Literal;
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use quote::format_ident;
@@ -276,7 +277,7 @@ impl Tree {
         }
     }
 
-    fn size(&self) -> usize {
+    pub(crate) fn size(&self) -> usize {
         match self {
             Tree::Leaf(leaf) => leaf.size(),
         }
@@ -334,7 +335,7 @@ impl Leaf {
         }
     }
 
-    fn size(&self) -> usize {
+    pub(crate) fn size(&self) -> usize {
         match self {
             Leaf::Native(native) => native.size(),
             Leaf::Arbitrary(arbitrary) => arbitrary.size(),
@@ -415,5 +416,18 @@ impl ToTokens for Native {
         };
 
         quote!(::ribbit::private::#repr).to_tokens(tokens)
+    }
+}
+
+pub(crate) fn mask(size: usize) -> usize {
+    (1 << size) - 1
+}
+
+pub(crate) fn literal(native: Native, value: usize) -> Literal {
+    match native {
+        Native::U8 => Literal::u8_suffixed(value.try_into().unwrap()),
+        Native::U16 => Literal::u16_suffixed(value.try_into().unwrap()),
+        Native::U32 => Literal::u32_suffixed(value.try_into().unwrap()),
+        Native::U64 => Literal::u64_suffixed(value.try_into().unwrap()),
     }
 }

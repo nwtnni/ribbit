@@ -35,30 +35,35 @@ struct Field<'ir> {
 
 impl ToTokens for Field<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let value = match self.repr.ty() {
+        // Convert from struct type to struct native type
+        let struct_native = match self.repr.ty() {
             ir::Leaf::Native(_) => quote!(self.value),
             ir::Leaf::Arbitrary(_) => {
                 quote!(self.value.value())
             }
         };
 
+        // Right shift
         let offset = self.field.offset();
         let shift = match offset {
-            0 => value,
-            _ => quote!((#value >> #offset)),
+            0 => struct_native,
+            _ => quote!((#struct_native >> #offset)),
         };
 
+        // Narrow from struct native type to field native type
         let repr = self.field.repr();
-        let cast = match (self.repr.ty().as_native(), repr.ty().as_native()) {
+        let field_native = match (self.repr.ty().as_native(), repr.ty().as_native()) {
             (r#struct, field) if field == r#struct => shift,
             (_, field) => quote!(#shift as #field),
         };
 
-        let body = match repr.ty() {
-            ir::Tree::Leaf(ir::Leaf::Native(_)) => cast,
+        // Convert from field native type to field type
+        let field = match repr.ty() {
+            ir::Tree::Leaf(ir::Leaf::Native(_)) => field_native,
             ir::Tree::Leaf(ir::Leaf::Arbitrary(arbitrary)) => {
                 let size = arbitrary.size();
-                quote!(#arbitrary::new(#cast & ((1 << #size) - 1)))
+                let mask = ir::literal(arbitrary.as_native(), ir::mask(size));
+                quote!(#arbitrary::new(#field_native & #mask))
             }
         };
 
@@ -66,7 +71,7 @@ impl ToTokens for Field<'_> {
         let ident = self.field.ident();
         quote! {
             #vis const fn #ident(&self) -> #repr {
-                #body
+                #field
             }
         }
         .to_tokens(tokens)
