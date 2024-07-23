@@ -54,31 +54,32 @@ impl ToTokens for Field<'_> {
         let offset = self.field.offset();
         let shift = match offset {
             0 => struct_native,
-            _ => quote!(#struct_native << #offset),
-        };
-
-        // Convert from struct native type to struct type
-        let r#struct = match self.repr.ty() {
-            ir::Leaf::Native(_) => shift,
-            ir::Leaf::Arbitrary(arbitrary) => quote!(#arbitrary::new(#shift)),
+            _ => quote!((#struct_native << #offset)),
         };
 
         // Clear existing data in field
-        let mask = ir::literal(
-            self.repr.ty().as_native(),
-            ir::mask(repr.ty().size()) << offset,
-        );
-        let clear = match self.repr.ty() {
-            ir::Leaf::Native(_) => quote!(#mask),
-            ir::Leaf::Arbitrary(arbitrary) => quote!(#arbitrary::new(#mask)),
+        let field_mask = !(ir::mask(repr.ty().size()) << offset);
+        let struct_mask = ir::mask(self.repr.ty().size());
+        let clear = match field_mask & struct_mask {
+            0 => None,
+            mask => Some(ir::literal(self.repr.ty().as_native(), mask)),
+        };
+
+        let r#struct = match (clear, self.repr.ty()) {
+            (None, ir::Leaf::Native(_)) => shift,
+            (None, ir::Leaf::Arbitrary(arbitrary)) => quote!(#arbitrary::new(#shift)),
+            (Some(clear), ir::Leaf::Native(_)) => quote!(self.value & #clear | #shift),
+            (Some(clear), ir::Leaf::Arbitrary(arbitrary)) => {
+                quote!(#arbitrary::new(self.value.value() & #clear | #shift))
+            }
         };
 
         let vis = self.field.vis();
         let with_ident = format_ident!("with_{}", ident);
         quote! {
-            #vis fn #with_ident(&self, #ident: #repr) -> Self {
+            #vis const fn #with_ident(&self, #ident: #repr) -> Self {
                 Self {
-                    value: self.value & !#clear | #r#struct,
+                    value: #r#struct,
                 }
             }
         }

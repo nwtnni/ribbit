@@ -420,7 +420,10 @@ impl ToTokens for Native {
 }
 
 pub(crate) fn mask(size: usize) -> usize {
-    (1 << size) - 1
+    1usize
+        .checked_shl(size as u32)
+        .map(|mask| mask - 1)
+        .unwrap_or(usize::MAX)
 }
 
 pub(crate) fn literal(native: Native, value: usize) -> Literal {
