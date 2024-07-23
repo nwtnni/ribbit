@@ -3,6 +3,7 @@ pub use ribbit_derive::pack;
 #[doc(hidden)]
 #[rustfmt::skip]
 pub mod private {
+    pub use ::arbitrary_int::Number;
     pub use ::arbitrary_int::u1;
     pub use ::arbitrary_int::u2;
     pub use ::arbitrary_int::u3;

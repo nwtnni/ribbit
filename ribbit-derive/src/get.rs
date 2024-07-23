@@ -14,7 +14,11 @@ impl<'ir> Struct<'ir> {
 impl ToTokens for Struct<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let ident = self.0.ident();
-        let fields = self.0.fields().iter().map(Field);
+        let fields = self.0.fields().iter().map(|field| Field {
+            repr: self.0.repr(),
+            field,
+        });
+
         quote! {
             impl #ident {
                 #( #fields )*
@@ -24,39 +28,44 @@ impl ToTokens for Struct<'_> {
     }
 }
 
-struct Field<'ir>(&'ir ir::Field<'ir>);
+struct Field<'ir> {
+    repr: &'ir ir::StructRepr,
+    field: &'ir ir::Field<'ir>,
+}
 
 impl ToTokens for Field<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let vis = self.0.vis();
-        let ty = self.0.ty();
-        let ident = self.0.ident();
-        let offset = self.0.offset();
-
-        let shifted = match offset {
-            0 => quote! { self.value },
-            _ => quote! { (self.value >> #offset) },
-        };
-
-        let body = match ty {
-            ir::Type::Builtin { path, builtin: _ } => quote!(#shifted as #path),
-            ir::Type::Arbitrary { path, size } => {
-                let repr = match size {
-                    0..=7 => quote!(u8),
-                    8..=15 => quote!(u16),
-                    16..=31 => quote!(u32),
-                    32..=63 => quote!(u64),
-                    _ => todo!(),
-                };
-
-                let mask = quote!(((1 << #size) - 1));
-
-                quote!(#path::new((#shifted as #repr) & #mask))
+        let value = match self.repr.ty() {
+            ir::Leaf::Native(_) => quote!(self.value),
+            ir::Leaf::Arbitrary(_) => {
+                quote!(self.value.value())
             }
         };
 
+        let offset = self.field.offset();
+        let shift = match offset {
+            0 => value,
+            _ => quote!((#value >> #offset)),
+        };
+
+        let repr = self.field.repr();
+        let cast = match (self.repr.ty().as_native(), repr.ty().as_native()) {
+            (r#struct, field) if field == r#struct => shift,
+            (_, field) => quote!(#shift as #field),
+        };
+
+        let body = match repr.ty() {
+            ir::Tree::Leaf(ir::Leaf::Native(_)) => cast,
+            ir::Tree::Leaf(ir::Leaf::Arbitrary(arbitrary)) => {
+                let size = arbitrary.size();
+                quote!(#arbitrary::new(#cast & ((1 << #size) - 1)))
+            }
+        };
+
+        let vis = self.field.vis();
+        let ident = self.field.ident();
         quote! {
-            #vis const fn #ident(&self) -> #ty {
+            #vis const fn #ident(&self) -> #repr {
                 #body
             }
         }

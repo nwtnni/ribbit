@@ -1,9 +1,13 @@
 use bitvec::bitbox;
 use darling::ast::Style;
 use darling::util::SpannedValue;
+use proc_macro2::Span;
+use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
+use quote::quote_spanned;
 use quote::ToTokens;
+use syn::spanned::Spanned as _;
 
 use crate::error::bail;
 use crate::input;
@@ -58,7 +62,7 @@ pub(crate) fn new<'input>(
             }
 
             Ok(Struct {
-                size: &attr.size,
+                repr: StructRepr::new(&attr.size),
                 attrs: &input.attrs,
                 vis: &input.vis,
                 ident: &input.ident,
@@ -69,7 +73,7 @@ pub(crate) fn new<'input>(
 }
 
 pub(crate) struct Struct<'input> {
-    size: &'input SpannedValue<usize>,
+    repr: StructRepr,
     attrs: &'input [syn::Attribute],
     vis: &'input syn::Visibility,
     ident: &'input syn::Ident,
@@ -77,6 +81,10 @@ pub(crate) struct Struct<'input> {
 }
 
 impl Struct<'_> {
+    pub(crate) fn repr(&self) -> &StructRepr {
+        &self.repr
+    }
+
     pub(crate) fn ident(&self) -> &syn::Ident {
         self.ident
     }
@@ -87,13 +95,11 @@ impl Struct<'_> {
 }
 
 impl ToTokens for Struct<'_> {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let repr = &self.repr;
         let ident = self.ident;
         let vis = self.vis;
         let attrs = self.attrs;
-
-        let repr = format_ident!("u{}", **self.size, span = self.size.span());
-        let repr = quote!(::ribbit::private::#repr);
 
         quote! {
             #( #attrs )*
@@ -116,7 +122,7 @@ pub(crate) enum Offset {
 pub(crate) struct FieldInner<'input, O> {
     vis: &'input syn::Visibility,
     ident: Option<&'input syn::Ident>,
-    ty: Type<'input>,
+    repr: FieldRepr,
     offset: O,
 }
 
@@ -125,7 +131,7 @@ impl<'input> FieldUninit<'input> {
         Self {
             vis: &field.vis,
             ident: field.ident.as_ref(),
-            ty: Type::new(&field.ty),
+            repr: FieldRepr::new(&field.ty),
             offset: Offset::Implicit,
         }
     }
@@ -134,7 +140,7 @@ impl<'input> FieldUninit<'input> {
         Field {
             vis: self.vis,
             ident: self.ident,
-            ty: self.ty,
+            repr: self.repr,
             offset,
         }
     }
@@ -148,15 +154,15 @@ impl<'input, O: Copy> FieldInner<'input, O> {
 
 impl<'input, O: Copy> FieldInner<'input, O> {
     pub(crate) fn size(&self) -> usize {
-        self.ty.size()
+        self.repr.size()
     }
 
     pub(crate) fn vis(&self) -> &syn::Visibility {
         self.vis
     }
 
-    pub(crate) fn ty(&self) -> &Type {
-        &self.ty
+    pub(crate) fn repr(&self) -> &FieldRepr {
+        &self.repr
     }
 
     pub(crate) fn ident(&self) -> Option<&syn::Ident> {
@@ -164,19 +170,13 @@ impl<'input, O: Copy> FieldInner<'input, O> {
     }
 }
 
-pub(crate) enum Type<'input> {
-    Builtin {
-        path: &'input syn::TypePath,
-        builtin: Builtin,
-    },
-    Arbitrary {
-        path: &'input syn::TypePath,
-        size: usize,
-    },
+pub(crate) struct FieldRepr {
+    span: Span,
+    ty: Tree,
 }
 
-impl<'input> Type<'input> {
-    fn new(ty: &'input syn::Type) -> Self {
+impl FieldRepr {
+    fn new(ty: &syn::Type) -> Self {
         match ty {
             syn::Type::Array(_) => todo!(),
             syn::Type::BareFn(_) => todo!(),
@@ -197,7 +197,7 @@ impl<'input> Type<'input> {
         }
     }
 
-    fn from_path(type_path @ syn::TypePath { qself, path }: &'input syn::TypePath) -> Self {
+    fn from_path(type_path @ syn::TypePath { qself, path }: &syn::TypePath) -> Self {
         if qself.is_some() {
             todo!();
         }
@@ -230,68 +230,190 @@ impl<'input> Type<'input> {
 
         let size = ident[1..].parse::<usize>().unwrap();
 
-        if let Some(builtin) = match (signed, size) {
-            (false, 8) => Some(Builtin::U8),
-            (false, 16) => Some(Builtin::U16),
-            (false, 32) => Some(Builtin::U32),
-            (false, 64) => Some(Builtin::U64),
+        if let Some(native) = match (signed, size) {
+            (false, 8) => Some(Native::U8),
+            (false, 16) => Some(Native::U16),
+            (false, 32) => Some(Native::U32),
+            (false, 64) => Some(Native::U64),
             _ => None,
         } {
-            return Type::Builtin {
-                path: type_path,
-                builtin,
+            return FieldRepr {
+                span: type_path.span(),
+                ty: Tree::Leaf(Leaf::Native(native)),
             };
         }
 
-        Type::Arbitrary {
-            path: type_path,
-            size,
+        FieldRepr {
+            span: type_path.span(),
+            ty: Tree::Leaf(Leaf::Arbitrary(Arbitrary { size })),
+        }
+    }
+
+    fn size(&self) -> usize {
+        self.ty.size()
+    }
+
+    pub(crate) fn ty(&self) -> &Tree {
+        &self.ty
+    }
+}
+
+impl ToTokens for FieldRepr {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let ty = &self.ty;
+        quote_spanned!(self.span=> #ty).to_tokens(tokens)
+    }
+}
+
+pub(crate) enum Tree {
+    Leaf(Leaf),
+}
+
+impl Tree {
+    pub(crate) fn as_native(&self) -> Native {
+        match self {
+            Tree::Leaf(leaf) => leaf.as_native(),
         }
     }
 
     fn size(&self) -> usize {
         match self {
-            Type::Builtin { path: _, builtin } => builtin.size(),
-            Type::Arbitrary { path: _, size } => *size,
+            Tree::Leaf(leaf) => leaf.size(),
         }
     }
 }
 
-impl ToTokens for Type<'_> {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+impl ToTokens for Tree {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            Type::Builtin { path, builtin: _ } => path,
-            Type::Arbitrary { path, size: _ } => path,
+            Tree::Leaf(leaf) => leaf.to_tokens(tokens),
         }
-        .to_tokens(tokens)
     }
 }
 
-pub(crate) enum Builtin {
+pub(crate) struct StructRepr {
+    span: Span,
+    ty: Leaf,
+}
+
+impl StructRepr {
+    fn new(size: &SpannedValue<usize>) -> Self {
+        Self {
+            span: size.span(),
+            ty: Leaf::new(**size),
+        }
+    }
+
+    pub(crate) fn ty(&self) -> &Leaf {
+        &self.ty
+    }
+}
+
+impl ToTokens for StructRepr {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let ty = &self.ty;
+        quote_spanned!(self.span=> #ty).to_tokens(tokens)
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub(crate) enum Leaf {
+    Native(Native),
+    Arbitrary(Arbitrary),
+}
+
+impl Leaf {
+    fn new(size: usize) -> Self {
+        assert!(size <= 64);
+        match size {
+            8 => Leaf::Native(Native::U8),
+            16 => Leaf::Native(Native::U16),
+            32 => Leaf::Native(Native::U32),
+            64 => Leaf::Native(Native::U64),
+            _ => Leaf::Arbitrary(Arbitrary { size }),
+        }
+    }
+
+    fn size(&self) -> usize {
+        match self {
+            Leaf::Native(native) => native.size(),
+            Leaf::Arbitrary(arbitrary) => arbitrary.size(),
+        }
+    }
+
+    pub(crate) fn as_native(&self) -> Native {
+        match *self {
+            Leaf::Native(native) => native,
+            Leaf::Arbitrary(arbitrary) => arbitrary.as_native(),
+        }
+    }
+}
+
+impl ToTokens for Leaf {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            Leaf::Native(native) => native.to_tokens(tokens),
+            Leaf::Arbitrary(arbitrary) => arbitrary.to_tokens(tokens),
+        }
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub(crate) struct Arbitrary {
+    size: usize,
+}
+
+impl Arbitrary {
+    pub(crate) fn size(&self) -> usize {
+        self.size
+    }
+
+    pub(crate) fn as_native(&self) -> Native {
+        match self.size {
+            0..=7 => Native::U8,
+            9..=15 => Native::U16,
+            17..=31 => Native::U32,
+            33..=63 => Native::U64,
+            _ => unreachable!(),
+        }
+    }
+}
+
+impl ToTokens for Arbitrary {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let repr = format_ident!("u{}", self.size);
+        quote!(::ribbit::private::#repr).to_tokens(tokens);
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq)]
+pub(crate) enum Native {
     U8,
     U16,
     U32,
     U64,
 }
 
-impl Builtin {
+impl Native {
     fn size(&self) -> usize {
         match self {
-            Builtin::U8 => 8,
-            Builtin::U16 => 16,
-            Builtin::U32 => 32,
-            Builtin::U64 => 64,
+            Self::U8 => 8,
+            Self::U16 => 16,
+            Self::U32 => 32,
+            Self::U64 => 64,
         }
     }
 }
 
-impl AsRef<str> for Builtin {
-    fn as_ref(&self) -> &str {
-        match self {
-            Builtin::U8 => "u8",
-            Builtin::U16 => "u16",
-            Builtin::U32 => "u32",
-            Builtin::U64 => "u64",
-        }
+impl ToTokens for Native {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let repr = match self {
+            Native::U8 => quote!(u8),
+            Native::U16 => quote!(u16),
+            Native::U32 => quote!(u32),
+            Native::U64 => quote!(u64),
+        };
+
+        quote!(::ribbit::private::#repr).to_tokens(tokens)
     }
 }
