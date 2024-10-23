@@ -171,4 +171,8 @@ impl<'input, O: Copy> FieldInner<'input, O> {
     pub(crate) fn ident(&self) -> Option<&syn::Ident> {
         self.ident
     }
+
+    pub(crate) fn nonzero(&self) -> bool {
+        self.repr.nonzero || self.nonzero.unwrap_or(false)
+    }
 }

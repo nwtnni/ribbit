@@ -4,6 +4,7 @@ mod input;
 mod ir;
 mod leaf;
 mod set;
+mod r#trait;
 
 use core::ops::Deref;
 use core::ops::DerefMut;
@@ -47,11 +48,14 @@ struct Output<'input> {
 impl ToTokens for Output<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let ir = &self.ir;
+        let r#trait = crate::r#trait::Struct::new(ir);
         let get = crate::get::Struct::new(ir);
         let set = crate::set::Struct::new(ir);
 
         let output = quote! {
             #ir
+
+            #r#trait
 
             #get
 
