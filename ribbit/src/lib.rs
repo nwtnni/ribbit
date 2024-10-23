@@ -2,7 +2,6 @@ use core::num::NonZeroU16;
 use core::num::NonZeroU32;
 use core::num::NonZeroU64;
 use core::num::NonZeroU8;
-use core::ops::Shl;
 
 use arbitrary_int::Number;
 pub use ribbit_derive::pack;

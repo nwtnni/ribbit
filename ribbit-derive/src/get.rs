@@ -2,7 +2,6 @@ use quote::quote;
 use quote::ToTokens;
 
 use crate::ir;
-use crate::leaf;
 use crate::Leaf;
 use crate::Spanned;
 

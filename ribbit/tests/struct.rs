@@ -1,5 +1,3 @@
-use core::num::NonZeroU16;
-
 use arbitrary_int::u2;
 use arbitrary_int::u9;
 

@@ -183,13 +183,6 @@ impl Repr {
             Repr::Arbitrary(arbitrary) => arbitrary.mask(),
         }
     }
-
-    pub(crate) fn as_native(&self) -> Native {
-        match self {
-            Repr::Native(native) => *native,
-            Repr::Arbitrary(arbitrary) => arbitrary.as_native(),
-        }
-    }
 }
 
 impl ToTokens for Leaf {

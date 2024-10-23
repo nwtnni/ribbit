@@ -79,6 +79,7 @@ impl<T> DerefMut for Spanned<T> {
 
 impl<T: ToTokens> ToTokens for Spanned<T> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+        #[allow(clippy::explicit_auto_deref)]
         let inner: &T = &*self.0;
         quote_spanned!(self.0.span()=> #inner).to_tokens(tokens)
     }

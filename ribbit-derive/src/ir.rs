@@ -123,6 +123,7 @@ pub(crate) struct FieldInner<'input, O> {
     vis: &'input syn::Visibility,
     ident: Option<&'input syn::Ident>,
     repr: Spanned<Leaf>,
+    nonzero: Option<bool>,
     offset: O,
 }
 
@@ -132,6 +133,7 @@ impl<'input> FieldUninit<'input> {
             vis: &field.vis,
             ident: field.ident.as_ref(),
             repr: Leaf::from_ty(&field.ty).unwrap(),
+            nonzero: field.nonzero,
             offset: Offset::Implicit,
         }
     }
@@ -141,6 +143,7 @@ impl<'input> FieldUninit<'input> {
             vis: self.vis,
             ident: self.ident,
             repr: self.repr,
+            nonzero: self.nonzero,
             offset,
         }
     }
