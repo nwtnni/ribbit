@@ -2,13 +2,21 @@ mod error;
 mod get;
 mod input;
 mod ir;
+mod leaf;
 mod set;
 
+use core::ops::Deref;
+use core::ops::DerefMut;
+
+use darling::util::SpannedValue;
+
 pub(crate) use error::Error;
+pub(crate) use leaf::Leaf;
 
 use darling::FromDeriveInput as _;
 use proc_macro2::TokenStream;
 use quote::quote;
+use quote::quote_spanned;
 use quote::ToTokens;
 use syn::parse_macro_input;
 
@@ -51,5 +59,33 @@ impl ToTokens for Output<'_> {
         };
 
         output.to_tokens(tokens);
+    }
+}
+
+pub(crate) struct Spanned<T>(SpannedValue<T>);
+
+impl<T> Deref for Spanned<T> {
+    type Target = T;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<T> DerefMut for Spanned<T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<T: ToTokens> ToTokens for Spanned<T> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let inner: &T = &*self.0;
+        quote_spanned!(self.0.span()=> #inner).to_tokens(tokens)
+    }
+}
+
+impl<T> From<SpannedValue<T>> for Spanned<T> {
+    fn from(inner: SpannedValue<T>) -> Self {
+        Self(inner)
     }
 }

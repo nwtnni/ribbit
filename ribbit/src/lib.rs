@@ -1,4 +1,22 @@
+use core::num::NonZeroU16;
+use core::num::NonZeroU32;
+use core::num::NonZeroU64;
+use core::num::NonZeroU8;
+use core::ops::Shl;
+
+use arbitrary_int::Number;
 pub use ribbit_derive::pack;
+
+pub trait Packed {
+    type Repr: Number;
+}
+
+pub unsafe trait NonZero {}
+
+unsafe impl NonZero for NonZeroU8 {}
+unsafe impl NonZero for NonZeroU16 {}
+unsafe impl NonZero for NonZeroU32 {}
+unsafe impl NonZero for NonZeroU64 {}
 
 #[doc(hidden)]
 #[rustfmt::skip]
@@ -68,4 +86,9 @@ pub mod private {
     pub use ::arbitrary_int::u62;
     pub use ::arbitrary_int::u63;
     pub use ::core::primitive::u64;
+
+    pub use ::core::num::NonZeroU8;
+    pub use ::core::num::NonZeroU16;
+    pub use ::core::num::NonZeroU32;
+    pub use ::core::num::NonZeroU64;
 }

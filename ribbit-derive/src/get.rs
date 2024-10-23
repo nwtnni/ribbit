@@ -2,6 +2,9 @@ use quote::quote;
 use quote::ToTokens;
 
 use crate::ir;
+use crate::leaf;
+use crate::Leaf;
+use crate::Spanned;
 
 pub(crate) struct Struct<'ir>(&'ir ir::Struct<'ir>);
 
@@ -29,48 +32,37 @@ impl ToTokens for Struct<'_> {
 }
 
 struct Field<'ir> {
-    repr: &'ir ir::StructRepr,
+    repr: &'ir Spanned<Leaf>,
     field: &'ir ir::Field<'ir>,
 }
 
 impl ToTokens for Field<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let source = self.repr;
+        let target = self.field.repr();
+
         // Convert from struct type to struct native type
-        let struct_native = match self.repr.ty() {
-            ir::Leaf::Native(_) => quote!(self.value),
-            ir::Leaf::Arbitrary(_) => {
-                quote!(self.value.value())
-            }
-        };
+        let native = source.convert_to_native(quote!(self.value));
 
         // Right shift
-        let offset = self.field.offset();
-        let shift = match offset {
-            0 => struct_native,
-            _ => quote!((#struct_native >> #offset)),
+        let shifted = match self.field.offset() {
+            0 => native,
+            offset => quote!((#native >> #offset)),
         };
 
         // Narrow from struct native type to field native type
-        let repr = self.field.repr();
-        let field_native = match (self.repr.ty().as_native(), repr.ty().as_native()) {
-            (r#struct, field) if field == r#struct => shift,
-            (_, field) => quote!(#shift as #field),
+        let narrowed = match (source.as_native(), target.as_native()) {
+            (r#struct, field) if field == r#struct => shifted,
+            (_, field) => quote!(#shifted as #field),
         };
 
         // Convert from field native type to field type
-        let field = match repr.ty() {
-            ir::Tree::Leaf(ir::Leaf::Native(_)) => field_native,
-            ir::Tree::Leaf(ir::Leaf::Arbitrary(arbitrary)) => {
-                let size = arbitrary.size();
-                let mask = ir::literal(arbitrary.as_native(), ir::mask(size));
-                quote!(#arbitrary::new(#field_native & #mask))
-            }
-        };
+        let field = target.convert_from_native(narrowed);
 
         let vis = self.field.vis();
         let ident = self.field.ident();
         quote! {
-            #vis const fn #ident(&self) -> #repr {
+            #vis const fn #ident(&self) -> #target {
                 #field
             }
         }

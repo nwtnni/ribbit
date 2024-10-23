@@ -8,6 +8,7 @@ use proc_macro2::TokenStream;
 #[derive(FromMeta)]
 pub(crate) struct Attr {
     pub(crate) size: SpannedValue<usize>,
+    pub(crate) nonzero: Option<bool>,
 }
 
 impl Attr {
@@ -27,8 +28,10 @@ pub struct Item {
 pub(crate) struct Variant {}
 
 #[derive(FromField, Debug)]
+#[darling(attributes(ribbit))]
 pub(crate) struct Field {
-    pub(crate) ident: Option<syn::Ident>,
     pub(crate) vis: syn::Visibility,
+    pub(crate) ident: Option<syn::Ident>,
     pub(crate) ty: syn::Type,
+    pub(crate) nonzero: Option<bool>,
 }

@@ -1,3 +1,5 @@
+use core::num::NonZeroU16;
+
 use arbitrary_int::u2;
 use arbitrary_int::u9;
 
@@ -100,4 +102,13 @@ fn set_clobber() {
 
     let c = c.with_value(u2::new(0b10));
     assert_eq!(c.value(), u2::new(0b10));
+}
+
+#[test]
+fn nonzero() {
+    #[ribbit::pack(size = 16, nonzero)]
+    struct NonZero {
+        #[ribbit(nonzero = true)]
+        nonzero: NonZeroU16,
+    }
 }
