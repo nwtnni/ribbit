@@ -13,17 +13,25 @@ impl<'ir> Struct<'ir> {
 
 impl ToTokens for Struct<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        if self.0.repr().nonzero {
+        let repr = self.0.repr();
+        let ident = self.0.ident();
+
+        if repr.nonzero {
             if self.0.fields().iter().all(|field| !field.nonzero()) {
                 panic!("At least one field must be non-zero")
             }
-
-            let ident = self.0.ident();
 
             quote!(
                 unsafe impl ::ribbit::NonZero for #ident {}
             )
             .to_tokens(tokens);
         }
+
+        quote!(
+            unsafe impl ::ribbit::Pack for #ident {
+                type Repr = #repr;
+            }
+        )
+        .to_tokens(tokens);
     }
 }

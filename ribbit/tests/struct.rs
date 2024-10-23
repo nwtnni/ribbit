@@ -4,7 +4,7 @@ use arbitrary_int::u9;
 #[test]
 fn basic() {
     #[ribbit::pack(size = 64)]
-    #[derive(Debug)]
+    #[derive(Copy, Clone, Debug)]
     struct Half {
         a: u32,
         b: u32,
@@ -22,7 +22,7 @@ fn basic() {
 #[test]
 fn arbitrary_field() {
     #[ribbit::pack(size = 64)]
-    #[derive(Debug)]
+    #[derive(Copy, Clone, Debug)]
     struct Half {
         a: u40,
         b: u24,
@@ -40,7 +40,7 @@ fn arbitrary_field() {
 #[test]
 fn arbitrary_repr() {
     #[ribbit::pack(size = 9)]
-    #[derive(Debug)]
+    #[derive(Copy, Clone, Debug)]
     struct Half {
         a: u1,
         b: u8,
@@ -57,7 +57,7 @@ fn arbitrary_repr() {
 #[test]
 fn set_bit() {
     #[ribbit::pack(size = 2)]
-    #[derive(Debug)]
+    #[derive(Copy, Clone, Debug)]
     struct Bits {
         a: u1,
         b: u1,
@@ -84,7 +84,7 @@ fn set_bit() {
 #[test]
 fn set_clobber() {
     #[ribbit::pack(size = 2)]
-    #[derive(Debug)]
+    #[derive(Copy, Clone, Debug)]
     struct Clobber {
         value: u2,
     }
@@ -105,8 +105,8 @@ fn set_clobber() {
 #[test]
 fn nonzero() {
     #[ribbit::pack(size = 16, nonzero)]
+    #[derive(Copy, Clone, Debug)]
     struct NonZero {
-        #[ribbit(nonzero = true)]
         nonzero: NonZeroU16,
     }
 }

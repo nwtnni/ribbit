@@ -34,4 +34,5 @@ pub(crate) struct Field {
     pub(crate) ident: Option<syn::Ident>,
     pub(crate) ty: syn::Type,
     pub(crate) nonzero: Option<bool>,
+    pub(crate) size: Option<usize>,
 }

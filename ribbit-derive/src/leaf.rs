@@ -1,18 +1,14 @@
-use darling::util::SpannedValue;
 use proc_macro2::Literal;
 use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
 use quote::ToTokens;
-use syn::spanned::Spanned as _;
 
 mod arbitrary;
 mod native;
 
 pub(crate) use arbitrary::Arbitrary;
 pub(crate) use native::Native;
-
-use crate::Spanned;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub(crate) struct Leaf {
@@ -72,28 +68,7 @@ impl Leaf {
         }
     }
 
-    pub(crate) fn from_ty(ty: &syn::Type) -> Option<Spanned<Self>> {
-        match ty {
-            syn::Type::Array(_) => todo!(),
-            syn::Type::BareFn(_) => todo!(),
-            syn::Type::Group(_) => todo!(),
-            syn::Type::ImplTrait(_) => todo!(),
-            syn::Type::Infer(_) => todo!(),
-            syn::Type::Macro(_) => todo!(),
-            syn::Type::Never(_) => todo!(),
-            syn::Type::Paren(_) => todo!(),
-            syn::Type::Path(path) => Self::from_path(path),
-            syn::Type::Ptr(_) => todo!(),
-            syn::Type::Reference(_) => todo!(),
-            syn::Type::Slice(_) => todo!(),
-            syn::Type::TraitObject(_) => todo!(),
-            syn::Type::Tuple(_) => todo!(),
-            syn::Type::Verbatim(_) => todo!(),
-            _ => todo!(),
-        }
-    }
-
-    fn from_path(ty_path @ syn::TypePath { qself, path }: &syn::TypePath) -> Option<Spanned<Self>> {
+    pub(crate) fn from_path(syn::TypePath { qself, path }: &syn::TypePath) -> Option<Self> {
         if qself.is_some() {
             todo!();
         }
@@ -139,17 +114,11 @@ impl Leaf {
             .parse::<usize>()
             .ok()?;
 
-        Some(
-            SpannedValue::new(
-                Leaf {
-                    nonzero,
-                    signed,
-                    repr: Repr::new(size),
-                },
-                ty_path.span(),
-            )
-            .into(),
-        )
+        Some(Leaf {
+            nonzero,
+            signed,
+            repr: Repr::new(size),
+        })
     }
 }
 

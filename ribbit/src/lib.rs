@@ -3,19 +3,124 @@ use core::num::NonZeroU32;
 use core::num::NonZeroU64;
 use core::num::NonZeroU8;
 
-use arbitrary_int::Number;
 pub use ribbit_derive::pack;
 
-pub trait Packed {
+pub unsafe trait Pack: Copy + Sized {
     type Repr: Number;
 }
 
-pub unsafe trait NonZero {}
+union Transmute<T: Pack> {
+    r#in: T,
+    out: T::Repr,
+}
 
-unsafe impl NonZero for NonZeroU8 {}
-unsafe impl NonZero for NonZeroU16 {}
-unsafe impl NonZero for NonZeroU32 {}
-unsafe impl NonZero for NonZeroU64 {}
+pub const fn pack<T: Pack>(value: T) -> T::Repr {
+    const {
+        assert!(core::mem::size_of::<T>() == core::mem::size_of::<T::Repr>());
+        assert!(core::mem::align_of::<T>() == core::mem::align_of::<T::Repr>());
+    }
+
+    unsafe { Transmute { r#in: value }.out }
+}
+
+pub const fn unpack<T: Pack>(value: T::Repr) -> T {
+    const {
+        assert!(core::mem::size_of::<T>() == core::mem::size_of::<T::Repr>());
+        assert!(core::mem::align_of::<T>() == core::mem::align_of::<T::Repr>());
+    }
+
+    unsafe { Transmute { out: value }.r#in }
+}
+
+pub trait Number: Copy + Sized {
+    type Repr;
+    const BITS: usize;
+    const MIN: Self;
+    const MAX: Self;
+
+    fn new(value: Self::Repr) -> Self;
+    fn value(self) -> Self::Repr;
+}
+
+#[rustfmt::skip]
+macro_rules! impl_impl_number {
+    ($name:ident, $repr:ty, $dollar:tt) => {
+        macro_rules! $name {
+            ($dollar($ty:ident),*) => {
+                $dollar(
+                    unsafe impl Pack for private::$ty {
+                        type Repr = Self;
+                    }
+
+                    impl Number for private::$ty {
+                        type Repr = $repr;
+                        const BITS: usize = <private::$ty as arbitrary_int::Number>::BITS;
+                        const MIN: Self = <private::$ty as arbitrary_int::Number>::MIN;
+                        const MAX: Self = <private::$ty as arbitrary_int::Number>::MAX;
+                        fn new(value: Self::Repr) -> Self {
+                            <private::$ty as arbitrary_int::Number>::new(value)
+                        }
+                        fn value(self) -> Self::Repr {
+                            <private::$ty as arbitrary_int::Number>::value(self)
+                        }
+                    }
+                )*
+            };
+        }
+    };
+}
+
+impl_impl_number!(impl_u8, u8, $);
+impl_u8!(u1, u2, u3, u4, u5, u6, u7, u8);
+
+impl_impl_number!(impl_u16, u16, $);
+impl_u16!(u9, u10, u11, u12, u13, u14, u15);
+
+impl_impl_number!(impl_u32, u32, $);
+impl_u32!(u17, u18, u19, u20, u21, u22, u23, u24, u25, u26, u27, u28, u29, u30, u31, u32);
+
+impl_impl_number!(impl_u64, u64, $);
+impl_u64!(
+    u33, u34, u35, u36, u37, u38, u39, u40, u41, u42, u43, u44, u45, u46, u47, u48, u49, u50, u51,
+    u52, u53, u54, u55, u56, u57, u58, u59, u60, u61, u62, u63, u64
+);
+
+macro_rules! impl_nonzero {
+    ($ty:ty, $bits:expr) => {
+        unsafe impl Pack for $ty {
+            type Repr = $ty;
+        }
+
+        unsafe impl NonZero for $ty {}
+
+        impl Number for $ty {
+            type Repr = $ty;
+            const BITS: usize = $bits;
+            const MIN: Self = Self::MIN;
+            const MAX: Self = Self::MAX;
+            fn new(value: Self::Repr) -> Self {
+                value
+            }
+            fn value(self) -> Self::Repr {
+                self
+            }
+        }
+    };
+}
+
+impl_nonzero!(NonZeroU8, 8);
+impl_nonzero!(NonZeroU16, 16);
+impl_nonzero!(NonZeroU32, 32);
+impl_nonzero!(NonZeroU64, 64);
+
+unsafe impl<T> Pack for Option<T>
+where
+    T: Pack + NonZero,
+{
+    type Repr = <T as Pack>::Repr;
+}
+
+pub unsafe trait NonZero {}
 
 #[doc(hidden)]
 #[rustfmt::skip]
