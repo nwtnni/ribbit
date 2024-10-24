@@ -2,8 +2,8 @@ mod error;
 mod get;
 mod input;
 mod ir;
-mod leaf;
 mod new;
+mod repr;
 mod set;
 mod r#trait;
 
@@ -13,7 +13,6 @@ use core::ops::DerefMut;
 use darling::util::SpannedValue;
 
 pub(crate) use error::Error;
-pub(crate) use leaf::Leaf;
 
 use darling::FromDeriveInput as _;
 use proc_macro2::TokenStream;

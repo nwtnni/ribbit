@@ -4,11 +4,8 @@ use quote::format_ident;
 use quote::quote;
 use quote::ToTokens;
 
-mod arbitrary;
-mod native;
-
-pub(crate) use arbitrary::Arbitrary;
-pub(crate) use native::Native;
+use crate::repr::Arbitrary;
+use crate::repr::Native;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub(crate) struct Leaf {

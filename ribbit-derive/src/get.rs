@@ -2,7 +2,7 @@ use quote::quote;
 use quote::ToTokens;
 
 use crate::ir;
-use crate::Leaf;
+use crate::repr::Leaf;
 use crate::Spanned;
 
 pub(crate) struct Struct<'ir>(&'ir ir::Struct<'ir>);

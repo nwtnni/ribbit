@@ -1,4 +1,4 @@
-use crate::leaf::Arbitrary;
+use crate::repr::Arbitrary;
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub(crate) enum Native {
