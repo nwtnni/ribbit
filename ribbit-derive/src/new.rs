@@ -2,8 +2,8 @@ use quote::quote;
 use quote::ToTokens;
 
 use crate::ir;
-use crate::repr::Leaf;
-use crate::Spanned;
+use crate::lift;
+use crate::lift::NativeExt as _;
 
 pub(crate) struct Struct<'ir>(&'ir ir::Struct<'ir>);
 
@@ -17,12 +17,27 @@ impl ToTokens for Struct<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let ident = self.0.ident();
         let parameters = self.0.fields().iter().map(Parameter);
-        let arguments = self.0.fields().iter().map(|field| Argument {
-            repr: self.0.repr(),
-            field,
-        });
 
-        let value = self.0.repr().convert_from_native(quote!(#((#arguments))|*));
+        let value = self
+            .0
+            .fields()
+            .iter()
+            .fold(
+                Box::new(lift::zero(self.0.repr().as_native())) as Box<dyn lift::Native>,
+                |state, field| {
+                    let ident = field.ident().expect("Field must have name");
+                    let value = lift::lift(ident, **field.repr())
+                        .into_native()
+                        .apply(lift::Op::Cast(self.0.repr().as_native()))
+                        .apply(lift::Op::Shift {
+                            dir: lift::Dir::L,
+                            shift: field.offset(),
+                        });
+
+                    Box::new(state.apply(lift::Op::Or(Box::new(value))))
+                },
+            )
+            .into_repr((**self.0.repr()).into());
 
         quote! {
             impl #ident {
@@ -44,24 +59,5 @@ impl ToTokens for Parameter<'_> {
         let ident = self.0.ident().expect("Field names required");
         let repr = self.0.repr();
         quote!(#ident: #repr).to_tokens(tokens);
-    }
-}
-
-struct Argument<'ir> {
-    repr: &'ir Spanned<Leaf>,
-    field: &'ir ir::Field<'ir>,
-}
-
-impl ToTokens for Argument<'_> {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let ident = self.field.ident().expect("Field names required");
-        let offset = self.field.offset();
-        let repr = self.field.repr();
-
-        let small = repr.convert_to_native(ident);
-        self.repr
-            .as_native()
-            .to_native(quote!((#small << #offset)))
-            .to_tokens(tokens)
     }
 }

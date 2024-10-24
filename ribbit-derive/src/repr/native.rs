@@ -1,10 +1,10 @@
-use proc_macro2::TokenStream;
+use proc_macro2::Literal;
 use quote::quote;
 use quote::ToTokens;
 
 use crate::repr::Arbitrary;
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Native {
     N8,
     N16,
@@ -26,8 +26,14 @@ impl Native {
         Arbitrary::new(self.size()).mask()
     }
 
-    pub(crate) fn to_native<T: ToTokens>(&self, input: T) -> TokenStream {
-        quote!(#input as #self)
+    #[track_caller]
+    pub(crate) fn literal(&self, value: usize) -> Literal {
+        match self {
+            Native::N8 => Literal::u8_suffixed(value.try_into().unwrap()),
+            Native::N16 => Literal::u16_suffixed(value.try_into().unwrap()),
+            Native::N32 => Literal::u32_suffixed(value.try_into().unwrap()),
+            Native::N64 => Literal::u64_suffixed(value.try_into().unwrap()),
+        }
     }
 }
 

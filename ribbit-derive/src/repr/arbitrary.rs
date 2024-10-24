@@ -1,6 +1,6 @@
 use crate::repr::Native;
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Arbitrary {
     size: usize,
 }

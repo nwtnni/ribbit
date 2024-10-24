@@ -1,4 +1,3 @@
-use proc_macro2::Literal;
 use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
@@ -7,7 +6,7 @@ use quote::ToTokens;
 use crate::repr::Arbitrary;
 use crate::repr::Native;
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Leaf {
     pub(crate) nonzero: bool,
     pub(crate) signed: bool,
@@ -21,30 +20,6 @@ impl Leaf {
 
     pub(crate) fn mask(&self) -> usize {
         self.repr.mask()
-    }
-
-    pub(crate) fn convert_to_native<T: ToTokens>(&self, input: T) -> TokenStream {
-        match (self.nonzero, self.repr) {
-            (true, Repr::Native(_)) => quote!(#input.get()),
-            (false, Repr::Native(_)) => quote!(#input),
-            (true, Repr::Arbitrary(_)) => todo!(),
-            (false, Repr::Arbitrary(_)) => quote!(#input.value()),
-        }
-    }
-
-    pub(crate) fn convert_from_native<T: ToTokens>(&self, input: T) -> TokenStream {
-        match (self.nonzero, self.repr) {
-            (true, Repr::Native(_)) => quote!(match #self::new(#input) {
-                None => panic!(),
-                Some(output) => output,
-            }),
-            (false, Repr::Native(_)) => quote!(#input),
-            (true, Repr::Arbitrary(_)) => todo!(),
-            (false, Repr::Arbitrary(arbitrary)) => {
-                let mask = Literal::usize_unsuffixed(arbitrary.mask());
-                quote!(#self::new(#input & #mask))
-            }
-        }
     }
 
     pub(crate) fn new(nonzero: bool, size: usize) -> Self {
@@ -116,7 +91,17 @@ impl Leaf {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+impl From<Native> for Leaf {
+    fn from(native: Native) -> Self {
+        Leaf {
+            nonzero: false,
+            signed: false,
+            repr: Repr::Native(native),
+        }
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Repr {
     Native(Native),
     Arbitrary(Arbitrary),

@@ -1,9 +1,10 @@
-use proc_macro2::Literal;
 use quote::format_ident;
 use quote::quote;
 use quote::ToTokens;
 
 use crate::ir;
+use crate::lift;
+use crate::lift::NativeExt as _;
 use crate::repr::Leaf;
 use crate::Spanned;
 
@@ -38,41 +39,26 @@ struct Field<'ir> {
 
 impl ToTokens for Field<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let source = self.field.repr();
-        let target = self.repr;
+        let source = **self.field.repr();
+        let target = **self.repr;
 
         let ident = self.field.ident().unwrap();
+        let field = lift::lift(ident, source)
+            .into_native()
+            .apply(lift::Op::Cast(target.as_native()))
+            .apply(lift::Op::Shift {
+                dir: lift::Dir::L,
+                shift: self.field.offset(),
+            });
 
-        // Convert from field type to field native type
-        let field_native = source.convert_to_native(ident);
-
-        // Widen from field native type to struct native type
-        let struct_native = match (source.as_native(), target.as_native()) {
-            (field, r#struct) if field == r#struct => field_native,
-            // FIXME: handle non-native struct type
-            (_, r#struct) => quote!((#field_native as #r#struct)),
-        };
-
-        // Left shift
-        let offset = self.field.offset();
-        let shifted = match offset {
-            0 => struct_native,
-            _ => quote!((#struct_native << #offset)),
-        };
-
-        // Clear existing data in field
-        let field_mask = !(source.mask() << offset);
-        let struct_mask = target.mask();
-        let clear = match field_mask & struct_mask {
-            0 => None,
-            mask => Some(Literal::usize_unsuffixed(mask)),
-        };
-
-        let value = target.convert_to_native(quote!(self.value));
-        let r#struct = target.convert_from_native(match clear {
-            None => quote!((#shifted)),
-            Some(clear) => quote!((#value & #clear | #shifted)),
-        });
+        let r#struct = lift::lift(quote!(self.value), target)
+            .into_native()
+            // Clear existing data
+            .apply(lift::Op::And(
+                !(source.mask() << self.field.offset()) & target.mask(),
+            ))
+            .apply(lift::Op::Or(Box::new(field)))
+            .into_repr(target.into());
 
         let vis = self.field.vis();
         let with_ident = format_ident!("with_{}", ident);

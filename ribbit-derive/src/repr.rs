@@ -1,5 +1,5 @@
 mod arbitrary;
-mod leaf;
+pub(crate) mod leaf;
 mod native;
 
 pub(crate) use arbitrary::Arbitrary;
@@ -8,14 +8,13 @@ pub(crate) use leaf::Leaf;
 pub(crate) use native::Native;
 
 use proc_macro2::TokenStream;
-use quote::quote;
 use quote::ToTokens;
 use syn::spanned::Spanned as _;
 use syn::TypePath;
 
 use crate::Spanned;
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Tree<'input> {
     Node(Node<'input>),
     Leaf(Leaf),
@@ -58,28 +57,15 @@ impl<'input> Tree<'input> {
         }
     }
 
+    pub(crate) fn as_leaf(&self) -> Leaf {
+        match self {
+            Tree::Node(node) => node.repr,
+            Tree::Leaf(leaf) => *leaf,
+        }
+    }
+
     pub(crate) fn as_native(&self) -> Native {
-        match self {
-            Tree::Node(node) => node.repr.as_native(),
-            Tree::Leaf(leaf) => leaf.as_native(),
-        }
-    }
-
-    pub(crate) fn convert_to_native<T: ToTokens>(&self, input: T) -> TokenStream {
-        match self {
-            Tree::Node(node) => node.repr.convert_to_native(quote!(::ribbit::pack(#input))),
-            Tree::Leaf(leaf) => leaf.convert_to_native(input),
-        }
-    }
-
-    pub(crate) fn convert_from_native<T: ToTokens>(&self, input: T) -> TokenStream {
-        match self {
-            Tree::Node(node) => {
-                let value = node.repr.convert_from_native(input);
-                quote!(::ribbit::unpack(#value))
-            }
-            Tree::Leaf(leaf) => leaf.convert_from_native(input),
-        }
+        self.as_leaf().as_native()
     }
 
     pub(crate) fn mask(&self) -> usize {
@@ -106,7 +92,19 @@ impl ToTokens for Tree<'_> {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+impl From<Leaf> for Tree<'_> {
+    fn from(leaf: Leaf) -> Self {
+        Self::Leaf(leaf)
+    }
+}
+
+impl From<Native> for Tree<'_> {
+    fn from(native: Native) -> Self {
+        Self::Leaf(Leaf::from(native))
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Node<'input> {
     path: &'input TypePath,
     repr: Leaf,

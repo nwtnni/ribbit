@@ -9,29 +9,6 @@ pub unsafe trait Pack: Copy + Sized {
     type Repr: Number;
 }
 
-union Transmute<T: Pack> {
-    r#in: T,
-    out: T::Repr,
-}
-
-pub const fn pack<T: Pack>(value: T) -> T::Repr {
-    const {
-        assert!(core::mem::size_of::<T>() == core::mem::size_of::<T::Repr>());
-        assert!(core::mem::align_of::<T>() == core::mem::align_of::<T::Repr>());
-    }
-
-    unsafe { Transmute { r#in: value }.out }
-}
-
-pub const fn unpack<T: Pack>(value: T::Repr) -> T {
-    const {
-        assert!(core::mem::size_of::<T>() == core::mem::size_of::<T::Repr>());
-        assert!(core::mem::align_of::<T>() == core::mem::align_of::<T::Repr>());
-    }
-
-    unsafe { Transmute { out: value }.r#in }
-}
-
 pub trait Number: Copy + Sized {
     type Repr;
     const BITS: usize;
@@ -195,4 +172,29 @@ pub mod private {
     pub use ::core::num::NonZeroU16;
     pub use ::core::num::NonZeroU32;
     pub use ::core::num::NonZeroU64;
+
+    use crate::Pack;
+
+    union Transmute<T: Pack> {
+        r#in: T,
+        out: T::Repr,
+    }
+
+    pub const fn pack<T: Pack>(value: T) -> T::Repr {
+        const {
+            assert!(core::mem::size_of::<T>() == core::mem::size_of::<T::Repr>());
+            assert!(core::mem::align_of::<T>() == core::mem::align_of::<T::Repr>());
+        }
+
+        unsafe { Transmute { r#in: value }.out }
+    }
+
+    pub const unsafe fn unpack<T: Pack>(value: T::Repr) -> T {
+        const {
+            assert!(core::mem::size_of::<T>() == core::mem::size_of::<T::Repr>());
+            assert!(core::mem::align_of::<T>() == core::mem::align_of::<T::Repr>());
+        }
+
+        unsafe { Transmute { out: value }.r#in }
+    }
 }

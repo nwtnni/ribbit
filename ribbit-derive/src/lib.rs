@@ -2,6 +2,7 @@ mod error;
 mod get;
 mod input;
 mod ir;
+mod lift;
 mod new;
 mod repr;
 mod set;

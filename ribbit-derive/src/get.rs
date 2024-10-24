@@ -2,6 +2,8 @@ use quote::quote;
 use quote::ToTokens;
 
 use crate::ir;
+use crate::lift;
+use crate::lift::NativeExt as _;
 use crate::repr::Leaf;
 use crate::Spanned;
 
@@ -37,26 +39,16 @@ struct Field<'ir> {
 
 impl ToTokens for Field<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let source = self.repr;
-        let target = self.field.repr();
+        let source = **self.repr;
+        let target = **self.field.repr();
 
-        // Convert from struct type to struct native type
-        let native = source.convert_to_native(quote!(self.value));
-
-        // Right shift
-        let shifted = match self.field.offset() {
-            0 => native,
-            offset => quote!((#native >> #offset)),
-        };
-
-        // Narrow from struct native type to field native type
-        let narrowed = match (source.as_native(), target.as_native()) {
-            (r#struct, field) if field == r#struct => shifted,
-            (_, field) => quote!(#shifted as #field),
-        };
-
-        // Convert from field native type to field type
-        let field = target.convert_from_native(narrowed);
+        let field = lift::lift(quote!(self.value), source)
+            .into_native()
+            .apply(lift::Op::Shift {
+                dir: lift::Dir::R,
+                shift: self.field.offset(),
+            })
+            .into_repr(target);
 
         let vis = self.field.vis();
         let ident = self.field.ident();
