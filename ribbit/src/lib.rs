@@ -86,32 +86,32 @@ impl_u64!(
 );
 
 macro_rules! impl_nonzero {
-    ($ty:ty, $bits:expr) => {
+    ($ty:ty, $repr:ty, $bits:expr) => {
         unsafe impl Pack for $ty {
-            type Repr = $ty;
+            type Repr = Self;
         }
 
         unsafe impl NonZero for $ty {}
 
         impl Number for $ty {
-            type Repr = $ty;
+            type Repr = $repr;
             const BITS: usize = $bits;
             const MIN: Self = Self::MIN;
             const MAX: Self = Self::MAX;
             fn new(value: Self::Repr) -> Self {
-                value
+                <$ty>::new(value).unwrap()
             }
             fn value(self) -> Self::Repr {
-                self
+                self.get()
             }
         }
     };
 }
 
-impl_nonzero!(NonZeroU8, 8);
-impl_nonzero!(NonZeroU16, 16);
-impl_nonzero!(NonZeroU32, 32);
-impl_nonzero!(NonZeroU64, 64);
+impl_nonzero!(NonZeroU8, u8, 8);
+impl_nonzero!(NonZeroU16, u16, 16);
+impl_nonzero!(NonZeroU32, u32, 32);
+impl_nonzero!(NonZeroU64, u64, 64);
 
 unsafe impl<T> Pack for Option<T>
 where

@@ -3,6 +3,7 @@ mod get;
 mod input;
 mod ir;
 mod leaf;
+mod new;
 mod set;
 mod r#trait;
 
@@ -49,6 +50,7 @@ impl ToTokens for Output<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let ir = &self.ir;
         let r#trait = crate::r#trait::Struct::new(ir);
+        let new = crate::new::Struct::new(ir);
         let get = crate::get::Struct::new(ir);
         let set = crate::set::Struct::new(ir);
 
@@ -56,6 +58,8 @@ impl ToTokens for Output<'_> {
             #ir
 
             #r#trait
+
+            #new
 
             #get
 

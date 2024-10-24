@@ -180,6 +180,7 @@ impl<'input, O: Copy> FieldInner<'input, O> {
     }
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Tree<'input> {
     Node(Node<'input>),
     Leaf(Leaf),
@@ -270,6 +271,7 @@ impl ToTokens for Tree<'_> {
     }
 }
 
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub struct Node<'input> {
     path: &'input TypePath,
     repr: Leaf,
