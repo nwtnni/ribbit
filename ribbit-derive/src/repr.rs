@@ -58,7 +58,7 @@ impl<'input> Tree<'input> {
         }
     }
 
-    pub(crate) fn as_native(&self) -> Leaf {
+    pub(crate) fn as_native(&self) -> Native {
         match self {
             Tree::Node(node) => node.repr.as_native(),
             Tree::Leaf(leaf) => leaf.as_native(),

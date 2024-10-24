@@ -61,7 +61,7 @@ impl ToTokens for Argument<'_> {
         let small = repr.convert_to_native(ident);
         self.repr
             .as_native()
-            .native_to_native(quote!((#small << #offset)))
+            .to_native(quote!((#small << #offset)))
             .to_tokens(tokens)
     }
 }

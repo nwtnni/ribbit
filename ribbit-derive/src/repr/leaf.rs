@@ -47,13 +47,6 @@ impl Leaf {
         }
     }
 
-    pub(crate) fn native_to_native<T: ToTokens>(&self, input: T) -> TokenStream {
-        match (self.nonzero, self.repr) {
-            (false, Repr::Native(_)) => quote!(#input as #self),
-            _ => unreachable!(),
-        }
-    }
-
     pub(crate) fn new(nonzero: bool, size: usize) -> Self {
         Self {
             nonzero,
@@ -62,16 +55,10 @@ impl Leaf {
         }
     }
 
-    pub(crate) fn as_native(&self) -> Self {
-        let repr = match self.repr {
+    pub(crate) fn as_native(&self) -> Native {
+        match self.repr {
             Repr::Native(native) => native,
             Repr::Arbitrary(arbitrary) => arbitrary.as_native(),
-        };
-
-        Self {
-            nonzero: false,
-            signed: false,
-            repr: Repr::Native(repr),
         }
     }
 
