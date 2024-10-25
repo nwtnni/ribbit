@@ -14,12 +14,16 @@ pub(crate) struct FieldOpt {
     format: Option<syn::LitStr>,
 }
 
-pub(crate) fn debug(r#struct: &ir::Struct) -> TokenStream {
-    if r#struct.opt.debug.is_none() {
+pub(crate) fn debug(
+    ir::Struct {
+        fields, opt, ident, ..
+    }: &ir::Struct,
+) -> TokenStream {
+    if opt.debug.is_none() {
         return TokenStream::new();
     }
 
-    let fields = r#struct.fields.iter().map(|field| {
+    let fields = fields.iter().map(|field| {
         let name = field.ident.escaped();
         let opt = &field.opt.debug;
 
@@ -37,7 +41,6 @@ pub(crate) fn debug(r#struct: &ir::Struct) -> TokenStream {
         }
     });
 
-    let ident = r#struct.ident;
     quote! {
         impl ::core::fmt::Debug for #ident {
             fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
