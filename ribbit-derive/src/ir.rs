@@ -77,6 +77,7 @@ pub(crate) struct Struct<'input> {
 pub(crate) struct StructOpt {
     #[darling(default)]
     pub(crate) new: gen::new::StructOpt,
+    pub(crate) debug: Option<gen::debug::StructOpt>,
 }
 
 pub(crate) struct Field<'input> {

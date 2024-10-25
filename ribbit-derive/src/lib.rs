@@ -43,7 +43,7 @@ fn pack_inner(attr: TokenStream, input: syn::DeriveInput) -> Result<TokenStream,
     let new = gen::new(&ir);
     let get = gen::get::Struct(&ir);
     let set = gen::set::Struct(&ir);
-    let debug = gen::debug::Struct(&ir);
+    let debug = gen::debug(&ir);
 
     Ok(quote! {
         #pre

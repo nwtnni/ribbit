@@ -5,4 +5,5 @@ pub(crate) mod pre;
 pub(crate) mod repr;
 pub(crate) mod set;
 
+pub(crate) use debug::debug;
 pub(crate) use new::new;

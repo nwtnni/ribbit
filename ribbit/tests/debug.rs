@@ -2,7 +2,7 @@ use core::num::NonZeroU8;
 
 use arbitrary_int::u2;
 
-#[ribbit::pack(size = 26)]
+#[ribbit::pack(size = 26, debug)]
 #[derive(Copy, Clone)]
 pub struct A {
     l: u16,
@@ -16,7 +16,7 @@ fn check() {
     assert_eq!(format!("{a:?}"), "A { l: 15, m: 10, c: 3 }");
 }
 
-#[ribbit::pack(size = 26)]
+#[ribbit::pack(size = 26, debug)]
 #[derive(Copy, Clone)]
 pub struct B {
     l: u16,
