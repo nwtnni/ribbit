@@ -51,6 +51,10 @@ impl Tree {
         }
     }
 
+    pub(crate) fn is_leaf(&self) -> bool {
+        matches!(self, Tree::Leaf(_))
+    }
+
     pub(crate) fn to_leaf(&self) -> Leaf {
         match self {
             Tree::Node(node) => **node,

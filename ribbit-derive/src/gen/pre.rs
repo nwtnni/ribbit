@@ -5,20 +5,22 @@ use quote::quote_spanned;
 use crate::ir;
 
 pub(crate) fn pre(ir::Struct { fields, .. }: &ir::Struct) -> TokenStream {
-    let nonzero = fields
+    let fields = fields
         .iter()
-        .filter(|field| *field.ty.nonzero())
         .map(|field| &field.ty)
+        .filter(|ty| !ty.is_leaf());
+
+    let nonzero = fields
+        .clone()
+        .filter(|ty| *ty.nonzero())
         .map(|repr| quote!(::ribbit::private::assert_impl_all!(#repr: ::ribbit::NonZero);));
 
     let pack = fields
-        .iter()
-        .map(|field| {
-            let repr = &field.ty;
-            let size = repr.size();
+        .map(|ty| {
+            let size = ty.size();
             quote_spanned! {size.span()=>
-                const _: () = if #size != <<#repr as ::ribbit::Pack>::Repr as ::ribbit::Number>::BITS {
-                    panic!(concat!("Annotated size does not match actual size of type ", stringify!(#repr)));
+                const _: () = if #size != <<#ty as ::ribbit::Pack>::Repr as ::ribbit::Number>::BITS {
+                    panic!(concat!("Annotated size does not match actual size of type ", stringify!(#ty)));
                 };
             }
         });

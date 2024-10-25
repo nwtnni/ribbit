@@ -1,0 +1,44 @@
+error[E0277]: the trait bound `A: ribbit::NonZero` is not satisfied
+ --> tests/ui/mismatch_nonzero.rs:9:8
+  |
+9 |     a: A,
+  |        ^ the trait `ribbit::NonZero` is not implemented for `A`
+  |
+  = help: the following other types implement trait `ribbit::NonZero`:
+            std::num::NonZero<u16>
+            std::num::NonZero<u32>
+            std::num::NonZero<u64>
+            std::num::NonZero<u8>
+note: required by a bound in `assert_impl_all`
+ --> tests/ui/mismatch_nonzero.rs:5:1
+  |
+5 | #[ribbit::pack(size = 32)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `assert_impl_all`
+  = note: this error originates in the macro `::ribbit::private::assert_impl_all` which comes from the expansion of the attribute macro `ribbit::pack` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0599]: no method named `get` found for type `u16` in the current scope
+ --> tests/ui/mismatch_nonzero.rs:5:1
+  |
+5 | #[ribbit::pack(size = 32)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+help: there is a method `ge` with a similar name, but with different arguments
+ --> $RUST/core/src/cmp.rs
+  |
+  |     fn ge(&self, other: &Rhs) -> bool {
+  |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  = note: this error originates in the attribute macro `ribbit::pack` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0308]: mismatched types
+ --> tests/ui/mismatch_nonzero.rs:5:1
+  |
+5 | #[ribbit::pack(size = 32)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `u16`, found `NonZero<u16>`
+  |
+  = note: expected type `u16`
+           found struct `std::num::NonZero<u16>`
+  = note: this error originates in the attribute macro `ribbit::pack` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: call `Into::into` on this expression to convert `std::num::NonZero<u16>` into `u16`
+  |
+5 | #[ribbit::pack(size = 32)].into()
+  |                           +++++++
