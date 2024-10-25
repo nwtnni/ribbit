@@ -40,4 +40,6 @@ pub(crate) struct Field {
     pub(crate) nonzero: Option<SpannedValue<bool>>,
     pub(crate) size: Option<SpannedValue<usize>>,
     pub(crate) offset: Option<SpannedValue<usize>>,
+    #[darling(flatten)]
+    pub(crate) opt: ir::FieldOpt,
 }

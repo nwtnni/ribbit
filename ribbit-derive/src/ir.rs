@@ -7,6 +7,7 @@ use darling::FromMeta;
 use quote::format_ident;
 
 use crate::error::bail;
+use crate::gen;
 use crate::input;
 use crate::ty;
 use crate::ty::leaf;
@@ -75,7 +76,7 @@ pub(crate) struct Struct<'input> {
 #[derive(FromMeta, Debug)]
 pub(crate) struct StructOpt {
     #[darling(default)]
-    pub(crate) new: crate::gen::new::StructOpt,
+    pub(crate) new: gen::new::StructOpt,
 }
 
 pub(crate) struct Field<'input> {
@@ -83,6 +84,7 @@ pub(crate) struct Field<'input> {
     pub(crate) ident: FieldIdent<'input>,
     pub(crate) ty: Spanned<ty::Tree>,
     pub(crate) offset: usize,
+    pub(crate) opt: &'input FieldOpt,
 }
 
 impl<'input> Field<'input> {
@@ -133,8 +135,15 @@ impl<'input> Field<'input> {
             ident: FieldIdent::new(index, field.ident.as_ref()),
             ty: repr,
             offset: *offset,
+            opt: &field.opt,
         })
     }
+}
+
+#[derive(FromMeta, Debug)]
+pub(crate) struct FieldOpt {
+    #[darling(default)]
+    pub(crate) debug: gen::debug::FieldOpt,
 }
 
 pub(crate) enum FieldIdent<'input> {
