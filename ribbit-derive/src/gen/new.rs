@@ -15,25 +15,25 @@ impl<'ir> Struct<'ir> {
 
 impl ToTokens for Struct<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let ident = self.0.ident();
+        let ident = self.0.ident;
 
-        let parameters = self.0.fields().iter().map(|field| {
-            let name = field.name().escaped();
-            let repr = field.repr();
-            quote!(#name: #repr)
+        let parameters = self.0.fields.iter().map(|field| {
+            let ident = field.ident.escaped();
+            let repr = field.repr;
+            quote!(#ident: #repr)
         });
 
         let value = self
             .0
-            .fields()
+            .fields
             .iter()
             .fold(
-                Box::new(lift::zero(self.0.repr().as_native())) as Box<dyn lift::Native>,
+                Box::new(lift::zero(self.0.repr.as_native())) as Box<dyn lift::Native>,
                 |state, field| {
-                    let name = field.name().escaped();
-                    let value = lift::lift(name, **field.repr())
+                    let ident = field.ident.escaped();
+                    let value = lift::lift(ident, *field.repr)
                         .into_native()
-                        .apply(lift::Op::Cast(self.0.repr().as_native()))
+                        .apply(lift::Op::Cast(self.0.repr.as_native()))
                         .apply(lift::Op::Shift {
                             dir: lift::Dir::L,
                             shift: field.offset(),
@@ -42,7 +42,7 @@ impl ToTokens for Struct<'_> {
                     Box::new(state.apply(lift::Op::Or(Box::new(value))))
                 },
             )
-            .into_repr((**self.0.repr()).into());
+            .into_repr((*self.0.repr).into());
 
         quote! {
             impl #ident {

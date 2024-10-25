@@ -17,9 +17,9 @@ impl<'ir> Struct<'ir> {
 
 impl ToTokens for Struct<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let ident = self.0.ident();
-        let fields = self.0.fields().iter().map(|field| Field {
-            repr: self.0.repr(),
+        let ident = self.0.ident;
+        let fields = self.0.fields.iter().map(|field| Field {
+            repr: &self.0.repr,
             field,
         });
         quote! {
@@ -38,11 +38,11 @@ struct Field<'ir> {
 
 impl ToTokens for Field<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let source = **self.field.repr();
+        let source = *self.field.repr;
         let target = **self.repr;
 
-        let name = &self.field.name().escaped();
-        let field = lift::lift(name, source)
+        let ident = &self.field.ident.escaped();
+        let field = lift::lift(ident, source)
             .into_native()
             .apply(lift::Op::Cast(target.as_native()))
             .apply(lift::Op::Shift {
@@ -59,10 +59,10 @@ impl ToTokens for Field<'_> {
             .apply(lift::Op::Or(Box::new(field)))
             .into_repr(target.into());
 
-        let vis = self.field.vis();
-        let with = self.field.name().unescaped("with");
+        let vis = self.field.vis;
+        let with = self.field.ident.unescaped("with");
         quote! {
-            #vis const fn #with(&self, #name: #source) -> Self {
+            #vis const fn #with(&self, #ident: #source) -> Self {
                 Self {
                     value: #r#struct,
                 }

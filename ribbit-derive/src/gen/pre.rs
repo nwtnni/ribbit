@@ -16,18 +16,18 @@ impl ToTokens for Struct<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let nonzero = self
             .0
-            .fields()
+            .fields
             .iter()
             .filter(|field| *field.nonzero())
-            .map(ir::Field::repr)
+            .map(|field| &field.repr)
             .map(|repr| quote!(::ribbit::private::assert_impl_all!(#repr: ::ribbit::NonZero);));
 
         let pack = self
             .0
-            .fields()
+            .fields
             .iter()
             .map(|field| {
-                let repr = field.repr();
+                let repr = &field.repr;
                 let size = field.size();
                 quote_spanned! {size.span()=>
                     const _: () = if #size != <<#repr as ::ribbit::Pack>::Repr as ::ribbit::Number>::BITS {
