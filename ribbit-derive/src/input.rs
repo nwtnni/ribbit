@@ -35,4 +35,5 @@ pub(crate) struct Field {
     pub(crate) ty: syn::Type,
     pub(crate) nonzero: Option<SpannedValue<bool>>,
     pub(crate) size: Option<SpannedValue<usize>>,
+    pub(crate) offset: Option<SpannedValue<usize>>,
 }

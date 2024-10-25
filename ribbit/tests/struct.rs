@@ -1,3 +1,5 @@
+use core::num::NonZeroU16;
+
 use arbitrary_int::u2;
 use arbitrary_int::u9;
 
@@ -109,4 +111,27 @@ fn nonzero() {
     struct NonZero {
         nonzero: NonZeroU16,
     }
+}
+
+#[test]
+fn explicit() {
+    #[ribbit::pack(size = 18)]
+    #[derive(Copy, Clone, Debug)]
+    struct Mix {
+        #[ribbit(offset = 2)]
+        a: NonZeroU16,
+        b: u2,
+    }
+
+    let mix = Mix::new(NonZeroU16::new(55).unwrap(), u2::new(3));
+    assert_eq!(mix.a().get(), 55);
+    assert_eq!(mix.b().value(), 3);
+
+    let mix = mix.with_a(NonZeroU16::new(999).unwrap());
+    assert_eq!(mix.a().get(), 999);
+    assert_eq!(mix.b().value(), 3);
+
+    let mix = mix.with_b(u2::new(0));
+    assert_eq!(mix.a().get(), 999);
+    assert_eq!(mix.b().value(), 0);
 }

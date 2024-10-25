@@ -27,8 +27,16 @@ pub(crate) fn new<'input>(
                 let uninit = FieldUninit::new(index, field)?;
                 let size = uninit.size();
                 let offset = match uninit.offset() {
+                    Offset::Explicit(offset) => match *offset >= bits.len() {
+                        false => offset,
+                        true => bail!(field => crate::Error::Overflow {
+                            offset: *offset,
+                            available: 0,
+                            required: size,
+                        }),
+                    },
                     Offset::Implicit => match bits.first_zero() {
-                        Some(offset) => offset,
+                        Some(offset) => Spanned::new(offset, field.span()),
                         None => bail!(field => crate::Error::Overflow {
                             offset: 0,
                             available: 0,
@@ -37,17 +45,17 @@ pub(crate) fn new<'input>(
                     },
                 };
 
-                let prefix = &mut bits[offset..];
+                let prefix = &mut bits[*offset..];
                 match prefix.first_one().unwrap_or_else(|| prefix.len()) {
-                    len if len < size => bail!(field => crate::Error::Overflow {
-                        offset,
+                    len if len < size => bail!(offset=> crate::Error::Overflow {
+                        offset: *offset,
                         available: len,
                         required: size
                     }),
                     _ => prefix[..size].fill(true),
                 }
 
-                fields.push(uninit.with_offset(offset));
+                fields.push(uninit.with_offset(*offset));
             }
 
             if bits.not_all() {
@@ -124,6 +132,7 @@ pub(crate) type FieldUninit<'input> = FieldInner<'input, Offset>;
 #[derive(Copy, Clone, Debug)]
 pub(crate) enum Offset {
     Implicit,
+    Explicit(Spanned<usize>),
 }
 
 pub(crate) struct FieldInner<'input, O> {
@@ -143,7 +152,10 @@ impl<'input> FieldUninit<'input> {
                 field.nonzero.map(Spanned::from),
                 field.size.map(Spanned::from),
             )?,
-            offset: Offset::Implicit,
+            offset: match field.offset {
+                None => Offset::Implicit,
+                Some(offset) => Offset::Explicit(offset.into()),
+            },
         })
     }
 
