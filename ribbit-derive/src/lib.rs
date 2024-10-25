@@ -1,12 +1,9 @@
 mod error;
-mod get;
+mod gen;
 mod input;
 mod ir;
 mod lift;
-mod new;
 mod repr;
-mod set;
-mod r#trait;
 
 use core::ops::Deref;
 use core::ops::DerefMut;
@@ -40,10 +37,10 @@ fn pack_inner(attr: TokenStream, input: syn::DeriveInput) -> Result<TokenStream,
     let item = input::Item::from_derive_input(&input)?;
 
     let ir = ir::new(&attr, &input, &item)?;
-    let r#trait = crate::r#trait::Struct::new(&ir)?;
-    let new = crate::new::Struct::new(&ir);
-    let get = crate::get::Struct::new(&ir);
-    let set = crate::set::Struct::new(&ir);
+    let r#trait = crate::gen::r#trait::Struct::new(&ir)?;
+    let new = crate::gen::new::Struct::new(&ir);
+    let get = crate::gen::get::Struct::new(&ir);
+    let set = crate::gen::set::Struct::new(&ir);
 
     Ok(quote! {
         #ir
