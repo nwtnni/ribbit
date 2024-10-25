@@ -5,13 +5,24 @@ use quote::ToTokens;
 
 use crate::repr::Arbitrary;
 use crate::repr::Native;
+use crate::Spanned;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug)]
 pub(crate) struct Leaf {
-    pub(crate) nonzero: bool,
+    pub(crate) nonzero: Spanned<bool>,
     pub(crate) signed: bool,
     pub(crate) repr: Repr,
 }
+
+impl PartialEq for Leaf {
+    fn eq(&self, other: &Self) -> bool {
+        (*self.nonzero).eq(&*other.nonzero)
+            && self.signed == other.signed
+            && self.repr == other.repr
+    }
+}
+
+impl Eq for Leaf {}
 
 impl Leaf {
     pub(crate) fn size(&self) -> usize {
@@ -22,7 +33,7 @@ impl Leaf {
         self.repr.mask()
     }
 
-    pub(crate) fn new(nonzero: bool, size: usize) -> Self {
+    pub(crate) fn new(nonzero: Spanned<bool>, size: usize) -> Self {
         Self {
             nonzero,
             signed: false,
@@ -84,7 +95,7 @@ impl Leaf {
             .ok()?;
 
         Some(Leaf {
-            nonzero,
+            nonzero: nonzero.into(),
             signed,
             repr: Repr::new(size),
         })
@@ -94,7 +105,7 @@ impl Leaf {
 impl From<Native> for Leaf {
     fn from(native: Native) -> Self {
         Leaf {
-            nonzero: false,
+            nonzero: false.into(),
             signed: false,
             repr: Repr::Native(native),
         }
@@ -135,7 +146,7 @@ impl Repr {
 
 impl ToTokens for Leaf {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let repr = match (self.nonzero, self.signed, self.repr) {
+        let repr = match (*self.nonzero, self.signed, self.repr) {
             (_, true, _) => todo!(),
 
             (true, _, Repr::Native(Native::N8)) => quote!(NonZeroU8),

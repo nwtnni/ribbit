@@ -24,7 +24,7 @@ pub(crate) fn new<'input>(
             let mut fields = Vec::new();
 
             for (index, field) in r#struct.fields.iter().enumerate() {
-                let uninit = FieldUninit::new(index, field);
+                let uninit = FieldUninit::new(index, field)?;
                 let size = uninit.size();
                 let offset = match uninit.offset() {
                     Offset::Implicit => match bits.first_zero() {
@@ -56,11 +56,20 @@ pub(crate) fn new<'input>(
                 })
             }
 
+            let repr = attr
+                .size
+                .map_ref(|size| {
+                    Leaf::new(
+                        attr.nonzero
+                            .map(Spanned::from)
+                            .unwrap_or_else(|| false.into()),
+                        *size,
+                    )
+                })
+                .into();
+
             Ok(Struct {
-                repr: attr
-                    .size
-                    .map_ref(|size| Leaf::new(attr.nonzero.unwrap_or(false), *size))
-                    .into(),
+                repr,
                 attrs: &input.attrs,
                 vis: &input.vis,
                 ident: &input.ident,
@@ -125,13 +134,17 @@ pub(crate) struct FieldInner<'input, O> {
 }
 
 impl<'input> FieldUninit<'input> {
-    fn new(index: usize, field: &'input input::Field) -> Self {
-        Self {
+    fn new(index: usize, field: &'input input::Field) -> darling::Result<Self> {
+        Ok(Self {
             vis: &field.vis,
             name: FieldName::new(index, field.ident.as_ref()),
-            repr: Tree::from_ty(&field.ty, field.nonzero, field.size),
+            repr: Tree::from_ty(
+                &field.ty,
+                field.nonzero.map(Spanned::from),
+                field.size.map(Spanned::from),
+            )?,
             offset: Offset::Implicit,
-        }
+        })
     }
 
     fn with_offset(self, offset: usize) -> Field<'input> {
@@ -170,7 +183,7 @@ impl<'input, O: Copy> FieldInner<'input, O> {
         &self.name
     }
 
-    pub(crate) fn nonzero(&self) -> bool {
+    pub(crate) fn nonzero(&self) -> Spanned<bool> {
         self.repr.nonzero()
     }
 }

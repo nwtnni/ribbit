@@ -15,6 +15,10 @@ pub enum Error {
     Underflow {
         bits: BitBox,
     },
+
+    StructNonZero,
+
+    OpaqueSize,
 }
 
 macro_rules! bail {
@@ -40,6 +44,18 @@ impl Display for Error {
             }
             Error::Underflow { bits } => {
                 write!(f, "All bits must be used: {bits:?}")
+            }
+            Error::StructNonZero => {
+                write!(
+                    f,
+                    "At least one field must be non-zero for struct to be non-zero",
+                )
+            }
+            Error::OpaqueSize => {
+                write!(
+                    f,
+                    "Opaque type requires size attribute #[ribbit(size = ...)]"
+                )
             }
         }
     }

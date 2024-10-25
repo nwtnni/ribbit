@@ -16,6 +16,7 @@ use darling::util::SpannedValue;
 pub(crate) use error::Error;
 
 use darling::FromDeriveInput as _;
+use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use quote::quote;
 use quote::quote_spanned;
@@ -39,38 +40,43 @@ fn pack_inner(attr: TokenStream, input: syn::DeriveInput) -> Result<TokenStream,
     let item = input::Item::from_derive_input(&input)?;
 
     let ir = ir::new(&attr, &input, &item)?;
-    Ok(Output { ir }.to_token_stream())
+    let r#trait = crate::r#trait::Struct::new(&ir)?;
+    let new = crate::new::Struct::new(&ir);
+    let get = crate::get::Struct::new(&ir);
+    let set = crate::set::Struct::new(&ir);
+
+    Ok(quote! {
+        #ir
+
+        #r#trait
+
+        #new
+
+        #get
+
+        #set
+    }
+    .to_token_stream())
 }
 
-struct Output<'input> {
-    ir: ir::Struct<'input>,
-}
+#[derive(Copy, Clone, Debug)]
+pub(crate) struct Spanned<T>(SpannedValue<T>);
 
-impl ToTokens for Output<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let ir = &self.ir;
-        let r#trait = crate::r#trait::Struct::new(ir);
-        let new = crate::new::Struct::new(ir);
-        let get = crate::get::Struct::new(ir);
-        let set = crate::set::Struct::new(ir);
+impl<T> Spanned<T> {
+    pub(crate) fn new(inner: T, span: Span) -> Self {
+        Self(SpannedValue::new(inner, span))
+    }
 
-        let output = quote! {
-            #ir
-
-            #r#trait
-
-            #new
-
-            #get
-
-            #set
-        };
-
-        output.to_tokens(tokens);
+    pub(crate) fn span(&self) -> Span {
+        self.0.span()
     }
 }
 
-pub(crate) struct Spanned<T>(SpannedValue<T>);
+impl<T> From<T> for Spanned<T> {
+    fn from(inner: T) -> Self {
+        Spanned(SpannedValue::new(inner, Span::call_site()))
+    }
+}
 
 impl<T> Deref for Spanned<T> {
     type Target = T;

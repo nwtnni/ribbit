@@ -8,7 +8,7 @@ use proc_macro2::TokenStream;
 #[derive(FromMeta)]
 pub(crate) struct Attr {
     pub(crate) size: SpannedValue<usize>,
-    pub(crate) nonzero: Option<bool>,
+    pub(crate) nonzero: Option<SpannedValue<bool>>,
 }
 
 impl Attr {
@@ -33,6 +33,6 @@ pub(crate) struct Field {
     pub(crate) vis: syn::Visibility,
     pub(crate) ident: Option<syn::Ident>,
     pub(crate) ty: syn::Type,
-    pub(crate) nonzero: Option<bool>,
-    pub(crate) size: Option<usize>,
+    pub(crate) nonzero: Option<SpannedValue<bool>>,
+    pub(crate) size: Option<SpannedValue<usize>>,
 }

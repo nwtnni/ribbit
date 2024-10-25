@@ -3,7 +3,6 @@ pub(crate) mod leaf;
 mod native;
 
 pub(crate) use arbitrary::Arbitrary;
-use darling::util::SpannedValue;
 pub(crate) use leaf::Leaf;
 pub(crate) use native::Native;
 
@@ -12,6 +11,8 @@ use quote::ToTokens;
 use syn::spanned::Spanned as _;
 use syn::TypePath;
 
+use crate::error::bail;
+use crate::Error;
 use crate::Spanned;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -23,9 +24,9 @@ pub enum Tree<'input> {
 impl<'input> Tree<'input> {
     pub(crate) fn from_ty(
         ty: &'input syn::Type,
-        nonzero: Option<bool>,
-        size: Option<usize>,
-    ) -> Spanned<Self> {
+        nonzero: Option<Spanned<bool>>,
+        size: Option<Spanned<usize>>,
+    ) -> darling::Result<Spanned<Self>> {
         match ty {
             syn::Type::Array(_) => todo!(),
             syn::Type::BareFn(_) => todo!(),
@@ -37,15 +38,21 @@ impl<'input> Tree<'input> {
             syn::Type::Paren(_) => todo!(),
             syn::Type::Path(path) => {
                 let span = path.span();
-                let node = Leaf::from_path(path).map(Self::Leaf).unwrap_or_else(|| {
-                    let repr = Leaf::new(
-                        nonzero.unwrap_or(false),
-                        size.expect("Opaque type requires size"),
-                    );
-                    Self::Node(Node::from_path(path, repr))
-                });
 
-                SpannedValue::new(node, span).into()
+                let repr = match Leaf::from_path(path) {
+                    Some(leaf) => Self::Leaf(leaf),
+                    None => {
+                        let Some(size) = size else {
+                            bail!(ty=> Error::OpaqueSize);
+                        };
+
+                        let leaf = Leaf::new(nonzero.unwrap_or_else(|| false.into()), *size);
+
+                        Self::Node(Node::from_path(path, leaf))
+                    }
+                };
+
+                Ok(Spanned::new(repr, span))
             }
             syn::Type::Ptr(_) => todo!(),
             syn::Type::Reference(_) => todo!(),
@@ -75,7 +82,7 @@ impl<'input> Tree<'input> {
         }
     }
 
-    pub(crate) fn nonzero(&self) -> bool {
+    pub(crate) fn nonzero(&self) -> Spanned<bool> {
         match self {
             Tree::Node(node) => node.nonzero(),
             Tree::Leaf(leaf) => leaf.nonzero,
@@ -119,7 +126,7 @@ impl<'input> Node<'input> {
         self.repr.size()
     }
 
-    pub(crate) fn nonzero(&self) -> bool {
+    pub(crate) fn nonzero(&self) -> Spanned<bool> {
         self.repr.nonzero
     }
 }
