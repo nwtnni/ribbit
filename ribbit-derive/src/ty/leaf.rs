@@ -48,31 +48,13 @@ impl Leaf {
         }
     }
 
-    pub(crate) fn from_path(syn::TypePath { qself, path }: &syn::TypePath) -> Option<Self> {
-        if qself.is_some() {
-            todo!();
-        }
-
-        if path.leading_colon.is_some() {
-            todo!()
-        }
-
-        if path.segments.len() > 1 {
-            todo!();
-        }
-
-        let segment = path.segments.first().unwrap();
-
-        if !segment.arguments.is_none() {
-            todo!();
-        }
+    pub(crate) fn from_path(syn::TypePath { path, .. }: &syn::TypePath) -> Option<Self> {
+        let segment = match path.segments.first()? {
+            segment if path.segments.len() > 1 || !segment.arguments.is_none() => return None,
+            segment => segment,
+        };
 
         let ident = segment.ident.to_string();
-
-        if !ident.is_ascii() {
-            todo!();
-        }
-
         if ident == "bool" {
             return Some(Leaf {
                 nonzero: false.into(),

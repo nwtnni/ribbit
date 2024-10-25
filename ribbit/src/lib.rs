@@ -9,8 +9,10 @@ pub unsafe trait Pack: Copy + Sized {
     type Repr: Number;
 }
 
+// Need to duplicate `arbitrary_int::Number` because
+// of the orphan rule.
 pub trait Number: Copy + Sized {
-    type Repr;
+    type Repr: Number;
     const BITS: usize;
     const MIN: Self;
     const MAX: Self;
@@ -90,11 +92,10 @@ impl_nonzero!(NonZeroU16, u16, 16);
 impl_nonzero!(NonZeroU32, u32, 32);
 impl_nonzero!(NonZeroU64, u64, 64);
 
-unsafe impl<T> Pack for Option<T>
-where
-    T: Pack + NonZero,
-{
-    type Repr = <T as Pack>::Repr;
+unsafe impl<T: Pack + NonZero> Pack for Option<T> {
+    // First `T::Repr` is the non-zero type, which is backed
+    // by a native `Repr`.
+    type Repr = <T::Repr as Number>::Repr;
 }
 
 pub unsafe trait NonZero {}
