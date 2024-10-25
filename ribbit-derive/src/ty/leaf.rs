@@ -42,6 +42,7 @@ impl Leaf {
 
     pub(crate) fn to_native(self) -> Native {
         match *self.repr {
+            Repr::Bool => Native::N8,
             Repr::Native(native) => native,
             Repr::Arbitrary(arbitrary) => arbitrary.as_native(),
         }
@@ -70,6 +71,14 @@ impl Leaf {
 
         if !ident.is_ascii() {
             todo!();
+        }
+
+        if ident == "bool" {
+            return Some(Leaf {
+                nonzero: false.into(),
+                signed: false,
+                repr: Spanned::new(Repr::Bool, ident.span()),
+            });
         }
 
         let nonzero = ident.starts_with("NonZero");
@@ -103,6 +112,7 @@ impl Leaf {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Repr {
+    Bool,
     Native(Native),
     Arbitrary(Arbitrary),
 }
@@ -120,6 +130,7 @@ impl Repr {
 
     pub(crate) fn size(&self) -> usize {
         match self {
+            Repr::Bool => 1,
             Repr::Native(native) => native.size(),
             Repr::Arbitrary(arbitrary) => arbitrary.size(),
         }
@@ -127,6 +138,7 @@ impl Repr {
 
     pub(crate) fn mask(&self) -> usize {
         match self {
+            Repr::Bool => 1,
             Repr::Native(native) => native.mask(),
             Repr::Arbitrary(arbitrary) => arbitrary.mask(),
         }
@@ -137,6 +149,8 @@ impl ToTokens for Leaf {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let repr = match (*self.nonzero, self.signed, *self.repr) {
             (_, true, _) => todo!(),
+
+            (_, _, Repr::Bool) => quote!(bool),
 
             (true, _, Repr::Native(Native::N8)) => quote!(NonZeroU8),
             (true, _, Repr::Native(Native::N16)) => quote!(NonZeroU16),

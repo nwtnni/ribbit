@@ -102,6 +102,8 @@ pub unsafe trait NonZero {}
 #[doc(hidden)]
 #[rustfmt::skip]
 pub mod private {
+    pub use ::core::primitive::bool;
+
     pub use ::arbitrary_int::Number;
     pub use ::arbitrary_int::u1;
     pub use ::arbitrary_int::u2;

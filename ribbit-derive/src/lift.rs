@@ -91,6 +91,10 @@ impl<V: Tree> ToTokens for ConvertToNative<V> {
         let leaf = source.to_leaf();
         let inner = match (*leaf.nonzero, leaf.signed, *leaf.repr) {
             (_, true, _) | (true, _, leaf::Repr::Arbitrary(_)) => todo!(),
+            (_, _, leaf::Repr::Bool) => {
+                let native = leaf.to_native();
+                quote!((#inner as #native))
+            }
             (true, _, leaf::Repr::Native(_)) => quote!(#inner.get()),
             (false, _, leaf::Repr::Native(_)) => inner,
             (false, _, leaf::Repr::Arbitrary(_)) => quote!(#inner.value()),
@@ -186,6 +190,10 @@ impl<V: Native> ToTokens for ConvertFromNative<V> {
         let leaf = self.target.to_leaf();
         let inner = match (*leaf.nonzero, leaf.signed, *leaf.repr) {
             (_, true, _) | (true, _, leaf::Repr::Arbitrary(_)) => todo!(),
+            (_, _, leaf::Repr::Bool) => {
+                let mask = native.literal(leaf.mask());
+                quote!(((#inner & #mask) > 0))
+            }
             (true, _, leaf::Repr::Native(_)) => quote!(unsafe { #leaf::new_unchecked(#inner) }),
             (false, _, leaf::Repr::Native(native)) if native == source => inner,
             (false, _, leaf::Repr::Native(native)) => quote!((#inner as #native)),

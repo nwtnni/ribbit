@@ -1,5 +1,3 @@
-use core::num::NonZeroU16;
-
 #[test]
 fn basic() {
     #[ribbit::pack(size = 32)]
