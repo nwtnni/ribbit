@@ -1,10 +1,7 @@
 use std::borrow::Cow;
 
 use bitvec::bitbox;
-use proc_macro2::TokenStream;
 use quote::format_ident;
-use quote::quote;
-use quote::ToTokens;
 
 use crate::error::bail;
 use crate::input;
@@ -88,11 +85,11 @@ pub(crate) fn new<'input>(
 }
 
 pub(crate) struct Struct<'input> {
-    repr: Spanned<Leaf>,
-    attrs: &'input [syn::Attribute],
-    vis: &'input syn::Visibility,
-    ident: &'input syn::Ident,
-    fields: Vec<Field<'input>>,
+    pub(crate) repr: Spanned<Leaf>,
+    pub(crate) attrs: &'input [syn::Attribute],
+    pub(crate) vis: &'input syn::Visibility,
+    pub(crate) ident: &'input syn::Ident,
+    pub(crate) fields: Vec<Field<'input>>,
 }
 
 impl Struct<'_> {
@@ -106,23 +103,6 @@ impl Struct<'_> {
 
     pub(crate) fn fields(&self) -> &[Field] {
         &self.fields
-    }
-}
-
-impl ToTokens for Struct<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let repr = &self.repr;
-        let ident = self.ident;
-        let vis = self.vis;
-        let attrs = self.attrs;
-
-        quote! {
-            #( #attrs )*
-            #vis struct #ident {
-                value: #repr,
-            }
-        }
-        .to_tokens(tokens)
     }
 }
 

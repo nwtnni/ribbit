@@ -1,4 +1,5 @@
 pub(crate) mod get;
 pub(crate) mod new;
+pub(crate) mod pre;
+pub(crate) mod repr;
 pub(crate) mod set;
-pub(crate) mod r#trait;
