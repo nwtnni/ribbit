@@ -12,7 +12,7 @@ impl<'ir> Struct<'ir> {
     pub(crate) fn new(r#struct: &'ir ir::Struct<'ir>) -> darling::Result<Self> {
         let repr = *r#struct.repr;
 
-        if *repr.nonzero && r#struct.fields.iter().all(|field| !*field.nonzero()) {
+        if *repr.nonzero && r#struct.fields.iter().all(|field| !*field.repr.nonzero()) {
             bail!(repr.nonzero=> Error::StructNonZero);
         }
 

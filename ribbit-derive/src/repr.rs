@@ -61,6 +61,13 @@ impl<'input> Tree<'input> {
         self.as_leaf().as_native()
     }
 
+    pub(crate) fn size(&self) -> Spanned<usize> {
+        match self {
+            Tree::Node(node) => node.size(),
+            Tree::Leaf(leaf) => leaf.size(),
+        }
+    }
+
     pub(crate) fn mask(&self) -> usize {
         match self {
             Tree::Node(node) => node.repr.mask(),

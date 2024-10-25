@@ -47,14 +47,14 @@ impl ToTokens for Field<'_> {
             .apply(lift::Op::Cast(target.as_native()))
             .apply(lift::Op::Shift {
                 dir: lift::Dir::L,
-                shift: self.field.offset(),
+                shift: self.field.offset,
             });
 
         let r#struct = lift::lift(quote!(self.value), target)
             .into_native()
             // Clear existing data
             .apply(lift::Op::And(
-                !(source.mask() << self.field.offset()) & target.mask(),
+                !(source.mask() << self.field.offset) & target.mask(),
             ))
             .apply(lift::Op::Or(Box::new(field)))
             .into_repr(target.into());

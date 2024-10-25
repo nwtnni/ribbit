@@ -46,7 +46,7 @@ impl ToTokens for Field<'_> {
             .into_native()
             .apply(lift::Op::Shift {
                 dir: lift::Dir::R,
-                shift: self.field.offset(),
+                shift: self.field.offset,
             })
             .into_repr(target);
 

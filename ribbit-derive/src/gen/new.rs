@@ -36,7 +36,7 @@ impl ToTokens for Struct<'_> {
                         .apply(lift::Op::Cast(self.0.repr.as_native()))
                         .apply(lift::Op::Shift {
                             dir: lift::Dir::L,
-                            shift: field.offset(),
+                            shift: field.offset,
                         });
 
                     Box::new(state.apply(lift::Op::Or(Box::new(value))))
