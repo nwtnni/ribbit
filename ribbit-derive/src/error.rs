@@ -17,8 +17,8 @@ pub enum Error {
     },
 
     StructNonZero,
-
     OpaqueSize,
+    ArbitraryNonZero,
 }
 
 macro_rules! bail {
@@ -56,6 +56,9 @@ impl Display for Error {
                     f,
                     "Opaque type requires size attribute #[ribbit(size = ...)]"
                 )
+            }
+            Error::ArbitraryNonZero => {
+                write!(f, "Nonzero arbitrary sizes are currently unsupported",)
             }
         }
     }

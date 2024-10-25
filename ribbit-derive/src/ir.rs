@@ -8,6 +8,7 @@ use quote::ToTokens;
 
 use crate::error::bail;
 use crate::input;
+use crate::repr::leaf;
 use crate::repr::Leaf;
 use crate::repr::Tree;
 use crate::Spanned;
@@ -64,20 +65,21 @@ pub(crate) fn new<'input>(
                 })
             }
 
-            let repr = attr
-                .size
-                .map_ref(|size| {
-                    Leaf::new(
-                        attr.nonzero
-                            .map(Spanned::from)
-                            .unwrap_or_else(|| false.into()),
-                        *size,
-                    )
-                })
-                .into();
+            let leaf = attr.size.map_ref(|size| {
+                Leaf::new(
+                    attr.nonzero
+                        .map(Spanned::from)
+                        .unwrap_or_else(|| false.into()),
+                    *size,
+                )
+            });
+
+            if let (true, leaf::Repr::Arbitrary(_)) = (*leaf.nonzero, leaf.repr) {
+                bail!(leaf.nonzero=> crate::Error::ArbitraryNonZero);
+            }
 
             Ok(Struct {
-                repr,
+                repr: leaf.into(),
                 attrs: &input.attrs,
                 vis: &input.vis,
                 ident: &input.ident,
