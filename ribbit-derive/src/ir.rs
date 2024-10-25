@@ -46,6 +46,10 @@ pub(crate) fn new<'input>(
                 bail!(leaf.nonzero=> crate::Error::ArbitraryNonZero);
             }
 
+            if *leaf.nonzero && fields.iter().all(|field| !*field.ty.nonzero()) {
+                bail!(leaf.nonzero=> crate::Error::StructNonZero);
+            }
+
             Ok(Struct {
                 repr: leaf.into(),
                 attrs: &input.attrs,

@@ -2,23 +2,9 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use quote::ToTokens;
 
-use crate::error::bail;
 use crate::ir;
-use crate::Error;
 
-pub(crate) struct Struct<'ir>(&'ir ir::Struct<'ir>);
-
-impl<'ir> Struct<'ir> {
-    pub(crate) fn new(r#struct: &'ir ir::Struct<'ir>) -> darling::Result<Self> {
-        let repr = *r#struct.repr;
-
-        if *repr.nonzero && r#struct.fields.iter().all(|field| !*field.ty.nonzero()) {
-            bail!(repr.nonzero=> Error::StructNonZero);
-        }
-
-        Ok(Self(r#struct))
-    }
-}
+pub(crate) struct Struct<'ir>(pub(crate) &'ir ir::Struct<'ir>);
 
 impl ToTokens for Struct<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {

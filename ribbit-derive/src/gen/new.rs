@@ -5,13 +5,7 @@ use crate::ir;
 use crate::lift;
 use crate::lift::NativeExt as _;
 
-pub(crate) struct Struct<'ir>(&'ir ir::Struct<'ir>);
-
-impl<'ir> Struct<'ir> {
-    pub(crate) fn new(r#struct: &'ir ir::Struct<'ir>) -> Self {
-        Self(r#struct)
-    }
-}
+pub(crate) struct Struct<'ir>(pub(crate) &'ir ir::Struct<'ir>);
 
 impl ToTokens for Struct<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {

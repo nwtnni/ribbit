@@ -37,12 +37,12 @@ fn pack_inner(attr: TokenStream, input: syn::DeriveInput) -> Result<TokenStream,
     let item = input::Item::from_derive_input(&input)?;
 
     let ir = ir::new(&attr, &input, &item)?;
-    let pre = gen::pre::Struct::new(&ir);
 
-    let repr = gen::repr::Struct::new(&ir)?;
-    let new = gen::new::Struct::new(&ir);
-    let get = gen::get::Struct::new(&ir);
-    let set = gen::set::Struct::new(&ir);
+    let pre = gen::pre::Struct(&ir);
+    let repr = gen::repr::Struct(&ir);
+    let new = gen::new::Struct(&ir);
+    let get = gen::get::Struct(&ir);
+    let set = gen::set::Struct(&ir);
 
     Ok(quote! {
         #pre
