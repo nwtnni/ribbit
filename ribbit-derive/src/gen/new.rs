@@ -10,6 +10,7 @@ use crate::lift::NativeExt as _;
 #[derive(FromMeta, Debug, Default)]
 pub(crate) struct Opt {
     rename: Option<syn::Ident>,
+    vis: Option<syn::Visibility>,
 }
 
 pub(crate) fn new(opt: &Opt, r#struct: &ir::Struct) -> TokenStream {
@@ -40,11 +41,12 @@ pub(crate) fn new(opt: &Opt, r#struct: &ir::Struct) -> TokenStream {
         .convert_to_ty(*r#struct.repr);
 
     let ident = r#struct.ident;
-    let new = opt.rename.clone().unwrap_or(format_ident!("new"));
+    let new = opt.rename.clone().unwrap_or_else(|| format_ident!("new"));
+    let vis = opt.vis.as_ref().unwrap_or(r#struct.vis);
 
     quote! {
         impl #ident {
-            pub const fn #new(
+            #vis const fn #new(
                 #(#parameters),*
             ) -> Self {
                 Self { value: #value_struct }
