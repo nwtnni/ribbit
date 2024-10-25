@@ -1,6 +1,8 @@
+use std::borrow::Cow;
+
 use bitvec::bitbox;
-use darling::ast::Style;
 use proc_macro2::TokenStream;
+use quote::format_ident;
 use quote::quote;
 use quote::ToTokens;
 
@@ -18,16 +20,11 @@ pub(crate) fn new<'input>(
     match &item.data {
         darling::ast::Data::Enum(_) => todo!(),
         darling::ast::Data::Struct(r#struct) => {
-            match r#struct.style {
-                Style::Unit | Style::Tuple => todo!(),
-                Style::Struct => (),
-            }
-
             let mut bits = bitbox![0; *attr.size];
             let mut fields = Vec::new();
 
-            for field in &r#struct.fields {
-                let uninit = FieldUninit::new(field);
+            for (index, field) in r#struct.fields.iter().enumerate() {
+                let uninit = FieldUninit::new(index, field);
                 let size = uninit.size();
                 let offset = match uninit.offset() {
                     Offset::Implicit => match bits.first_zero() {
@@ -122,16 +119,16 @@ pub(crate) enum Offset {
 
 pub(crate) struct FieldInner<'input, O> {
     vis: &'input syn::Visibility,
-    ident: Option<&'input syn::Ident>,
+    name: FieldName<'input>,
     repr: Spanned<Tree<'input>>,
     offset: O,
 }
 
 impl<'input> FieldUninit<'input> {
-    fn new(field: &'input input::Field) -> Self {
+    fn new(index: usize, field: &'input input::Field) -> Self {
         Self {
             vis: &field.vis,
-            ident: field.ident.as_ref(),
+            name: FieldName::new(index, field.ident.as_ref()),
             repr: Tree::from_ty(&field.ty, field.nonzero, field.size),
             offset: Offset::Implicit,
         }
@@ -140,7 +137,7 @@ impl<'input> FieldUninit<'input> {
     fn with_offset(self, offset: usize) -> Field<'input> {
         Field {
             vis: self.vis,
-            ident: self.ident,
+            name: self.name,
             repr: self.repr,
             offset,
         }
@@ -169,11 +166,37 @@ impl<'input, O: Copy> FieldInner<'input, O> {
         &self.repr
     }
 
-    pub(crate) fn ident(&self) -> Option<&syn::Ident> {
-        self.ident
+    pub(crate) fn name(&self) -> &FieldName {
+        &self.name
     }
 
     pub(crate) fn nonzero(&self) -> bool {
         self.repr.nonzero()
+    }
+}
+
+pub(crate) enum FieldName<'input> {
+    Named(&'input syn::Ident),
+    Unnamed(usize),
+}
+
+impl<'input> FieldName<'input> {
+    fn new(index: usize, name: Option<&'input syn::Ident>) -> Self {
+        name.map(FieldName::Named)
+            .unwrap_or_else(|| FieldName::Unnamed(index))
+    }
+
+    pub(crate) fn unescaped(&self, prefix: &'static str) -> syn::Ident {
+        match self {
+            FieldName::Named(named) => format_ident!("{}_{}", prefix, named),
+            FieldName::Unnamed(unnamed) => format_ident!("{}_{}", prefix, unnamed),
+        }
+    }
+
+    pub(crate) fn escaped(&self) -> Cow<syn::Ident> {
+        match self {
+            FieldName::Named(named) => Cow::Borrowed(*named),
+            FieldName::Unnamed(unnamed) => Cow::Owned(format_ident!("_{}", unnamed)),
+        }
     }
 }

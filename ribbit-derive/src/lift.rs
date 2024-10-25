@@ -144,7 +144,7 @@ impl<V: Native> ToTokens for Apply<'_, V> {
 
         let inner = match &self.op {
             Op::Shift { dir: _, shift: 0 } => inner,
-            Op::And(0) => Literal::usize_unsuffixed(0).to_token_stream(),
+            Op::And(0) => self.ty().literal(0).to_token_stream(),
             Op::Shift { dir, shift } => {
                 let shift = self.ty().literal(*shift);
                 quote!((#inner #dir #shift))

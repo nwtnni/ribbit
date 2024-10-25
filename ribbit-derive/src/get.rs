@@ -51,9 +51,10 @@ impl ToTokens for Field<'_> {
             .into_repr(target);
 
         let vis = self.field.vis();
-        let ident = self.field.ident();
+        let name = self.field.name().escaped();
+
         quote! {
-            #vis const fn #ident(&self) -> #target {
+            #vis const fn #name(&self) -> #target {
                 #field
             }
         }

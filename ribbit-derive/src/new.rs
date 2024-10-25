@@ -16,7 +16,12 @@ impl<'ir> Struct<'ir> {
 impl ToTokens for Struct<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let ident = self.0.ident();
-        let parameters = self.0.fields().iter().map(Parameter);
+
+        let parameters = self.0.fields().iter().map(|field| {
+            let name = field.name().escaped();
+            let repr = field.repr();
+            quote!(#name: #repr)
+        });
 
         let value = self
             .0
@@ -25,8 +30,8 @@ impl ToTokens for Struct<'_> {
             .fold(
                 Box::new(lift::zero(self.0.repr().as_native())) as Box<dyn lift::Native>,
                 |state, field| {
-                    let ident = field.ident().expect("Field must have name");
-                    let value = lift::lift(ident, **field.repr())
+                    let name = field.name().escaped();
+                    let value = lift::lift(name, **field.repr())
                         .into_native()
                         .apply(lift::Op::Cast(self.0.repr().as_native()))
                         .apply(lift::Op::Shift {
@@ -49,15 +54,5 @@ impl ToTokens for Struct<'_> {
             }
         }
         .to_tokens(tokens)
-    }
-}
-
-struct Parameter<'ir>(&'ir ir::Field<'ir>);
-
-impl ToTokens for Parameter<'_> {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let ident = self.0.ident().expect("Field names required");
-        let repr = self.0.repr();
-        quote!(#ident: #repr).to_tokens(tokens);
     }
 }

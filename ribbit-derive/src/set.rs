@@ -1,4 +1,3 @@
-use quote::format_ident;
 use quote::quote;
 use quote::ToTokens;
 
@@ -42,8 +41,8 @@ impl ToTokens for Field<'_> {
         let source = **self.field.repr();
         let target = **self.repr;
 
-        let ident = self.field.ident().unwrap();
-        let field = lift::lift(ident, source)
+        let name = &self.field.name().escaped();
+        let field = lift::lift(name, source)
             .into_native()
             .apply(lift::Op::Cast(target.as_native()))
             .apply(lift::Op::Shift {
@@ -61,9 +60,9 @@ impl ToTokens for Field<'_> {
             .into_repr(target.into());
 
         let vis = self.field.vis();
-        let with_ident = format_ident!("with_{}", ident);
+        let with = self.field.name().unescaped("with");
         quote! {
-            #vis const fn #with_ident(&self, #ident: #source) -> Self {
+            #vis const fn #with(&self, #name: #source) -> Self {
                 Self {
                     value: #r#struct,
                 }
