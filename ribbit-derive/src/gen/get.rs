@@ -28,6 +28,7 @@ pub(crate) fn get(
         let vis = field.vis;
         let get = field.ident.escaped();
         quote! {
+            #[inline]
             #vis const fn #get(&self) -> #ty_field {
                 #value_field
             }

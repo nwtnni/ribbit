@@ -39,6 +39,7 @@ pub(crate) fn set(
         let vis = field.vis;
         let with = field.ident.unescaped("with");
         quote! {
+            #[inline]
             #vis const fn #with(&self, #ident: #ty_field) -> Self {
                 Self {
                     value: #value_struct,

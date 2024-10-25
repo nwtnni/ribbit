@@ -57,6 +57,7 @@ pub(crate) fn new(
 
     quote! {
         impl #ident {
+            #[inline]
             #vis const fn #new(
                 #(#parameters),*
             ) -> Self {
