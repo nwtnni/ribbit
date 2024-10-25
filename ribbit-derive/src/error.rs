@@ -19,6 +19,7 @@ pub enum Error {
     StructNonZero,
     OpaqueSize,
     ArbitraryNonZero,
+    UnsupportedType,
 }
 
 macro_rules! bail {
@@ -59,6 +60,9 @@ impl Display for Error {
             }
             Error::ArbitraryNonZero => {
                 write!(f, "Nonzero arbitrary sizes are currently unsupported",)
+            }
+            Error::UnsupportedType => {
+                write!(f, "Only type paths are supported")
             }
         }
     }

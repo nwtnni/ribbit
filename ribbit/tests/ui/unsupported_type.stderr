@@ -1,0 +1,5 @@
+error: Only type paths are supported
+ --> tests/ui/unsupported_type.rs:3:8
+  |
+3 |     a: (u8, u16),
+  |        ^^^^^^^^^

@@ -28,14 +28,6 @@ impl<'input> Tree<'input> {
         size: Option<Spanned<usize>>,
     ) -> darling::Result<Spanned<Self>> {
         match ty {
-            syn::Type::Array(_) => todo!(),
-            syn::Type::BareFn(_) => todo!(),
-            syn::Type::Group(_) => todo!(),
-            syn::Type::ImplTrait(_) => todo!(),
-            syn::Type::Infer(_) => todo!(),
-            syn::Type::Macro(_) => todo!(),
-            syn::Type::Never(_) => todo!(),
-            syn::Type::Paren(_) => todo!(),
             syn::Type::Path(path) => {
                 let span = path.span();
 
@@ -54,13 +46,7 @@ impl<'input> Tree<'input> {
 
                 Ok(Spanned::new(repr, span))
             }
-            syn::Type::Ptr(_) => todo!(),
-            syn::Type::Reference(_) => todo!(),
-            syn::Type::Slice(_) => todo!(),
-            syn::Type::TraitObject(_) => todo!(),
-            syn::Type::Tuple(_) => todo!(),
-            syn::Type::Verbatim(_) => todo!(),
-            _ => todo!(),
+            _ => bail!(ty=> Error::UnsupportedType),
         }
     }
 
