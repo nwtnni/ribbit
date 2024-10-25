@@ -1,15 +1,16 @@
 mod arbitrary;
 pub(crate) mod leaf;
 mod native;
+mod node;
 
 pub(crate) use arbitrary::Arbitrary;
 pub(crate) use leaf::Leaf;
 pub(crate) use native::Native;
+pub(crate) use node::Node;
 
 use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::spanned::Spanned as _;
-use syn::TypePath;
 
 use crate::error::bail;
 use crate::Error;
@@ -52,7 +53,7 @@ impl<'input> Tree<'input> {
 
     pub(crate) fn as_leaf(&self) -> Leaf {
         match self {
-            Tree::Node(node) => node.repr,
+            Tree::Node(node) => **node,
             Tree::Leaf(leaf) => *leaf,
         }
     }
@@ -70,14 +71,14 @@ impl<'input> Tree<'input> {
 
     pub(crate) fn mask(&self) -> usize {
         match self {
-            Tree::Node(node) => node.repr.mask(),
+            Tree::Node(node) => node.mask(),
             Tree::Leaf(leaf) => leaf.mask(),
         }
     }
 
     pub(crate) fn nonzero(&self) -> Spanned<bool> {
         match self {
-            Tree::Node(node) => node.nonzero(),
+            Tree::Node(node) => node.nonzero,
             Tree::Leaf(leaf) => leaf.nonzero,
         }
     }
@@ -95,31 +96,5 @@ impl ToTokens for Tree<'_> {
 impl From<Leaf> for Tree<'_> {
     fn from(leaf: Leaf) -> Self {
         Self::Leaf(leaf)
-    }
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub struct Node<'input> {
-    path: &'input TypePath,
-    repr: Leaf,
-}
-
-impl<'input> Node<'input> {
-    fn from_path(path: &'input TypePath, repr: Leaf) -> Self {
-        Self { path, repr }
-    }
-
-    pub(crate) fn size(&self) -> Spanned<usize> {
-        self.repr.size()
-    }
-
-    pub(crate) fn nonzero(&self) -> Spanned<bool> {
-        self.repr.nonzero
-    }
-}
-
-impl ToTokens for Node<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.path.to_tokens(tokens)
     }
 }
