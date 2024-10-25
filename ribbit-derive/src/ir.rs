@@ -3,6 +3,7 @@ use std::borrow::Cow;
 use bitvec::bitbox;
 use bitvec::boxed::BitBox;
 use darling::util::SpannedValue;
+use darling::FromMeta;
 use quote::format_ident;
 
 use crate::error::bail;
@@ -52,6 +53,7 @@ pub(crate) fn new<'input>(
 
             Ok(Struct {
                 repr: leaf.into(),
+                opt: &attr.opt,
                 attrs: &input.attrs,
                 vis: &input.vis,
                 ident: &input.ident,
@@ -67,6 +69,13 @@ pub(crate) struct Struct<'input> {
     pub(crate) vis: &'input syn::Visibility,
     pub(crate) ident: &'input syn::Ident,
     pub(crate) fields: Vec<Field<'input>>,
+    pub(crate) opt: &'input StructOpt,
+}
+
+#[derive(FromMeta, Debug)]
+pub(crate) struct StructOpt {
+    #[darling(default)]
+    pub(crate) new: crate::gen::new::StructOpt,
 }
 
 pub(crate) struct Field<'input> {

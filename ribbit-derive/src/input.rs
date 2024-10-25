@@ -5,14 +5,14 @@ use darling::FromMeta;
 use darling::FromVariant;
 use proc_macro2::TokenStream;
 
-use crate::gen;
+use crate::ir;
 
 #[derive(FromMeta, Debug)]
 pub(crate) struct Attr {
     pub(crate) size: SpannedValue<usize>,
     pub(crate) nonzero: Option<SpannedValue<bool>>,
-    #[darling(default)]
-    pub(crate) new: gen::new::Opt,
+    #[darling(flatten)]
+    pub(crate) opt: ir::StructOpt,
 }
 
 impl Attr {

@@ -8,12 +8,12 @@ use crate::lift;
 use crate::lift::NativeExt as _;
 
 #[derive(FromMeta, Debug, Default)]
-pub(crate) struct Opt {
+pub(crate) struct StructOpt {
     rename: Option<syn::Ident>,
     vis: Option<syn::Visibility>,
 }
 
-pub(crate) fn new(opt: &Opt, r#struct: &ir::Struct) -> TokenStream {
+pub(crate) fn new(r#struct: &ir::Struct) -> TokenStream {
     let parameters = r#struct.fields.iter().map(|field| {
         let ident = field.ident.escaped();
         let ty = &field.ty;
@@ -41,6 +41,7 @@ pub(crate) fn new(opt: &Opt, r#struct: &ir::Struct) -> TokenStream {
         .convert_to_ty(*r#struct.repr);
 
     let ident = r#struct.ident;
+    let opt = &r#struct.opt.new;
     let new = opt.rename.clone().unwrap_or_else(|| format_ident!("new"));
     let vis = opt.vis.as_ref().unwrap_or(r#struct.vis);
 
