@@ -26,7 +26,7 @@ pub(crate) fn new<'input>(
 
             for (index, field) in r#struct.fields.iter().enumerate() {
                 let uninit = FieldUninit::new(index, field)?;
-                let size = uninit.size();
+                let size = *uninit.size();
                 let offset = match uninit.offset() {
                     Offset::Explicit(offset) => match *offset >= bits.len() {
                         false => offset,
@@ -65,16 +65,14 @@ pub(crate) fn new<'input>(
                 })
             }
 
-            let leaf = attr.size.map_ref(|size| {
-                Leaf::new(
-                    attr.nonzero
-                        .map(Spanned::from)
-                        .unwrap_or_else(|| false.into()),
-                    *size,
-                )
-            });
+            let leaf = Leaf::new(
+                attr.nonzero
+                    .map(Spanned::from)
+                    .unwrap_or_else(|| false.into()),
+                attr.size.into(),
+            );
 
-            if let (true, leaf::Repr::Arbitrary(_)) = (*leaf.nonzero, leaf.repr) {
+            if let (true, leaf::Repr::Arbitrary(_)) = (*leaf.nonzero, *leaf.repr) {
                 bail!(leaf.nonzero=> crate::Error::ArbitraryNonZero);
             }
 
@@ -178,7 +176,7 @@ impl<'input, O: Copy> FieldInner<'input, O> {
 }
 
 impl<'input, O: Copy> FieldInner<'input, O> {
-    pub(crate) fn size(&self) -> usize {
+    pub(crate) fn size(&self) -> Spanned<usize> {
         match &*self.repr {
             Tree::Node(node) => node.size(),
             Tree::Leaf(leaf) => leaf.size(),

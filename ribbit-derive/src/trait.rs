@@ -1,4 +1,5 @@
 use quote::quote;
+use quote::quote_spanned;
 use quote::ToTokens;
 
 use crate::error::bail;
@@ -24,18 +25,42 @@ impl ToTokens for Struct<'_> {
         let repr = self.0.repr();
         let name = self.0.ident();
 
-        if *repr.nonzero {
-            quote!(
-                unsafe impl ::ribbit::NonZero for #name {}
-            )
-            .to_tokens(tokens);
-        }
+        let nonzero_struct = match *repr.nonzero {
+            true => quote!(unsafe impl ::ribbit::NonZero for #name {}),
+            false => quote!(),
+        };
 
-        quote!(
-            unsafe impl ::ribbit::Pack for #name {
-                type Repr = #repr;
-            }
-        )
-        .to_tokens(tokens);
+        let nonzero_fields = self
+            .0
+            .fields()
+            .iter()
+            .filter(|field| *field.nonzero())
+            .map(ir::Field::repr)
+            .map(|repr| quote!(::ribbit::private::assert_impl_all!(#repr: ::ribbit::NonZero);));
+
+        let pack_struct = quote!(unsafe impl ::ribbit::Pack for #name { type Repr = #repr; });
+
+        let pack_fields = self
+            .0
+            .fields()
+            .iter()
+            .map(|field| {
+                let repr = field.repr();
+                let size = field.size();
+                quote_spanned! {size.span()=>
+                    const _: () = if #size != <<#repr as ::ribbit::Pack>::Repr as ::ribbit::Number>::BITS {
+                        panic!(concat!("Annotated size does not match actual size of type ", stringify!(#repr)));
+                    };
+                }
+            });
+
+        quote! {
+            #nonzero_struct
+            #(#nonzero_fields)*
+
+            #pack_struct
+            #(#pack_fields)*
+        }
+        .to_tokens(tokens)
     }
 }

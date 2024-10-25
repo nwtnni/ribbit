@@ -70,6 +70,10 @@ impl<T> Spanned<T> {
     pub(crate) fn span(&self) -> Span {
         self.0.span()
     }
+
+    pub(crate) fn map_ref<F: FnOnce(&T) -> U, U>(&self, apply: F) -> Spanned<U> {
+        Spanned(self.0.map_ref(apply))
+    }
 }
 
 impl<T> From<T> for Spanned<T> {

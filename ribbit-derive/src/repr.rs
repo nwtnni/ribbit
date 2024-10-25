@@ -38,7 +38,7 @@ impl<'input> Tree<'input> {
                             bail!(ty=> Error::OpaqueSize);
                         };
 
-                        let leaf = Leaf::new(nonzero.unwrap_or_else(|| false.into()), *size);
+                        let leaf = Leaf::new(nonzero.unwrap_or_else(|| false.into()), size);
 
                         Self::Node(Node::from_path(path, leaf))
                     }
@@ -91,12 +91,6 @@ impl From<Leaf> for Tree<'_> {
     }
 }
 
-impl From<Native> for Tree<'_> {
-    fn from(native: Native) -> Self {
-        Self::Leaf(Leaf::from(native))
-    }
-}
-
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct Node<'input> {
     path: &'input TypePath,
@@ -108,7 +102,7 @@ impl<'input> Node<'input> {
         Self { path, repr }
     }
 
-    pub(crate) fn size(&self) -> usize {
+    pub(crate) fn size(&self) -> Spanned<usize> {
         self.repr.size()
     }
 

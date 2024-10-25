@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 arbitrary-int = "1.2"
 ribbit-derive = { path = "../ribbit-derive" }
+static_assertions = "1.1"
 
 [dev-dependencies]
 trybuild = "1.0.97"

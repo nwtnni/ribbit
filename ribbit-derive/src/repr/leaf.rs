@@ -2,6 +2,7 @@ use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
 use quote::ToTokens;
+use syn::spanned::Spanned as _;
 
 use crate::repr::Arbitrary;
 use crate::repr::Native;
@@ -11,38 +12,36 @@ use crate::Spanned;
 pub(crate) struct Leaf {
     pub(crate) nonzero: Spanned<bool>,
     pub(crate) signed: bool,
-    pub(crate) repr: Repr,
+    pub(crate) repr: Spanned<Repr>,
 }
 
 impl PartialEq for Leaf {
     fn eq(&self, other: &Self) -> bool {
-        (*self.nonzero).eq(&*other.nonzero)
-            && self.signed == other.signed
-            && self.repr == other.repr
+        *self.nonzero == *other.nonzero && self.signed == other.signed && *self.repr == *other.repr
     }
 }
 
 impl Eq for Leaf {}
 
 impl Leaf {
-    pub(crate) fn size(&self) -> usize {
-        self.repr.size()
+    pub(crate) fn size(&self) -> Spanned<usize> {
+        self.repr.map_ref(|repr| repr.size())
     }
 
     pub(crate) fn mask(&self) -> usize {
         self.repr.mask()
     }
 
-    pub(crate) fn new(nonzero: Spanned<bool>, size: usize) -> Self {
+    pub(crate) fn new(nonzero: Spanned<bool>, size: Spanned<usize>) -> Self {
         Self {
             nonzero,
             signed: false,
-            repr: Repr::new(size),
+            repr: size.map_ref(|size| Repr::new(*size)),
         }
     }
 
     pub(crate) fn as_native(&self) -> Native {
-        match self.repr {
+        match *self.repr {
             Repr::Native(native) => native,
             Repr::Arbitrary(arbitrary) => arbitrary.as_native(),
         }
@@ -97,18 +96,8 @@ impl Leaf {
         Some(Leaf {
             nonzero: nonzero.into(),
             signed,
-            repr: Repr::new(size),
+            repr: Spanned::new(Repr::new(size), path.span()),
         })
-    }
-}
-
-impl From<Native> for Leaf {
-    fn from(native: Native) -> Self {
-        Leaf {
-            nonzero: false.into(),
-            signed: false,
-            repr: Repr::Native(native),
-        }
     }
 }
 
@@ -146,7 +135,7 @@ impl Repr {
 
 impl ToTokens for Leaf {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let repr = match (*self.nonzero, self.signed, self.repr) {
+        let repr = match (*self.nonzero, self.signed, *self.repr) {
             (_, true, _) => todo!(),
 
             (true, _, Repr::Native(Native::N8)) => quote!(NonZeroU8),

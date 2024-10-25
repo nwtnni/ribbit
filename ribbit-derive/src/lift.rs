@@ -90,7 +90,7 @@ impl<V: Tree> ToTokens for IntoNative<V> {
         };
 
         let leaf = source.as_leaf();
-        let inner = match (*leaf.nonzero, leaf.signed, leaf.repr) {
+        let inner = match (*leaf.nonzero, leaf.signed, *leaf.repr) {
             (_, true, _) | (true, _, leaf::Repr::Arbitrary(_)) => todo!(),
             (true, _, leaf::Repr::Native(_)) => quote!(#inner.get()),
             (false, _, leaf::Repr::Native(_)) => inner,
@@ -185,7 +185,7 @@ impl<'ir, V: Native> ToTokens for FromNative<'ir, V> {
         };
 
         let leaf = self.target.as_leaf();
-        let inner = match (*leaf.nonzero, leaf.signed, leaf.repr) {
+        let inner = match (*leaf.nonzero, leaf.signed, *leaf.repr) {
             (_, true, _) | (true, _, leaf::Repr::Arbitrary(_)) => todo!(),
             (true, _, leaf::Repr::Native(_)) => quote!(match #leaf::new(#inner) {
                 None => panic!(),
