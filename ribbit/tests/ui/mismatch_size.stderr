@@ -27,18 +27,10 @@ error[E0308]: mismatched types
  --> tests/ui/mismatch_size.rs:5:1
   |
 5 | #[ribbit::pack(size = 16)]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^
-  | |
-  | expected `u16`, found `UInt<u8, 1>`
-  | arguments to this function are incorrect
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `u16`, found `UInt<u8, 1>`
   |
   = note: expected type `u16`
            found struct `arbitrary_int::UInt<u8, 1>`
-note: function defined here
- --> src/lib.rs
-  |
-  |     pub const unsafe fn unpack<T: Pack>(value: T::Repr) -> T {
-  |                         ^^^^^^
   = note: this error originates in the attribute macro `ribbit::pack` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: call `Into::into` on this expression to convert `arbitrary_int::UInt<u8, 1>` into `u16`
   |

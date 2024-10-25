@@ -1,4 +1,3 @@
-use proc_macro2::Literal;
 use proc_macro2::TokenStream;
 use quote::quote;
 use quote::ToTokens;
@@ -187,15 +186,12 @@ impl<V: Native> ToTokens for ConvertFromNative<V> {
         let leaf = self.target.to_leaf();
         let inner = match (*leaf.nonzero, leaf.signed, *leaf.repr) {
             (_, true, _) | (true, _, leaf::Repr::Arbitrary(_)) => todo!(),
-            (true, _, leaf::Repr::Native(_)) => quote!(match #leaf::new(#inner) {
-                None => panic!(),
-                Some(output) => output,
-            }),
+            (true, _, leaf::Repr::Native(_)) => quote!(unsafe { #leaf::new_unchecked(#inner) }),
             (false, _, leaf::Repr::Native(native)) if native == source => inner,
             (false, _, leaf::Repr::Native(native)) => quote!((#inner as #native)),
             (false, _, leaf::Repr::Arbitrary(arbitrary)) => {
-                let mask = Literal::usize_unsuffixed(arbitrary.mask());
-                quote!(#leaf::new(#inner & #mask))
+                let mask = native.literal(arbitrary.mask());
+                quote!(unsafe { #leaf::new_unchecked(#inner & #mask) })
             }
         };
 
