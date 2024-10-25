@@ -3,15 +3,15 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use quote::ToTokens;
 
-use crate::repr;
-use crate::repr::leaf;
+use crate::ty;
+use crate::ty::leaf;
 
 trait Tree: ToTokens {
-    fn ty(&self) -> repr::Tree;
+    fn ty(&self) -> &ty::Tree;
 }
 
 pub(crate) trait Native: ToTokens {
-    fn ty(&self) -> repr::Native;
+    fn ty(&self) -> ty::Native;
 }
 
 pub(crate) trait NativeExt: Sized {
@@ -19,10 +19,10 @@ pub(crate) trait NativeExt: Sized {
         Apply { inner: self, op }
     }
 
-    fn into_repr(self, repr: repr::Tree) -> FromNative<Self> {
-        FromNative {
+    fn convert_to_ty(self, ty: impl Into<ty::Tree>) -> ConvertFromNative<Self> {
+        ConvertFromNative {
             inner: self,
-            target: repr,
+            target: ty.into(),
         }
     }
 }
@@ -30,66 +30,66 @@ pub(crate) trait NativeExt: Sized {
 impl<T: Native> NativeExt for T {}
 
 impl<'a> Native for Box<dyn Native + 'a> {
-    fn ty(&self) -> repr::Native {
+    fn ty(&self) -> ty::Native {
         (**self).ty()
     }
 }
 
-pub(crate) fn zero(native: repr::Native) -> Zero {
+pub(crate) fn zero(native: ty::Native) -> Zero {
     Zero(native)
 }
 
-pub(crate) fn lift<'ir, V>(inner: V, ty: impl Into<repr::Tree<'ir>>) -> Type<'ir, V> {
+pub(crate) fn lift<V>(inner: V, ty: impl Into<ty::Tree>) -> Type<V> {
     Type {
         inner,
         ty: ty.into(),
     }
 }
 
-pub(crate) struct Type<'ir, V> {
+pub(crate) struct Type<V> {
     inner: V,
-    ty: repr::Tree<'ir>,
+    ty: ty::Tree,
 }
 
-impl<V> Type<'_, V> {
-    pub(crate) fn into_native(self) -> IntoNative<Self> {
-        IntoNative { inner: self }
+impl<V> Type<V> {
+    pub(crate) fn convert_to_native(self) -> ConvertToNative<Self> {
+        ConvertToNative { inner: self }
     }
 }
 
-impl<V: ToTokens> Tree for Type<'_, V> {
-    fn ty(&self) -> repr::Tree {
-        self.ty
+impl<V: ToTokens> Tree for Type<V> {
+    fn ty(&self) -> &ty::Tree {
+        &self.ty
     }
 }
 
-impl<V: ToTokens> ToTokens for Type<'_, V> {
+impl<V: ToTokens> ToTokens for Type<V> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.inner.to_tokens(tokens)
     }
 }
 
-pub(crate) struct IntoNative<V> {
+pub(crate) struct ConvertToNative<V> {
     inner: V,
 }
 
-impl<V: Tree> Native for IntoNative<V> {
-    fn ty(&self) -> repr::Native {
-        self.inner.ty().as_native()
+impl<V: Tree> Native for ConvertToNative<V> {
+    fn ty(&self) -> ty::Native {
+        self.inner.ty().to_native()
     }
 }
 
-impl<V: Tree> ToTokens for IntoNative<V> {
+impl<V: Tree> ToTokens for ConvertToNative<V> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let inner = self.inner.to_token_stream();
 
         let source = self.inner.ty();
         let inner = match source {
-            repr::Tree::Node(_) => quote!(::ribbit::private::pack(#inner)),
-            repr::Tree::Leaf(_) => inner,
+            ty::Tree::Node(_) => quote!(::ribbit::private::pack(#inner)),
+            ty::Tree::Leaf(_) => inner,
         };
 
-        let leaf = source.as_leaf();
+        let leaf = source.to_leaf();
         let inner = match (*leaf.nonzero, leaf.signed, *leaf.repr) {
             (_, true, _) | (true, _, leaf::Repr::Arbitrary(_)) => todo!(),
             (true, _, leaf::Repr::Native(_)) => quote!(#inner.get()),
@@ -110,7 +110,7 @@ pub(crate) enum Op<'ir> {
     Shift { dir: Dir, shift: usize },
     And(usize),
     Or(Box<dyn Native + 'ir>),
-    Cast(repr::Native),
+    Cast(ty::Native),
 }
 
 #[derive(Copy, Clone)]
@@ -130,7 +130,7 @@ impl ToTokens for Dir {
 }
 
 impl<V: Native> Native for Apply<'_, V> {
-    fn ty(&self) -> repr::Native {
+    fn ty(&self) -> ty::Native {
         match self.op {
             Op::Shift { .. } | Op::And(_) | Op::Or(_) => self.inner.ty(),
             Op::Cast(native) => native,
@@ -168,23 +168,23 @@ impl<V: Native> ToTokens for Apply<'_, V> {
     }
 }
 
-pub(crate) struct FromNative<'ir, V> {
+pub(crate) struct ConvertFromNative<V> {
     inner: V,
-    target: repr::Tree<'ir>,
+    target: ty::Tree,
 }
 
-impl<'ir, V: Native> ToTokens for FromNative<'ir, V> {
+impl<V: Native> ToTokens for ConvertFromNative<V> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let inner = self.inner.to_token_stream();
         let source = self.inner.ty();
 
-        let native = self.target.as_native();
+        let native = self.target.to_native();
         let inner = match source == native {
             false => quote!((#inner as #native)),
             true => inner,
         };
 
-        let leaf = self.target.as_leaf();
+        let leaf = self.target.to_leaf();
         let inner = match (*leaf.nonzero, leaf.signed, *leaf.repr) {
             (_, true, _) | (true, _, leaf::Repr::Arbitrary(_)) => todo!(),
             (true, _, leaf::Repr::Native(_)) => quote!(match #leaf::new(#inner) {
@@ -199,9 +199,9 @@ impl<'ir, V: Native> ToTokens for FromNative<'ir, V> {
             }
         };
 
-        let inner = match self.target {
-            repr::Tree::Leaf(_) => inner,
-            repr::Tree::Node(node) => {
+        let inner = match &self.target {
+            ty::Tree::Leaf(_) => inner,
+            ty::Tree::Node(node) => {
                 quote!(unsafe { ::ribbit::private::unpack::<#node>(#inner) })
             }
         };
@@ -210,10 +210,10 @@ impl<'ir, V: Native> ToTokens for FromNative<'ir, V> {
     }
 }
 
-pub(crate) struct Zero(repr::Native);
+pub(crate) struct Zero(ty::Native);
 
 impl Native for Zero {
-    fn ty(&self) -> repr::Native {
+    fn ty(&self) -> ty::Native {
         self.0
     }
 }

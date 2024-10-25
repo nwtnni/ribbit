@@ -16,15 +16,15 @@ use crate::error::bail;
 use crate::Error;
 use crate::Spanned;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub enum Tree<'input> {
-    Node(Node<'input>),
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Tree {
+    Node(Node),
     Leaf(Leaf),
 }
 
-impl<'input> Tree<'input> {
+impl Tree {
     pub(crate) fn from_ty(
-        ty: &'input syn::Type,
+        ty: syn::Type,
         nonzero: Option<Spanned<bool>>,
         size: Option<Spanned<usize>>,
     ) -> darling::Result<Spanned<Self>> {
@@ -32,11 +32,11 @@ impl<'input> Tree<'input> {
             syn::Type::Path(path) => {
                 let span = path.span();
 
-                let repr = match Leaf::from_path(path) {
+                let repr = match Leaf::from_path(&path) {
                     Some(leaf) => Self::Leaf(leaf),
                     None => {
                         let Some(size) = size else {
-                            bail!(ty=> Error::OpaqueSize);
+                            bail!(span=> Error::OpaqueSize);
                         };
 
                         let leaf = Leaf::new(nonzero.unwrap_or_else(|| false.into()), size);
@@ -51,15 +51,15 @@ impl<'input> Tree<'input> {
         }
     }
 
-    pub(crate) fn as_leaf(&self) -> Leaf {
+    pub(crate) fn to_leaf(&self) -> Leaf {
         match self {
             Tree::Node(node) => **node,
             Tree::Leaf(leaf) => *leaf,
         }
     }
 
-    pub(crate) fn as_native(&self) -> Native {
-        self.as_leaf().as_native()
+    pub(crate) fn to_native(&self) -> Native {
+        self.to_leaf().to_native()
     }
 
     pub(crate) fn size(&self) -> Spanned<usize> {
@@ -84,7 +84,7 @@ impl<'input> Tree<'input> {
     }
 }
 
-impl ToTokens for Tree<'_> {
+impl ToTokens for Tree {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
             Tree::Node(node) => node.to_tokens(tokens),
@@ -93,7 +93,7 @@ impl ToTokens for Tree<'_> {
     }
 }
 
-impl From<Leaf> for Tree<'_> {
+impl From<Leaf> for Tree {
     fn from(leaf: Leaf) -> Self {
         Self::Leaf(leaf)
     }

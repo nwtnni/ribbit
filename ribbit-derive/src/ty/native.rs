@@ -2,7 +2,7 @@ use proc_macro2::Literal;
 use quote::quote;
 use quote::ToTokens;
 
-use crate::repr::Arbitrary;
+use crate::ty::Arbitrary;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Native {

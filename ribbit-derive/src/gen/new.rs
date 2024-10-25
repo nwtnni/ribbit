@@ -19,37 +19,37 @@ impl ToTokens for Struct<'_> {
 
         let parameters = self.0.fields.iter().map(|field| {
             let ident = field.ident.escaped();
-            let repr = field.repr;
+            let repr = &field.ty;
             quote!(#ident: #repr)
         });
 
-        let value = self
+        let value_struct = self
             .0
             .fields
             .iter()
             .fold(
-                Box::new(lift::zero(self.0.repr.as_native())) as Box<dyn lift::Native>,
+                Box::new(lift::zero(self.0.repr.to_native())) as Box<dyn lift::Native>,
                 |state, field| {
                     let ident = field.ident.escaped();
-                    let value = lift::lift(ident, *field.repr)
-                        .into_native()
-                        .apply(lift::Op::Cast(self.0.repr.as_native()))
+                    let value_field = lift::lift(ident, (*field.ty).clone())
+                        .convert_to_native()
+                        .apply(lift::Op::Cast(self.0.repr.to_native()))
                         .apply(lift::Op::Shift {
                             dir: lift::Dir::L,
                             shift: field.offset,
                         });
 
-                    Box::new(state.apply(lift::Op::Or(Box::new(value))))
+                    Box::new(state.apply(lift::Op::Or(Box::new(value_field))))
                 },
             )
-            .into_repr((*self.0.repr).into());
+            .convert_to_ty(*self.0.repr);
 
         quote! {
             impl #ident {
                 pub const fn new(
                     #(#parameters),*
                 ) -> Self {
-                    Self { value: #value }
+                    Self { value: #value_struct }
                 }
             }
         }

@@ -4,27 +4,27 @@ use proc_macro2::TokenStream;
 use quote::ToTokens;
 use syn::TypePath;
 
-use crate::repr::Leaf;
+use crate::ty::Leaf;
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub(crate) struct Node<'input> {
-    path: &'input TypePath,
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct Node {
+    path: TypePath,
     repr: Leaf,
 }
 
-impl<'input> Node<'input> {
-    pub(crate) fn from_path(path: &'input TypePath, repr: Leaf) -> Self {
+impl Node {
+    pub(crate) fn from_path(path: TypePath, repr: Leaf) -> Self {
         Self { path, repr }
     }
 }
 
-impl ToTokens for Node<'_> {
+impl ToTokens for Node {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.path.to_tokens(tokens)
     }
 }
 
-impl Deref for Node<'_> {
+impl Deref for Node {
     type Target = Leaf;
     fn deref(&self) -> &Self::Target {
         &self.repr

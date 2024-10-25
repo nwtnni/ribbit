@@ -3,7 +3,7 @@ mod gen;
 mod input;
 mod ir;
 mod lift;
-mod repr;
+mod ty;
 
 use core::ops::Deref;
 use core::ops::DerefMut;

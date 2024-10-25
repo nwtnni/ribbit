@@ -4,8 +4,8 @@ use quote::quote;
 use quote::ToTokens;
 use syn::spanned::Spanned as _;
 
-use crate::repr::Arbitrary;
-use crate::repr::Native;
+use crate::ty::Arbitrary;
+use crate::ty::Native;
 use crate::Spanned;
 
 #[derive(Copy, Clone, Debug)]
@@ -40,7 +40,7 @@ impl Leaf {
         }
     }
 
-    pub(crate) fn as_native(&self) -> Native {
+    pub(crate) fn to_native(self) -> Native {
         match *self.repr {
             Repr::Native(native) => native,
             Repr::Arbitrary(arbitrary) => arbitrary.as_native(),

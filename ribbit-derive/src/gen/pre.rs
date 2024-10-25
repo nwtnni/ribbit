@@ -18,8 +18,8 @@ impl ToTokens for Struct<'_> {
             .0
             .fields
             .iter()
-            .filter(|field| *field.repr.nonzero())
-            .map(|field| &field.repr)
+            .filter(|field| *field.ty.nonzero())
+            .map(|field| &field.ty)
             .map(|repr| quote!(::ribbit::private::assert_impl_all!(#repr: ::ribbit::NonZero);));
 
         let pack = self
@@ -27,7 +27,7 @@ impl ToTokens for Struct<'_> {
             .fields
             .iter()
             .map(|field| {
-                let repr = &field.repr;
+                let repr = &field.ty;
                 let size = repr.size();
                 quote_spanned! {size.span()=>
                     const _: () = if #size != <<#repr as ::ribbit::Pack>::Repr as ::ribbit::Number>::BITS {

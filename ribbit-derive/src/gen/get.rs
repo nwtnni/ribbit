@@ -4,7 +4,7 @@ use quote::ToTokens;
 use crate::ir;
 use crate::lift;
 use crate::lift::NativeExt as _;
-use crate::repr::Leaf;
+use crate::ty::Leaf;
 use crate::Spanned;
 
 pub(crate) struct Struct<'ir>(&'ir ir::Struct<'ir>);
@@ -39,23 +39,23 @@ struct Field<'ir> {
 
 impl ToTokens for Field<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let source = **self.repr;
-        let target = *self.field.repr;
+        let ty_struct = **self.repr;
+        let ty_field = &*self.field.ty;
 
-        let field = lift::lift(quote!(self.value), source)
-            .into_native()
+        let value_field = lift::lift(quote!(self.value), ty_struct)
+            .convert_to_native()
             .apply(lift::Op::Shift {
                 dir: lift::Dir::R,
                 shift: self.field.offset,
             })
-            .into_repr(target);
+            .convert_to_ty(ty_field.clone());
 
         let vis = self.field.vis;
         let ident = self.field.ident.escaped();
 
         quote! {
-            #vis const fn #ident(&self) -> #target {
-                #field
+            #vis const fn #ident(&self) -> #ty_field {
+                #value_field
             }
         }
         .to_tokens(tokens)

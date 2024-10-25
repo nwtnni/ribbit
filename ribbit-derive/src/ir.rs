@@ -7,9 +7,9 @@ use quote::format_ident;
 
 use crate::error::bail;
 use crate::input;
-use crate::repr::leaf;
-use crate::repr::Leaf;
-use crate::repr::Tree;
+use crate::ty;
+use crate::ty::leaf;
+use crate::ty::Leaf;
 use crate::Spanned;
 
 pub(crate) fn new<'input>(
@@ -68,7 +68,7 @@ pub(crate) struct Struct<'input> {
 pub(crate) struct Field<'input> {
     pub(crate) vis: &'input syn::Visibility,
     pub(crate) ident: FieldIdent<'input>,
-    pub(crate) repr: Spanned<Tree<'input>>,
+    pub(crate) ty: Spanned<ty::Tree>,
     pub(crate) offset: usize,
 }
 
@@ -78,8 +78,8 @@ impl<'input> Field<'input> {
         index: usize,
         field: &'input SpannedValue<input::Field>,
     ) -> darling::Result<Self> {
-        let repr = Tree::from_ty(
-            &field.ty,
+        let repr = ty::Tree::from_ty(
+            field.ty.clone(),
             field.nonzero.map(Spanned::from),
             field.size.map(Spanned::from),
         )?;
@@ -118,7 +118,7 @@ impl<'input> Field<'input> {
         Ok(Self {
             vis: &field.vis,
             ident: FieldIdent::new(index, field.ident.as_ref()),
-            repr,
+            ty: repr,
             offset: *offset,
         })
     }

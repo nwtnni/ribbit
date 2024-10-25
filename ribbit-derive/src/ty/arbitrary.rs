@@ -1,4 +1,4 @@
-use crate::repr::Native;
+use crate::ty::Native;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Arbitrary {
