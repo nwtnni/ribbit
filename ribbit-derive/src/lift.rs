@@ -3,7 +3,6 @@ use quote::quote;
 use quote::ToTokens;
 
 use crate::ty;
-use crate::ty::leaf;
 
 trait Tree: ToTokens {
     fn ty(&self) -> &ty::Tree;
@@ -11,6 +10,7 @@ trait Tree: ToTokens {
 
 pub(crate) trait Native: ToTokens {
     fn ty(&self) -> ty::Native;
+    fn is_zero(&self) -> bool;
 }
 
 pub(crate) trait NativeExt: Sized {
@@ -18,8 +18,8 @@ pub(crate) trait NativeExt: Sized {
         Apply { inner: self, op }
     }
 
-    fn convert_to_ty(self, ty: impl Into<ty::Tree>) -> ConvertFromNative<Self> {
-        ConvertFromNative {
+    fn native_to_ty(self, ty: impl Into<ty::Tree>) -> NativeToTy<Self> {
+        NativeToTy {
             inner: self,
             target: ty.into(),
         }
@@ -31,6 +31,10 @@ impl<T: Native> NativeExt for T {}
 impl<'a> Native for Box<dyn Native + 'a> {
     fn ty(&self) -> ty::Native {
         (**self).ty()
+    }
+
+    fn is_zero(&self) -> bool {
+        (**self).is_zero()
     }
 }
 
@@ -51,8 +55,8 @@ pub(crate) struct Type<V> {
 }
 
 impl<V> Type<V> {
-    pub(crate) fn convert_to_native(self) -> ConvertToNative<Self> {
-        ConvertToNative { inner: self }
+    pub(crate) fn ty_to_native(self) -> TyToNative<Self> {
+        TyToNative { inner: self }
     }
 }
 
@@ -68,39 +72,31 @@ impl<V: ToTokens> ToTokens for Type<V> {
     }
 }
 
-pub(crate) struct ConvertToNative<V> {
+pub(crate) struct TyToNative<V> {
     inner: V,
 }
 
-impl<V: Tree> Native for ConvertToNative<V> {
+impl<V: Tree> Native for TyToNative<V> {
     fn ty(&self) -> ty::Native {
         self.inner.ty().to_native()
     }
+
+    fn is_zero(&self) -> bool {
+        false
+    }
 }
 
-impl<V: Tree> ToTokens for ConvertToNative<V> {
+impl<V: Tree> ToTokens for TyToNative<V> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let inner = self.inner.to_token_stream();
 
-        let source = self.inner.ty();
-        let inner = match source {
-            ty::Tree::Node(_) => quote!(::ribbit::private::pack(#inner)),
-            ty::Tree::Leaf(_) => inner,
-        };
-
-        let leaf = source.to_leaf();
-        let inner = match (*leaf.nonzero, leaf.signed, *leaf.repr) {
-            (_, true, _) | (true, _, leaf::Repr::Arbitrary(_)) => todo!(),
-            (_, _, leaf::Repr::Bool) => {
-                let native = leaf.to_native();
-                quote!((#inner as #native))
+        match self.inner.ty() {
+            ty::Tree::Leaf(leaf) if leaf.is_native() => inner,
+            ty::Tree::Leaf(_) | ty::Tree::Node(_) => {
+                quote!(::ribbit::private::ty_to_native(#inner))
             }
-            (true, _, leaf::Repr::Native(_)) => quote!(#inner.get()),
-            (false, _, leaf::Repr::Native(_)) => inner,
-            (false, _, leaf::Repr::Arbitrary(_)) => quote!(#inner.value()),
-        };
-
-        inner.to_tokens(tokens)
+        }
+        .to_tokens(tokens)
     }
 }
 
@@ -139,6 +135,11 @@ impl<V: Native> Native for Apply<'_, V> {
             Op::Cast(native) => native,
         }
     }
+
+    fn is_zero(&self) -> bool {
+        // Could be more precise, but this covers generated code
+        matches!(self.op, Op::And(0))
+    }
 }
 
 impl<V: Native> ToTokens for Apply<'_, V> {
@@ -148,6 +149,8 @@ impl<V: Native> ToTokens for Apply<'_, V> {
         let inner = match &self.op {
             Op::Shift { dir: _, shift: 0 } => inner,
             Op::And(0) => self.ty().literal(0).to_token_stream(),
+            Op::Or(value) if self.inner.is_zero() => value.to_token_stream(),
+
             Op::Shift { dir, shift } => {
                 let shift = self.ty().literal(*shift);
                 quote!((#inner #dir #shift))
@@ -156,6 +159,7 @@ impl<V: Native> ToTokens for Apply<'_, V> {
                 let value = self.ty().literal(*value);
                 quote!((#inner & #value))
             }
+
             Op::Or(value) => {
                 let native = self.ty();
                 match value.ty() == native {
@@ -171,46 +175,40 @@ impl<V: Native> ToTokens for Apply<'_, V> {
     }
 }
 
-pub(crate) struct ConvertFromNative<V> {
+pub(crate) struct NativeToTy<V> {
     inner: V,
     target: ty::Tree,
 }
 
-impl<V: Native> ToTokens for ConvertFromNative<V> {
+impl<V: Native> ToTokens for NativeToTy<V> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let inner = self.inner.to_token_stream();
         let source = self.inner.ty();
 
+        let target = &self.target;
         let native = self.target.to_native();
+
+        // Convert source type to target native type
         let inner = match source == native {
             false => quote!((#inner as #native)),
             true => inner,
         };
 
-        let leaf = self.target.to_leaf();
-        let inner = match (*leaf.nonzero, leaf.signed, *leaf.repr) {
-            (_, true, _) | (true, _, leaf::Repr::Arbitrary(_)) => todo!(),
-            (_, _, leaf::Repr::Bool) => {
-                let mask = native.literal(leaf.mask());
-                quote!(((#inner & #mask) > 0))
+        // Mask off bits from target type
+        let inner = match source.size() == *target.size() {
+            false => {
+                let mask = native.literal(target.mask());
+                quote!((#inner & #mask))
             }
-            (true, _, leaf::Repr::Native(_)) => quote!(unsafe { #leaf::new_unchecked(#inner) }),
-            (false, _, leaf::Repr::Native(native)) if native == source => inner,
-            (false, _, leaf::Repr::Native(native)) => quote!((#inner as #native)),
-            (false, _, leaf::Repr::Arbitrary(arbitrary)) => {
-                let mask = native.literal(arbitrary.mask());
-                quote!(unsafe { #leaf::new_unchecked(#inner & #mask) })
-            }
+            true => inner,
         };
 
-        let inner = match &self.target {
-            ty::Tree::Leaf(_) => inner,
-            ty::Tree::Node(node) => {
-                quote!(unsafe { ::ribbit::private::unpack::<#node>(#inner) })
-            }
+        let inner = match *target == ty::Tree::from(ty::Leaf::from(native)) {
+            true => inner,
+            false => quote!(unsafe { ::ribbit::private::native_to_ty::<#target>(#inner) }),
         };
 
-        inner.to_tokens(tokens);
+        inner.to_tokens(tokens)
     }
 }
 
@@ -219,6 +217,10 @@ pub(crate) struct Zero(ty::Native);
 impl Native for Zero {
     fn ty(&self) -> ty::Native {
         self.0
+    }
+
+    fn is_zero(&self) -> bool {
+        true
     }
 }
 

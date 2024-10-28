@@ -6,42 +6,21 @@ use core::num::NonZeroU8;
 pub use ribbit_derive::pack;
 
 pub unsafe trait Pack: Copy + Sized {
-    type Repr: Number;
-}
-
-// Need to duplicate `arbitrary_int::Number` because
-// of the orphan rule.
-pub trait Number: Copy + Sized {
-    type Repr: Number;
     const BITS: usize;
-    const MIN: Self;
-    const MAX: Self;
-
-    fn new(value: Self::Repr) -> Self;
-    fn value(self) -> Self::Repr;
+    type Repr: Copy;
+    type Native: Copy;
 }
 
 #[rustfmt::skip]
 macro_rules! impl_impl_number {
-    ($name:ident, $repr:ty, $dollar:tt) => {
+    ($name:ident, $native:ty, $dollar:tt) => {
         macro_rules! $name {
-            ($dollar($ty:ident),*) => {
+            ($dollar($ty:ident: $bits:expr),* $dollar(,)?) => {
                 $dollar(
                     unsafe impl Pack for private::$ty {
-                        type Repr = Self;
-                    }
-
-                    impl Number for private::$ty {
-                        type Repr = $repr;
-                        const BITS: usize = <private::$ty as arbitrary_int::Number>::BITS;
-                        const MIN: Self = <private::$ty as arbitrary_int::Number>::MIN;
-                        const MAX: Self = <private::$ty as arbitrary_int::Number>::MAX;
-                        fn new(value: Self::Repr) -> Self {
-                            <private::$ty as arbitrary_int::Number>::new(value)
-                        }
-                        fn value(self) -> Self::Repr {
-                            <private::$ty as arbitrary_int::Number>::value(self)
-                        }
+                        const BITS: usize = $bits;
+                        type Repr = private::$ty;
+                        type Native = $native;
                     }
                 )*
             };
@@ -49,41 +28,101 @@ macro_rules! impl_impl_number {
     };
 }
 
+unsafe impl Pack for bool {
+    const BITS: usize = 1;
+    type Repr = bool;
+    type Native = u8;
+}
+
 impl_impl_number!(impl_u8, u8, $);
-impl_u8!(u1, u2, u3, u4, u5, u6, u7, u8);
+impl_u8!(
+    u1: 1,
+    u2: 2,
+    u3: 3,
+    u4: 4,
+    u5: 5,
+    u6: 6,
+    u7: 7,
+    u8: 8,
+);
 
 impl_impl_number!(impl_u16, u16, $);
-impl_u16!(u9, u10, u11, u12, u13, u14, u15, u16);
+impl_u16!(
+    u9: 9,
+    u10: 10,
+    u11: 11,
+    u12: 12,
+    u13: 13,
+    u14: 14,
+    u15: 15,
+    u16: 16,
+);
 
 impl_impl_number!(impl_u32, u32, $);
-impl_u32!(u17, u18, u19, u20, u21, u22, u23, u24, u25, u26, u27, u28, u29, u30, u31, u32);
+impl_u32!(
+    u17: 17,
+    u18: 18,
+    u19: 19,
+    u20: 20,
+    u21: 21,
+    u22: 22,
+    u23: 23,
+    u24: 24,
+    u25: 25,
+    u26: 26,
+    u27: 27,
+    u28: 28,
+    u29: 29,
+    u30: 30,
+    u31: 31,
+    u32: 32,
+);
 
 impl_impl_number!(impl_u64, u64, $);
 impl_u64!(
-    u33, u34, u35, u36, u37, u38, u39, u40, u41, u42, u43, u44, u45, u46, u47, u48, u49, u50, u51,
-    u52, u53, u54, u55, u56, u57, u58, u59, u60, u61, u62, u63, u64
+    u33: 33,
+    u34: 34,
+    u35: 35,
+    u36: 36,
+    u37: 37,
+    u38: 38,
+    u39: 39,
+    u40: 40,
+    u41: 41,
+    u42: 42,
+    u43: 43,
+    u44: 44,
+    u45: 45,
+    u46: 46,
+    u47: 47,
+    u48: 48,
+    u49: 49,
+    u50: 50,
+    u51: 51,
+    u52: 52,
+    u53: 53,
+    u54: 54,
+    u55: 55,
+    u56: 56,
+    u57: 57,
+    u58: 58,
+    u59: 59,
+    u60: 60,
+    u61: 61,
+    u62: 62,
+    u63: 63,
+    u64: 64,
 );
 
 macro_rules! impl_nonzero {
     ($ty:ty, $repr:ty, $bits:expr) => {
         unsafe impl Pack for $ty {
-            type Repr = Self;
+            const BITS: usize = $bits;
+            type Repr = $ty;
+            type Native = $repr;
         }
 
         unsafe impl NonZero for $ty {}
-
-        impl Number for $ty {
-            type Repr = $repr;
-            const BITS: usize = $bits;
-            const MIN: Self = Self::MIN;
-            const MAX: Self = Self::MAX;
-            fn new(value: Self::Repr) -> Self {
-                <$ty>::new(value).unwrap()
-            }
-            fn value(self) -> Self::Repr {
-                self.get()
-            }
-        }
     };
 }
 
@@ -92,10 +131,13 @@ impl_nonzero!(NonZeroU16, u16, 16);
 impl_nonzero!(NonZeroU32, u32, 32);
 impl_nonzero!(NonZeroU64, u64, 64);
 
-unsafe impl<T: Pack + NonZero> Pack for Option<T> {
-    // First `T::Repr` is the non-zero type, which is backed
-    // by a native `Repr`.
-    type Repr = <T::Repr as Number>::Repr;
+unsafe impl<T> Pack for Option<T>
+where
+    T: Pack + NonZero,
+{
+    const BITS: usize = T::BITS;
+    type Repr = Option<T::Repr>;
+    type Native = T::Native;
 }
 
 pub unsafe trait NonZero {}
@@ -181,25 +223,37 @@ pub mod private {
     use crate::Pack;
 
     union Transmute<T: Pack> {
-        r#in: T,
-        out: T::Repr,
+        value: T,
+        repr: T::Repr,
+        native: T::Native,
     }
 
-    pub const fn pack<T: Pack>(value: T) -> T::Repr {
+    const fn assert_layout<T: Pack>() {
         const {
-            assert!(core::mem::size_of::<T>() == core::mem::size_of::<T::Repr>());
-            assert!(core::mem::align_of::<T>() == core::mem::align_of::<T::Repr>());
-        }
+            assert!(
+                core::mem::size_of::<T>() == core::mem::size_of::<T::Repr>()
+                && core::mem::size_of::<T>() == core::mem::size_of::<T::Native>()
+            );
 
-        unsafe { Transmute { r#in: value }.out }
+            assert!(
+                core::mem::align_of::<T>() == core::mem::align_of::<T::Repr>()
+                && core::mem::align_of::<T>() == core::mem::align_of::<T::Native>()
+            );
+        }
     }
 
-    pub const unsafe fn unpack<T: Pack>(value: T::Repr) -> T {
-        const {
-            assert!(core::mem::size_of::<T>() == core::mem::size_of::<T::Repr>());
-            assert!(core::mem::align_of::<T>() == core::mem::align_of::<T::Repr>());
-        }
+    pub const fn ty_to_repr<T: Pack>(value: T) -> T::Repr {
+        const { assert_layout::<T>() }
+        unsafe { Transmute { value }.repr }
+    }
 
-        unsafe { Transmute { out: value }.r#in }
+    pub const fn ty_to_native<T: Pack>(value: T) -> T::Native {
+        const { assert_layout::<T>() }
+        unsafe { Transmute { value }.native }
+    }
+
+    pub const unsafe fn native_to_ty<T: Pack>(native: T::Native) -> T {
+        const { assert_layout::<T>() }
+         Transmute { native }.value
     }
 }

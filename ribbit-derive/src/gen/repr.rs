@@ -17,13 +17,19 @@ pub(crate) fn repr(
         false => quote!(),
     };
 
+    let size = repr.size();
+
     quote! {
         #( #attrs )*
         #vis struct #ident {
             value: #repr,
         }
 
-        unsafe impl ::ribbit::Pack for #ident { type Repr = #repr; }
+        unsafe impl ::ribbit::Pack for #ident {
+            const BITS: usize = #size;
+            type Repr = #repr;
+            type Native = <#repr as ::ribbit::Pack>::Native;
+        }
 
         #nonzero
     }

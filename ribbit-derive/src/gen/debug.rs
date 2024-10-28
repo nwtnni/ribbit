@@ -28,7 +28,7 @@ pub(crate) fn debug(
         let opt = &field.opt.debug;
 
         let value = lift::lift(quote!(self.#name()), (*field.ty).clone())
-            .convert_to_native()
+            .ty_to_native()
             .to_token_stream();
 
         let value = match &opt.format {

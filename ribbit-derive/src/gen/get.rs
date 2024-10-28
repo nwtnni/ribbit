@@ -18,12 +18,12 @@ pub(crate) fn get(
         let ty_field = &*field.ty;
 
         let value_field = lift::lift(quote!(self.value), ty_struct)
-            .convert_to_native()
+            .ty_to_native()
             .apply(lift::Op::Shift {
                 dir: lift::Dir::R,
                 shift: field.offset,
             })
-            .convert_to_ty(ty_field.clone());
+            .native_to_ty(ty_field.clone());
 
         let vis = field.vis;
         let get = field.ident.escaped();

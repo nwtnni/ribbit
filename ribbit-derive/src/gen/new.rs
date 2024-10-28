@@ -36,7 +36,7 @@ pub(crate) fn new(
             |state, field| {
                 let ident = field.ident.escaped();
                 let value_field = lift::lift(ident, (*field.ty).clone())
-                    .convert_to_native()
+                    .ty_to_native()
                     .apply(lift::Op::Cast(repr.to_native()))
                     .apply(lift::Op::Shift {
                         dir: lift::Dir::L,
@@ -46,7 +46,7 @@ pub(crate) fn new(
                 Box::new(state.apply(lift::Op::Or(Box::new(value_field))))
             },
         )
-        .convert_to_ty(**repr);
+        .native_to_ty(**repr);
 
     let new = opt
         .new

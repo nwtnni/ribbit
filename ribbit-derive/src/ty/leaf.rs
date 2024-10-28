@@ -23,6 +23,16 @@ impl PartialEq for Leaf {
 
 impl Eq for Leaf {}
 
+impl From<Native> for Leaf {
+    fn from(native: Native) -> Self {
+        Self {
+            nonzero: Spanned::from(false),
+            signed: false,
+            repr: Spanned::from(Repr::Native(native)),
+        }
+    }
+}
+
 impl Leaf {
     pub(crate) fn size(&self) -> Spanned<usize> {
         self.repr.map_ref(|repr| repr.size())
@@ -38,6 +48,10 @@ impl Leaf {
             signed: false,
             repr: size.map_ref(|size| Repr::new(*size)),
         }
+    }
+
+    pub(crate) fn is_native(&self) -> bool {
+        !*self.nonzero && !self.signed && matches!(&*self.repr, Repr::Native(_))
     }
 
     pub(crate) fn to_native(self) -> Native {

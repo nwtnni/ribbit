@@ -19,7 +19,7 @@ pub(crate) fn pre(ir::Struct { fields, .. }: &ir::Struct) -> TokenStream {
         .map(|ty| {
             let size = ty.size();
             quote_spanned! {size.span()=>
-                const _: () = if #size != <<#ty as ::ribbit::Pack>::Repr as ::ribbit::Number>::BITS {
+                const _: () = if #size != <#ty as ::ribbit::Pack>::BITS {
                     panic!(concat!("Annotated size does not match actual size of type ", stringify!(#ty)));
                 };
             }
