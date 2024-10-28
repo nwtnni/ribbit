@@ -27,8 +27,8 @@ pub(crate) fn repr(
 
         unsafe impl ::ribbit::Pack for #ident {
             const BITS: usize = #size;
-            type Repr = #repr;
-            type Native = <#repr as ::ribbit::Pack>::Native;
+            type Tight = #repr;
+            type Loose = <#repr as ::ribbit::Pack>::Loose;
         }
 
         #nonzero

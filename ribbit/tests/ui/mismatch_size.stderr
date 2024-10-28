@@ -6,33 +6,18 @@ error[E0080]: evaluation of constant value failed
   |
   = note: this error originates in the macro `$crate::panic::panic_2021` which comes from the expansion of the macro `panic` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error[E0599]: no method named `value` found for type `u16` in the current scope
- --> tests/ui/mismatch_size.rs:5:1
-  |
-5 | #[ribbit::pack(size = 16)]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^ method not found in `u16`
-  |
-  = help: items from traits can only be used if the trait is in scope
-  = note: this error originates in the attribute macro `ribbit::pack` (in Nightly builds, run with -Z macro-backtrace for more info)
-help: the following traits which provide `value` are implemented but not in scope; perhaps you want to import one of them
-  |
-1 + use object::read::coff::symbol::ImageSymbol;
-  |
-1 + use ribbit::Number;
-  |
-1 + use ribbit::private::Number;
-  |
-
 error[E0308]: mismatched types
  --> tests/ui/mismatch_size.rs:5:1
   |
 5 | #[ribbit::pack(size = 16)]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `u16`, found `UInt<u8, 1>`
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  | |
+  | expected `u16`, found `u8`
+  | arguments to this function are incorrect
   |
-  = note: expected type `u16`
-           found struct `arbitrary_int::UInt<u8, 1>`
+note: function defined here
+ --> src/lib.rs
+  |
+  |     pub const unsafe fn unpack<T: Pack>(loose: T::Loose) -> T {
+  |                         ^^^^^^
   = note: this error originates in the attribute macro `ribbit::pack` (in Nightly builds, run with -Z macro-backtrace for more info)
-help: call `Into::into` on this expression to convert `arbitrary_int::UInt<u8, 1>` into `u16`
-  |
-5 | #[ribbit::pack(size = 16)].into()
-  |                           +++++++

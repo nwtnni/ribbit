@@ -93,7 +93,7 @@ impl<V: Tree> ToTokens for TyToNative<V> {
         match self.inner.ty() {
             ty::Tree::Leaf(leaf) if leaf.is_native() => inner,
             ty::Tree::Leaf(_) | ty::Tree::Node(_) => {
-                quote!(::ribbit::private::ty_to_native(#inner))
+                quote!(::ribbit::private::pack(#inner))
             }
         }
         .to_tokens(tokens)
@@ -205,7 +205,7 @@ impl<V: Native> ToTokens for NativeToTy<V> {
 
         let inner = match *target == ty::Tree::from(ty::Leaf::from(native)) {
             true => inner,
-            false => quote!(unsafe { ::ribbit::private::native_to_ty::<#target>(#inner) }),
+            false => quote!(unsafe { ::ribbit::private::unpack::<#target>(#inner) }),
         };
 
         inner.to_tokens(tokens)

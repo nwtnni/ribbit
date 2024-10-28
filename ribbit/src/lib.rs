@@ -7,8 +7,8 @@ pub use ribbit_derive::pack;
 
 pub unsafe trait Pack: Copy + Sized {
     const BITS: usize;
-    type Repr: Copy;
-    type Native: Copy;
+    type Tight: Copy;
+    type Loose: Copy;
 }
 
 #[rustfmt::skip]
@@ -19,8 +19,8 @@ macro_rules! impl_impl_number {
                 $dollar(
                     unsafe impl Pack for private::$ty {
                         const BITS: usize = $bits;
-                        type Repr = private::$ty;
-                        type Native = $native;
+                        type Tight = private::$ty;
+                        type Loose = $native;
                     }
                 )*
             };
@@ -30,8 +30,8 @@ macro_rules! impl_impl_number {
 
 unsafe impl Pack for bool {
     const BITS: usize = 1;
-    type Repr = bool;
-    type Native = u8;
+    type Tight = bool;
+    type Loose = u8;
 }
 
 impl_impl_number!(impl_u8, u8, $);
@@ -115,11 +115,11 @@ impl_u64!(
 );
 
 macro_rules! impl_nonzero {
-    ($ty:ty, $repr:ty, $bits:expr) => {
+    ($ty:ty, $loose:ty, $bits:expr) => {
         unsafe impl Pack for $ty {
             const BITS: usize = $bits;
-            type Repr = $ty;
-            type Native = $repr;
+            type Tight = $ty;
+            type Loose = $loose;
         }
 
         unsafe impl NonZero for $ty {}
@@ -136,8 +136,8 @@ where
     T: Pack + NonZero,
 {
     const BITS: usize = T::BITS;
-    type Repr = Option<T::Repr>;
-    type Native = T::Native;
+    type Tight = Option<T::Tight>;
+    type Loose = T::Loose;
 }
 
 pub unsafe trait NonZero {}
@@ -224,36 +224,30 @@ pub mod private {
 
     union Transmute<T: Pack> {
         value: T,
-        repr: T::Repr,
-        native: T::Native,
+        loose: T::Loose,
     }
 
     const fn assert_layout<T: Pack>() {
         const {
             assert!(
-                core::mem::size_of::<T>() == core::mem::size_of::<T::Repr>()
-                && core::mem::size_of::<T>() == core::mem::size_of::<T::Native>()
+                core::mem::size_of::<T>() == core::mem::size_of::<T::Tight>()
+                && core::mem::size_of::<T>() == core::mem::size_of::<T::Loose>()
             );
 
             assert!(
-                core::mem::align_of::<T>() == core::mem::align_of::<T::Repr>()
-                && core::mem::align_of::<T>() == core::mem::align_of::<T::Native>()
+                core::mem::align_of::<T>() == core::mem::align_of::<T::Tight>()
+                && core::mem::align_of::<T>() == core::mem::align_of::<T::Loose>()
             );
         }
     }
 
-    pub const fn ty_to_repr<T: Pack>(value: T) -> T::Repr {
+    pub const fn pack<T: Pack>(value: T) -> T::Loose {
         const { assert_layout::<T>() }
-        unsafe { Transmute { value }.repr }
+        unsafe { Transmute { value }.loose }
     }
 
-    pub const fn ty_to_native<T: Pack>(value: T) -> T::Native {
+    pub const unsafe fn unpack<T: Pack>(loose: T::Loose) -> T {
         const { assert_layout::<T>() }
-        unsafe { Transmute { value }.native }
-    }
-
-    pub const unsafe fn native_to_ty<T: Pack>(native: T::Native) -> T {
-        const { assert_layout::<T>() }
-         Transmute { native }.value
+         Transmute { loose }.value
     }
 }
