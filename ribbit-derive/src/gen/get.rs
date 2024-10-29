@@ -18,6 +18,8 @@ pub(crate) fn get<'ir>(
                 dir: lift::Dir::R,
                 shift: field.offset,
             })
+            .apply(lift::Op::Cast(ty_field.to_native()))
+            .apply(lift::Op::And(ty_field.mask()))
             .native_to_ty(ty_field.clone());
 
         let vis = field.vis;

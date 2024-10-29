@@ -148,18 +148,19 @@ impl<V: Native> ToTokens for Apply<'_, V> {
 
         let inner = match &self.op {
             Op::Shift { dir: _, shift: 0 } => inner,
-            Op::And(0) => self.ty().literal(0).to_token_stream(),
-            Op::Or(value) if self.inner.is_zero() => value.to_token_stream(),
-
             Op::Shift { dir, shift } => {
                 let shift = self.ty().literal(*shift);
                 quote!((#inner #dir #shift))
             }
+
+            Op::And(0) => self.ty().literal(0).to_token_stream(),
+            Op::And(mask) if *mask == self.ty().mask() => inner,
             Op::And(value) => {
                 let value = self.ty().literal(*value);
                 quote!((#inner & #value))
             }
 
+            Op::Or(value) if self.inner.is_zero() => value.to_token_stream(),
             Op::Or(value) => {
                 let native = self.ty();
                 match value.ty() == native {
@@ -167,6 +168,7 @@ impl<V: Native> ToTokens for Apply<'_, V> {
                     true => quote!((#inner | #value)),
                 }
             }
+
             Op::Cast(native) if *native == self.inner.ty() => inner,
             Op::Cast(native) => quote!((#inner as #native)),
         };
@@ -191,15 +193,6 @@ impl<V: Native> ToTokens for NativeToTy<V> {
         // Convert source type to target native type
         let inner = match source == native {
             false => quote!((#inner as #native)),
-            true => inner,
-        };
-
-        // Mask off bits from target type
-        let inner = match native.size() == *target.size() {
-            false => {
-                let mask = native.literal(target.mask());
-                quote!((#inner & #mask))
-            }
             true => inner,
         };
 
