@@ -195,7 +195,7 @@ impl<V: Native> ToTokens for NativeToTy<V> {
         };
 
         // Mask off bits from target type
-        let inner = match source.size() == *target.size() {
+        let inner = match native.size() == *target.size() {
             false => {
                 let mask = native.literal(target.mask());
                 quote!((#inner & #mask))

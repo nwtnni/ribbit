@@ -1,7 +1,5 @@
+use arbitrary_int::*;
 use core::num::NonZeroU16;
-
-use arbitrary_int::u2;
-use arbitrary_int::u9;
 
 #[test]
 fn basic() {
@@ -12,10 +10,7 @@ fn basic() {
         b: u32,
     }
 
-    let h = Half {
-        value: 0xbeef_dead_dead_beef,
-    };
-
+    let h = Half::new(0xdead_beef, 0xbeef_dead);
     assert_eq!(h.value, 0xbeef_dead_dead_beef);
     assert_eq!(h.a(), 0xdead_beef);
     assert_eq!(h.b(), 0xbeef_dead);
@@ -30,9 +25,7 @@ fn arbitrary_field() {
         b: u24,
     }
 
-    let h = Half {
-        value: 0xbeef_dead_dead_beef,
-    };
+    let h = Half::new(u40::new(0xad_dead_beef), u24::new(0xbe_efde));
 
     assert_eq!(h.value, 0xbeef_dead_dead_beef);
     assert_eq!(h.a().value(), 0xad_dead_beef);
@@ -48,10 +41,7 @@ fn arbitrary_repr() {
         b: u8,
     }
 
-    let h = Half {
-        value: u9::new(0b101010101),
-    };
-
+    let h = Half::new(u1::new(1), 0b10101010);
     assert_eq!(h.a().value(), 0b1);
     assert_eq!(h.b(), 0b10101010);
 }
@@ -65,9 +55,7 @@ fn set_bit() {
         b: u1,
     }
 
-    let h = Bits {
-        value: u2::new(0b00),
-    };
+    let h = Bits::new(u1::new(0), u1::new(0));
 
     assert_eq!(h.a().value(), 0b0);
     assert_eq!(h.b().value(), 0b0);
@@ -91,9 +79,7 @@ fn set_clobber() {
         value: u2,
     }
 
-    let c = Clobber {
-        value: u2::new(0b00),
-    };
+    let c = Clobber::new(u2::new(0));
 
     assert_eq!(c.value(), u2::new(0b00));
 

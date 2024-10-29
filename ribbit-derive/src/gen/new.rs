@@ -16,7 +16,6 @@ pub(crate) struct StructOpt {
 pub(crate) fn new(
     ir::Struct {
         fields,
-        ident,
         opt,
         repr,
         vis,
@@ -29,13 +28,13 @@ pub(crate) fn new(
         quote!(#ident: #ty)
     });
 
-    let value_struct = fields
+    let value = fields
         .iter()
         .fold(
             Box::new(lift::zero(repr.to_native())) as Box<dyn lift::Native>,
             |state, field| {
                 let ident = field.ident.escaped();
-                let value_field = lift::lift(ident, (*field.ty).clone())
+                let value = lift::lift(ident, (*field.ty).clone())
                     .ty_to_native()
                     .apply(lift::Op::Cast(repr.to_native()))
                     .apply(lift::Op::Shift {
@@ -43,7 +42,7 @@ pub(crate) fn new(
                         shift: field.offset,
                     });
 
-                Box::new(state.apply(lift::Op::Or(Box::new(value_field))))
+                Box::new(state.apply(lift::Op::Or(Box::new(value))))
             },
         )
         .native_to_ty(**repr);
@@ -56,12 +55,14 @@ pub(crate) fn new(
     let vis = opt.new.vis.as_ref().unwrap_or(vis);
 
     quote! {
-        impl #ident {
-            #[inline]
-            #vis const fn #new(
-                #(#parameters),*
-            ) -> Self {
-                Self { value: #value_struct }
+        #[inline]
+        #vis const fn #new(
+            #(#parameters),*
+        ) -> Self {
+            let _: () = Self::_RIBBIT_ASSERT_LAYOUT;
+            Self {
+                value: #value,
+                r#type: ::ribbit::private::PhantomData,
             }
         }
     }

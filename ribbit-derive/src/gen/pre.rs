@@ -13,20 +13,23 @@ pub(crate) fn pre(ir::Struct { fields, .. }: &ir::Struct) -> TokenStream {
     let nonzero = fields
         .clone()
         .filter(|ty| *ty.nonzero())
-        .map(|repr| quote!(::ribbit::private::assert_impl_all!(#repr: ::ribbit::NonZero);));
+        .map(|repr| quote!(::ribbit::private::assert_impl_all!(#repr: ::ribbit::NonZero)));
 
     let pack = fields
         .map(|ty| {
             let size = ty.size();
             quote_spanned! {size.span()=>
-                const _: () = if #size != <#ty as ::ribbit::Pack>::BITS {
+                if #size != <#ty as ::ribbit::Pack>::BITS {
                     panic!(concat!("Annotated size does not match actual size of type ", stringify!(#ty)));
-                };
+                }
             }
         });
 
     quote! {
-        #(#pack)*
-        #(#nonzero)*
+        #[doc(hidden)]
+        const _RIBBIT_ASSERT_LAYOUT: () = {
+            #(#nonzero;)*
+            #(#pack)*
+        };
     }
 }

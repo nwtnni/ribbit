@@ -219,6 +219,7 @@ pub mod private {
     pub use ::core::num::NonZeroU64;
 
     pub use ::static_assertions::assert_impl_all;
+    pub use ::core::marker::PhantomData;
 
     use crate::Pack;
 

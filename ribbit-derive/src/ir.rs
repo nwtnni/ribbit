@@ -5,6 +5,7 @@ use bitvec::boxed::BitBox;
 use darling::util::SpannedValue;
 use darling::FromMeta;
 use quote::format_ident;
+use syn::parse_quote;
 
 use crate::error::bail;
 use crate::gen;
@@ -16,7 +17,7 @@ use crate::Spanned;
 
 pub(crate) fn new<'input>(
     attr: &'input input::Attr,
-    input: &'input syn::DeriveInput,
+    input: &'input mut syn::DeriveInput,
     item: &'input input::Item,
 ) -> darling::Result<Struct<'input>> {
     match &item.data {
@@ -52,12 +53,32 @@ pub(crate) fn new<'input>(
                 bail!(leaf.nonzero=> crate::Error::StructNonZero);
             }
 
+            let params = input.generics.type_params().cloned().collect::<Vec<_>>();
+            let r#where = input.generics.make_where_clause();
+            for param in params {
+                let native = fields
+                    .iter()
+                    .filter_map(|field| match &*field.ty {
+                        ty::Tree::Node(node) => Some(node),
+                        ty::Tree::Leaf(_) => None,
+                    })
+                    .filter(|node| node.contains(&param))
+                    .map(|node| node.to_native())
+                    .next()
+                    .unwrap();
+
+                r#where
+                    .predicates
+                    .push(parse_quote!(#param: ::ribbit::Pack<Loose = #native>));
+            }
+
             Ok(Struct {
                 repr: leaf.into(),
                 opt: &attr.opt,
                 attrs: &input.attrs,
                 vis: &input.vis,
                 ident: &input.ident,
+                generics: &input.generics,
                 fields,
             })
         }
@@ -70,6 +91,7 @@ pub(crate) struct Struct<'input> {
     pub(crate) vis: &'input syn::Visibility,
     pub(crate) ident: &'input syn::Ident,
     pub(crate) fields: Vec<Field<'input>>,
+    pub(crate) generics: &'input syn::Generics,
     pub(crate) opt: &'input StructOpt,
 }
 

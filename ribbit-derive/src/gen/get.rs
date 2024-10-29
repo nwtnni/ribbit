@@ -5,15 +5,10 @@ use crate::ir;
 use crate::lift;
 use crate::lift::NativeExt as _;
 
-pub(crate) fn get(
-    ir::Struct {
-        fields,
-        repr,
-        ident,
-        ..
-    }: &ir::Struct,
-) -> TokenStream {
-    let fields = fields.iter().map(|field| {
+pub(crate) fn get<'ir>(
+    ir::Struct { fields, repr, .. }: &'ir ir::Struct,
+) -> impl Iterator<Item = TokenStream> + 'ir {
+    fields.iter().map(|field| {
         let ty_struct = **repr;
         let ty_field = &*field.ty;
 
@@ -30,14 +25,9 @@ pub(crate) fn get(
         quote! {
             #[inline]
             #vis const fn #get(&self) -> #ty_field {
+                let _: () = Self::_RIBBIT_ASSERT_LAYOUT;
                 #value_field
             }
         }
-    });
-
-    quote! {
-        impl #ident {
-            #(#fields)*
-        }
-    }
+    })
 }

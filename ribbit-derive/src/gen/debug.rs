@@ -16,7 +16,11 @@ pub(crate) struct FieldOpt {
 
 pub(crate) fn debug(
     ir::Struct {
-        fields, opt, ident, ..
+        fields,
+        opt,
+        ident,
+        generics,
+        ..
     }: &ir::Struct,
 ) -> TokenStream {
     if opt.debug.is_none() {
@@ -41,8 +45,9 @@ pub(crate) fn debug(
         }
     });
 
+    let (r#impl, ty, r#where) = generics.split_for_impl();
     quote! {
-        impl ::core::fmt::Debug for #ident {
+        impl #r#impl ::core::fmt::Debug for #ident #ty #r#where {
             fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
                 f.debug_struct(stringify!(#ident))
                     #(#fields)*

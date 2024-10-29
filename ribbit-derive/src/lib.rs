@@ -32,11 +32,14 @@ pub fn pack(
         .into()
 }
 
-fn pack_inner(attr: TokenStream, input: syn::DeriveInput) -> Result<TokenStream, darling::Error> {
+fn pack_inner(
+    attr: TokenStream,
+    mut input: syn::DeriveInput,
+) -> Result<TokenStream, darling::Error> {
     let attr = input::Attr::new(attr)?;
     let item = input::Item::from_derive_input(&input)?;
 
-    let ir = ir::new(&attr, &input, &item)?;
+    let ir = ir::new(&attr, &mut input, &item)?;
 
     let pre = gen::pre(&ir);
     let repr = gen::repr(&ir);
@@ -45,16 +48,21 @@ fn pack_inner(attr: TokenStream, input: syn::DeriveInput) -> Result<TokenStream,
     let set = gen::set(&ir);
     let debug = gen::debug(&ir);
 
-    Ok(quote! {
-        #pre
+    let (r#impl, ty, r#where) = ir.generics.split_for_impl();
+    let ident = &ir.ident;
 
+    Ok(quote! {
         #repr
 
-        #new
+        impl #r#impl #ident #ty #r#where {
+            #new
 
-        #get
+            #(#get)*
 
-        #set
+            #(#set)*
+
+            #pre
+        }
 
         #debug
     }
