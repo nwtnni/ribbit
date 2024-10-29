@@ -1,3 +1,4 @@
+use darling::ast::Fields;
 use darling::util::SpannedValue;
 use darling::FromDeriveInput;
 use darling::FromField;
@@ -24,12 +25,21 @@ impl Attr {
 }
 
 #[derive(FromDeriveInput, Debug)]
+#[darling(forward_attrs(doc, derive))]
 pub struct Item {
+    pub(crate) attrs: Vec<syn::Attribute>,
+    pub(crate) vis: syn::Visibility,
+    pub(crate) ident: syn::Ident,
+    pub(crate) generics: syn::Generics,
     pub(crate) data: darling::ast::Data<Variant, SpannedValue<Field>>,
 }
 
 #[derive(FromVariant, Debug)]
-pub(crate) struct Variant {}
+#[darling(attributes(ribbit))]
+pub(crate) struct Variant {
+    pub(crate) ident: syn::Ident,
+    pub(crate) fields: Fields<Field>,
+}
 
 #[derive(FromField, Debug)]
 #[darling(attributes(ribbit))]

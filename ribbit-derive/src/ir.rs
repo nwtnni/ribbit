@@ -17,8 +17,7 @@ use crate::Spanned;
 
 pub(crate) fn new<'input>(
     attr: &'input input::Attr,
-    input: &'input mut syn::DeriveInput,
-    item: &'input input::Item,
+    item: &'input mut input::Item,
 ) -> darling::Result<Struct<'input>> {
     match &item.data {
         darling::ast::Data::Enum(_) => todo!(),
@@ -33,7 +32,7 @@ pub(crate) fn new<'input>(
                 .collect::<Result<Vec<_>, _>>()?;
 
             if bits.not_all() {
-                bail!(input => crate::Error::Underflow {
+                bail!(attr.size=> crate::Error::Underflow {
                     bits,
                 })
             }
@@ -53,8 +52,8 @@ pub(crate) fn new<'input>(
                 bail!(leaf.nonzero=> crate::Error::StructNonZero);
             }
 
-            let params = input.generics.type_params().cloned().collect::<Vec<_>>();
-            let r#where = input.generics.make_where_clause();
+            let params = item.generics.type_params().cloned().collect::<Vec<_>>();
+            let r#where = item.generics.make_where_clause();
             for param in params {
                 let native = fields
                     .iter()
@@ -75,10 +74,10 @@ pub(crate) fn new<'input>(
             Ok(Struct {
                 repr: leaf.into(),
                 opt: &attr.opt,
-                attrs: &input.attrs,
-                vis: &input.vis,
-                ident: &input.ident,
-                generics: &input.generics,
+                attrs: &item.attrs,
+                vis: &item.vis,
+                ident: &item.ident,
+                generics: &item.generics,
                 fields,
             })
         }

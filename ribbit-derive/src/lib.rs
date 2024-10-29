@@ -32,14 +32,14 @@ pub fn pack(
         .into()
 }
 
-fn pack_inner(
-    attr: TokenStream,
-    mut input: syn::DeriveInput,
-) -> Result<TokenStream, darling::Error> {
+fn pack_inner(attr: TokenStream, input: syn::DeriveInput) -> Result<TokenStream, darling::Error> {
     let attr = input::Attr::new(attr)?;
-    let item = input::Item::from_derive_input(&input)?;
+    let mut item = input::Item::from_derive_input(&input)?;
+    pack_struct(&attr, &mut item)
+}
 
-    let ir = ir::new(&attr, &mut input, &item)?;
+fn pack_struct(attr: &input::Attr, item: &mut input::Item) -> Result<TokenStream, darling::Error> {
+    let ir = ir::new(attr, item)?;
 
     let pre = gen::pre(&ir);
     let repr = gen::repr(&ir);
