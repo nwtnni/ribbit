@@ -15,14 +15,11 @@ use crate::ty::leaf;
 use crate::ty::Leaf;
 use crate::Spanned;
 
-pub(crate) fn new<'input>(
-    attr: &'input input::Attr,
-    item: &'input mut input::Item,
-) -> darling::Result<Struct<'input>> {
+pub(crate) fn new<'input>(item: &'input mut input::Item) -> darling::Result<Struct<'input>> {
     match &item.data {
         darling::ast::Data::Enum(_) => todo!(),
         darling::ast::Data::Struct(r#struct) => {
-            let mut bits = bitbox![0; *attr.size];
+            let mut bits = bitbox![0; *item.opt.size];
 
             let fields = r#struct
                 .fields
@@ -32,16 +29,17 @@ pub(crate) fn new<'input>(
                 .collect::<Result<Vec<_>, _>>()?;
 
             if bits.not_all() {
-                bail!(attr.size=> crate::Error::Underflow {
+                bail!(item.opt.size=> crate::Error::Underflow {
                     bits,
                 })
             }
 
             let leaf = Leaf::new(
-                attr.nonzero
+                item.opt
+                    .nonzero
                     .map(Spanned::from)
                     .unwrap_or_else(|| false.into()),
-                attr.size.into(),
+                item.opt.size.into(),
             );
 
             if let (true, leaf::Repr::Arbitrary(_)) = (*leaf.nonzero, *leaf.repr) {
@@ -73,7 +71,7 @@ pub(crate) fn new<'input>(
 
             Ok(Struct {
                 repr: leaf.into(),
-                opt: &attr.opt,
+                opt: &item.opt,
                 attrs: &item.attrs,
                 vis: &item.vis,
                 ident: &item.ident,
@@ -96,6 +94,9 @@ pub(crate) struct Struct<'input> {
 
 #[derive(FromMeta, Debug)]
 pub(crate) struct StructOpt {
+    pub(crate) size: SpannedValue<usize>,
+    pub(crate) nonzero: Option<SpannedValue<bool>>,
+
     #[darling(default)]
     pub(crate) new: gen::new::StructOpt,
     pub(crate) debug: Option<gen::debug::StructOpt>,
@@ -117,13 +118,13 @@ impl<'input> Field<'input> {
     ) -> darling::Result<Self> {
         let repr = ty::Tree::from_ty(
             field.ty.clone(),
-            field.nonzero.map(Spanned::from),
-            field.size.map(Spanned::from),
+            field.opt.nonzero.map(Spanned::from),
+            field.opt.size.map(Spanned::from),
         )?;
 
         let size = *repr.size();
 
-        let offset = match field.offset {
+        let offset = match field.opt.offset {
             None => match bits.first_zero() {
                 Some(offset) => Spanned::new(offset, field.span()),
                 None => bail!(field => crate::Error::Overflow {
@@ -162,8 +163,12 @@ impl<'input> Field<'input> {
     }
 }
 
-#[derive(FromMeta, Debug)]
+#[derive(FromMeta, Clone, Debug)]
 pub(crate) struct FieldOpt {
+    pub(crate) nonzero: Option<SpannedValue<bool>>,
+    pub(crate) size: Option<SpannedValue<usize>>,
+    pub(crate) offset: Option<SpannedValue<usize>>,
+
     #[darling(default)]
     pub(crate) debug: gen::debug::FieldOpt,
 }

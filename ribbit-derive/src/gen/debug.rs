@@ -9,7 +9,7 @@ use crate::lift;
 #[derive(FromMeta, Debug)]
 pub(crate) struct StructOpt;
 
-#[derive(FromMeta, Debug, Default)]
+#[derive(FromMeta, Clone, Debug, Default)]
 pub(crate) struct FieldOpt {
     format: Option<syn::LitStr>,
 }

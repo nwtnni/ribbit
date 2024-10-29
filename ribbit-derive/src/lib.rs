@@ -19,6 +19,7 @@ use quote::quote;
 use quote::quote_spanned;
 use quote::ToTokens;
 use syn::parse_macro_input;
+use syn::parse_quote;
 
 #[proc_macro_attribute]
 pub fn pack(
@@ -32,14 +33,24 @@ pub fn pack(
         .into()
 }
 
-fn pack_inner(attr: TokenStream, input: syn::DeriveInput) -> Result<TokenStream, darling::Error> {
-    let attr = input::Attr::new(attr)?;
+fn pack_inner(
+    attr: TokenStream,
+    mut input: syn::DeriveInput,
+) -> Result<TokenStream, darling::Error> {
+    input.attrs.push(parse_quote!(#[ribbit(#attr)]));
+
     let mut item = input::Item::from_derive_input(&input)?;
-    pack_struct(&attr, &mut item)
+
+    match item.data {
+        darling::ast::Data::Enum(_) => {
+            todo!()
+        }
+        darling::ast::Data::Struct(_) => pack_struct(&mut item),
+    }
 }
 
-fn pack_struct(attr: &input::Attr, item: &mut input::Item) -> Result<TokenStream, darling::Error> {
-    let ir = ir::new(attr, item)?;
+fn pack_struct(item: &mut input::Item) -> Result<TokenStream, darling::Error> {
+    let ir = ir::new(item)?;
 
     let pre = gen::pre(&ir);
     let repr = gen::repr(&ir);
