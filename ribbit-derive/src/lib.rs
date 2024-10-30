@@ -8,6 +8,8 @@ mod ty;
 use core::ops::Deref;
 use core::ops::DerefMut;
 
+use darling::util::AsShape;
+use darling::util::Shape;
 use darling::util::SpannedValue;
 
 pub(crate) use error::Error;
@@ -18,6 +20,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use quote::quote_spanned;
 use quote::ToTokens;
+use quote::TokenStreamExt as _;
 use syn::parse_macro_input;
 use syn::parse_quote;
 
@@ -40,16 +43,44 @@ fn pack_inner(
     input.attrs.push(parse_quote!(#[ribbit(#attr)]));
 
     let mut item = input::Item::from_derive_input(&input)?;
+    let mut stream = TokenStream::new();
 
     match item.data {
-        darling::ast::Data::Enum(_) => {
-            todo!()
+        darling::ast::Data::Enum(r#enum) => {
+            for variant in r#enum {
+                match variant.fields.as_shape() {
+                    // Assume
+                    Shape::Newtype => todo!(),
+
+                    // Generate
+                    Shape::Named => {
+                        let mut item = input::Item {
+                            opt: variant.opt.clone(),
+                            attrs: variant.attrs.clone(),
+                            vis: item.vis.clone(),
+                            ident: variant.ident,
+                            generics: syn::Generics::default(),
+                            data: darling::ast::Data::Struct(variant.fields.clone()),
+                        };
+
+                        stream.append_all(pack_item(&mut item)?);
+                    }
+                    Shape::Tuple => todo!(),
+
+                    //
+                    Shape::Unit => todo!(),
+                }
+            }
         }
-        darling::ast::Data::Struct(_) => pack_struct(&mut item),
+        darling::ast::Data::Struct(_) => {
+            stream.append_all(pack_item(&mut item)?);
+        }
     }
+
+    Ok(stream)
 }
 
-fn pack_struct(item: &mut input::Item) -> Result<TokenStream, darling::Error> {
+fn pack_item(item: &mut input::Item) -> Result<TokenStream, darling::Error> {
     let ir = ir::new(item)?;
 
     let pre = gen::pre(&ir);

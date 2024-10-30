@@ -15,9 +15,31 @@ use crate::ty::leaf;
 use crate::ty::Leaf;
 use crate::Spanned;
 
-pub(crate) fn new<'input>(item: &'input mut input::Item) -> darling::Result<Struct<'input>> {
-    match &item.data {
-        darling::ast::Data::Enum(_) => todo!(),
+pub(crate) fn new<'input>(item: &'input mut input::Item) -> darling::Result<Ir<'input>> {
+    let leaf = Leaf::new(
+        item.opt
+            .nonzero
+            .map(Spanned::from)
+            .unwrap_or_else(|| false.into()),
+        item.opt.size.into(),
+    );
+
+    if let (true, leaf::Repr::Arbitrary(_)) = (*leaf.nonzero, *leaf.repr) {
+        bail!(leaf.nonzero=> crate::Error::ArbitraryNonZero);
+    }
+
+    let data = match &item.data {
+        darling::ast::Data::Enum(r#enum) => {
+            let variants = r#enum
+                .iter()
+                .map(|variant| Variant {
+                    ident: &variant.ident,
+                    opt: &variant.opt,
+                })
+                .collect();
+
+            Data::Enum(Enum { variants })
+        }
         darling::ast::Data::Struct(r#struct) => {
             let mut bits = bitbox![0; *item.opt.size];
 
@@ -34,65 +56,70 @@ pub(crate) fn new<'input>(item: &'input mut input::Item) -> darling::Result<Stru
                 })
             }
 
-            let leaf = Leaf::new(
-                item.opt
-                    .nonzero
-                    .map(Spanned::from)
-                    .unwrap_or_else(|| false.into()),
-                item.opt.size.into(),
-            );
-
-            if let (true, leaf::Repr::Arbitrary(_)) = (*leaf.nonzero, *leaf.repr) {
-                bail!(leaf.nonzero=> crate::Error::ArbitraryNonZero);
-            }
-
             if *leaf.nonzero && fields.iter().all(|field| !*field.ty.nonzero()) {
                 bail!(leaf.nonzero=> crate::Error::StructNonZero);
             }
 
-            let params = item.generics.type_params().cloned().collect::<Vec<_>>();
             let r#where = item.generics.make_where_clause();
-            for param in params {
-                let native = fields
-                    .iter()
-                    .filter_map(|field| match &*field.ty {
-                        ty::Tree::Node(node) => Some(node),
-                        ty::Tree::Leaf(_) => None,
-                    })
-                    .filter(|node| node.contains(&param))
-                    .map(|node| node.to_native())
-                    .next()
-                    .unwrap();
+            for field in &fields {
+                let ty = &field.ty;
+                let native = field.ty.to_native();
 
                 r#where
                     .predicates
-                    .push(parse_quote!(#param: ::ribbit::Pack<Loose = #native>));
+                    .push(parse_quote!(#ty: ::ribbit::Pack<Loose = #native>));
             }
 
-            Ok(Struct {
-                repr: leaf.into(),
-                opt: &item.opt,
-                attrs: &item.attrs,
-                vis: &item.vis,
-                ident: &item.ident,
-                generics: &item.generics,
-                fields,
-            })
+            Data::Struct(Struct { fields })
         }
-    }
+    };
+
+    Ok(Ir {
+        repr: leaf.into(),
+        opt: &item.opt,
+        attrs: &item.attrs,
+        vis: &item.vis,
+        ident: &item.ident,
+        generics: &item.generics,
+        data,
+    })
 }
 
-pub(crate) struct Struct<'input> {
+pub(crate) struct Ir<'input> {
     pub(crate) repr: Spanned<Leaf>,
     pub(crate) attrs: &'input [syn::Attribute],
     pub(crate) vis: &'input syn::Visibility,
     pub(crate) ident: &'input syn::Ident,
-    pub(crate) fields: Vec<Field<'input>>,
     pub(crate) generics: &'input syn::Generics,
+    pub(crate) data: Data<'input>,
     pub(crate) opt: &'input StructOpt,
 }
 
-#[derive(FromMeta, Debug)]
+pub(crate) enum Data<'input> {
+    Enum(Enum<'input>),
+    Struct(Struct<'input>),
+}
+
+pub(crate) struct Enum<'input> {
+    pub(crate) variants: Vec<Variant<'input>>,
+}
+
+impl Enum<'_> {
+    pub(crate) fn discriminant(&self) -> usize {
+        self.variants.len().next_power_of_two().trailing_zeros() as usize
+    }
+}
+
+pub(crate) struct Variant<'input> {
+    pub(crate) ident: &'input syn::Ident,
+    pub(crate) opt: &'input StructOpt,
+}
+
+pub(crate) struct Struct<'input> {
+    pub(crate) fields: Vec<Field<'input>>,
+}
+
+#[derive(FromMeta, Clone, Debug)]
 pub(crate) struct StructOpt {
     pub(crate) size: SpannedValue<usize>,
     pub(crate) nonzero: Option<SpannedValue<bool>>,

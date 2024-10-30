@@ -6,7 +6,7 @@ use quote::ToTokens;
 use crate::ir;
 use crate::lift;
 
-#[derive(FromMeta, Debug)]
+#[derive(FromMeta, Clone, Debug)]
 pub(crate) struct StructOpt;
 
 #[derive(FromMeta, Clone, Debug, Default)]
@@ -15,44 +15,49 @@ pub(crate) struct FieldOpt {
 }
 
 pub(crate) fn debug(
-    ir::Struct {
-        fields,
+    ir::Ir {
         opt,
         ident,
         generics,
+        data,
         ..
-    }: &ir::Struct,
+    }: &ir::Ir,
 ) -> TokenStream {
     if opt.debug.is_none() {
         return TokenStream::new();
     }
 
-    let fields = fields.iter().map(|field| {
-        let name = field.ident.escaped();
-        let opt = &field.opt.debug;
+    match data {
+        ir::Data::Struct(ir::Struct { fields }) => {
+            let fields = fields.iter().map(|field| {
+                let name = field.ident.escaped();
+                let opt = &field.opt.debug;
 
-        let value = lift::lift(quote!(self.#name()), (*field.ty).clone())
-            .ty_to_native()
-            .to_token_stream();
+                let value = lift::lift(quote!(self.#name()), (*field.ty).clone())
+                    .ty_to_native()
+                    .to_token_stream();
 
-        let value = match &opt.format {
-            None => value,
-            Some(format) => quote!(format_args!(#format, #value)),
-        };
+                let value = match &opt.format {
+                    None => value,
+                    Some(format) => quote!(format_args!(#format, #value)),
+                };
 
-        quote! {
-            .field(stringify!(#name), &#value)
-        }
-    });
+                quote! {
+                    .field(stringify!(#name), &#value)
+                }
+            });
 
-    let (r#impl, ty, r#where) = generics.split_for_impl();
-    quote! {
-        impl #r#impl ::core::fmt::Debug for #ident #ty #r#where {
-            fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-                f.debug_struct(stringify!(#ident))
-                    #(#fields)*
-                    .finish()
+            let (r#impl, ty, r#where) = generics.split_for_impl();
+            quote! {
+                impl #r#impl ::core::fmt::Debug for #ident #ty #r#where {
+                    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+                        f.debug_struct(stringify!(#ident))
+                            #(#fields)*
+                            .finish()
+                    }
+                }
             }
         }
+        ir::Data::Enum(_) => todo!(),
     }
 }

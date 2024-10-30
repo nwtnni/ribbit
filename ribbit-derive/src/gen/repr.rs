@@ -4,14 +4,15 @@ use quote::quote;
 use crate::ir;
 
 pub(crate) fn repr(
-    ir::Struct {
+    ir::Ir {
         repr,
         ident,
         vis,
         attrs,
         generics,
+        data,
         ..
-    }: &ir::Struct,
+    }: &ir::Ir,
 ) -> TokenStream {
     let nonzero = match *repr.nonzero {
         true => quote!(unsafe impl ::ribbit::NonZero for #ident {}),
@@ -25,12 +26,35 @@ pub(crate) fn repr(
     let lifetimes = generics.lifetimes().map(|lifetime| quote!(&#lifetime ()));
     let tys = generics.type_params();
 
-    quote! {
-        #( #attrs )*
-        #vis struct #ident #ty {
-            value: #repr,
-            r#type: ::ribbit::private::PhantomData<fn(#(#lifetimes),*) -> (#(#tys),*)>,
+    let data = match data {
+        ir::Data::Struct(_) => {
+            quote! {
+                #vis struct #ident #ty {
+                    value: #repr,
+                    r#type: ::ribbit::private::PhantomData<fn(#(#lifetimes),*) -> (#(#tys),*)>,
+                }
+            }
         }
+        ir::Data::Enum(r#enum) => {
+            // TODO
+            assert!(generics.params.is_empty());
+
+            let variants = r#enum
+                .variants
+                .iter()
+                .map(|ir::Variant { ident, .. }| quote!(#ident(#ident)));
+
+            quote! {
+                #vis enum #ident {
+                    #(#variants),*
+                }
+            }
+        }
+    };
+
+    quote! {
+        #(#attrs)*
+        #data
 
         unsafe impl #r#impl ::ribbit::Pack for #ident #ty #r#where {
             const BITS: usize = #size;

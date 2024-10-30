@@ -6,30 +6,33 @@ use crate::lift;
 use crate::lift::NativeExt as _;
 
 pub(crate) fn get<'ir>(
-    ir::Struct { fields, repr, .. }: &'ir ir::Struct,
+    ir::Ir { repr, data, .. }: &'ir ir::Ir,
 ) -> impl Iterator<Item = TokenStream> + 'ir {
-    fields.iter().map(|field| {
-        let ty_struct = **repr;
-        let ty_field = &*field.ty;
+    match data {
+        ir::Data::Struct(ir::Struct { fields }) => fields.iter().map(|field| {
+            let ty_struct = **repr;
+            let ty_field = &*field.ty;
 
-        let value_field = lift::lift(quote!(self.value), ty_struct)
-            .ty_to_native()
-            .apply(lift::Op::Shift {
-                dir: lift::Dir::R,
-                shift: field.offset,
-            })
-            .apply(lift::Op::Cast(ty_field.to_native()))
-            .apply(lift::Op::And(ty_field.mask()))
-            .native_to_ty(ty_field.clone());
+            let value_field = lift::lift(quote!(self.value), ty_struct)
+                .ty_to_native()
+                .apply(lift::Op::Shift {
+                    dir: lift::Dir::R,
+                    shift: field.offset,
+                })
+                .apply(lift::Op::Cast(ty_field.to_native()))
+                .apply(lift::Op::And(ty_field.mask()))
+                .native_to_ty(ty_field.clone());
 
-        let vis = field.vis;
-        let get = field.ident.escaped();
-        quote! {
-            #[inline]
-            #vis const fn #get(&self) -> #ty_field {
-                let _: () = Self::_RIBBIT_ASSERT_LAYOUT;
-                #value_field
+            let vis = field.vis;
+            let get = field.ident.escaped();
+            quote! {
+                #[inline]
+                #vis const fn #get(&self) -> #ty_field {
+                    let _: () = Self::_RIBBIT_ASSERT_LAYOUT;
+                    #value_field
+                }
             }
-        }
-    })
+        }),
+        ir::Data::Enum(_) => todo!(),
+    }
 }

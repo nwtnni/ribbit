@@ -4,18 +4,20 @@ use quote::quote_spanned;
 
 use crate::ir;
 
-pub(crate) fn pre(ir::Struct { fields, .. }: &ir::Struct) -> TokenStream {
-    let fields = fields
-        .iter()
-        .map(|field| &field.ty)
-        .filter(|ty| !ty.is_leaf());
+pub(crate) fn pre(ir::Ir { data, .. }: &ir::Ir) -> TokenStream {
+    match data {
+        ir::Data::Struct(ir::Struct { fields }) => {
+            let fields = fields
+                .iter()
+                .map(|field| &field.ty)
+                .filter(|ty| !ty.is_leaf());
 
-    let nonzero = fields
-        .clone()
-        .filter(|ty| *ty.nonzero())
-        .map(|repr| quote!(::ribbit::private::assert_impl_all!(#repr: ::ribbit::NonZero)));
+            let nonzero = fields
+                .clone()
+                .filter(|ty| *ty.nonzero())
+                .map(|repr| quote!(::ribbit::private::assert_impl_all!(#repr: ::ribbit::NonZero)));
 
-    let pack = fields
+            let pack = fields
         .map(|ty| {
             let size = ty.size();
             quote_spanned! {size.span()=>
@@ -25,11 +27,14 @@ pub(crate) fn pre(ir::Struct { fields, .. }: &ir::Struct) -> TokenStream {
             }
         });
 
-    quote! {
-        #[doc(hidden)]
-        const _RIBBIT_ASSERT_LAYOUT: () = {
-            #(#nonzero;)*
-            #(#pack)*
-        };
+            quote! {
+                #[doc(hidden)]
+                const _RIBBIT_ASSERT_LAYOUT: () = {
+                    #(#nonzero;)*
+                    #(#pack)*
+                };
+            }
+        }
+        ir::Data::Enum(_) => todo!(),
     }
 }

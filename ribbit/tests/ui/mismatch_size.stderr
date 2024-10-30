@@ -1,17 +1,10 @@
-error[E0308]: mismatched types
+error[E0271]: type mismatch resolving `<A as Pack>::Loose == u8`
  --> tests/ui/mismatch_size.rs:5:1
   |
 5 | #[ribbit::pack(size = 16)]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^
-  | |
-  | expected `u16`, found `u8`
-  | arguments to this function are incorrect
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `u16`, found `u8`
   |
-note: function defined here
- --> src/lib.rs
-  |
-  |     pub const unsafe fn unpack<T: Pack>(loose: T::Loose) -> T {
-  |                         ^^^^^^
+  = help: see issue #48214
   = note: this error originates in the attribute macro `ribbit::pack` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0080]: evaluation of constant value failed
