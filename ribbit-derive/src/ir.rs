@@ -14,7 +14,7 @@ use crate::error::bail;
 use crate::gen;
 use crate::input;
 use crate::ty;
-use crate::ty::leaf;
+use crate::ty::tight;
 use crate::ty::Tight;
 use crate::Spanned;
 
@@ -31,7 +31,7 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
         size,
     );
 
-    if let (true, leaf::Repr::Arbitrary(_)) = (*leaf.nonzero, *leaf.repr) {
+    if let (true, tight::Repr::Arbitrary(_)) = (*leaf.nonzero, *leaf.repr) {
         bail!(leaf.nonzero=> crate::Error::ArbitraryNonZero);
     }
 

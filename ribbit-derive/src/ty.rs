@@ -1,12 +1,12 @@
 mod arbitrary;
-pub(crate) mod leaf;
-mod native;
+mod loose;
 mod node;
+pub(crate) mod tight;
 
 pub(crate) use arbitrary::Arbitrary;
-pub(crate) use leaf::Tight;
-pub(crate) use native::Loose;
+pub(crate) use loose::Loose;
 pub(crate) use node::Node;
+pub(crate) use tight::Tight;
 
 use proc_macro2::TokenStream;
 use quote::ToTokens;
