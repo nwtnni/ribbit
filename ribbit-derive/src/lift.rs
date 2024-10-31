@@ -161,6 +161,7 @@ impl<V: Native> ToTokens for Apply<'_, V> {
             }
 
             Op::Or(value) if self.inner.is_zero() => value.to_token_stream(),
+            Op::Or(value) if value.is_zero() => self.inner.to_token_stream(),
             Op::Or(value) => {
                 let native = self.ty();
                 match value.ty() == native {

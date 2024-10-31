@@ -16,6 +16,7 @@ pub enum Error {
         bits: BitBox,
     },
 
+    TopLevelSize,
     StructNonZero,
     OpaqueSize,
     ArbitraryNonZero,
@@ -63,6 +64,9 @@ impl Display for Error {
             }
             Error::UnsupportedType => {
                 write!(f, "Only type paths are supported")
+            }
+            Error::TopLevelSize => {
+                write!(f, "#[ribbit(size = ...)] is required at the top level")
             }
         }
     }

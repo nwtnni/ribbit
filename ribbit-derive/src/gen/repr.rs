@@ -43,6 +43,7 @@ pub(crate) fn repr(
                 .variants
                 .iter()
                 .map(|ir::Variant { ident, ty, .. }| match ty {
+                    Some(ty) if ty.is_leaf() => quote!(#ident(#ty)),
                     Some(_) => quote!(#ident(#ident)),
                     None => quote!(#ident),
                 });

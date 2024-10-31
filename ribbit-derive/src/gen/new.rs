@@ -80,12 +80,15 @@ pub(crate) fn new(
             let discriminants = variants.iter().enumerate().map(|(index, variant)| {
                 let packed = lift::constant(index, native).apply(lift::Op::Or(match &variant.ty {
                     None => Box::new(lift::constant(0, native)) as Box<dyn lift::Native>,
-                    Some(ty) => Box::new(lift(quote!(inner), (**ty).clone()).ty_to_native().apply(
-                        lift::Op::Shift {
-                            dir: lift::Dir::L,
-                            shift: discriminant_size,
-                        },
-                    )),
+                    Some(ty) => Box::new(
+                        lift(quote!(inner), (**ty).clone())
+                            .ty_to_native()
+                            .apply(lift::Op::Shift {
+                                dir: lift::Dir::L,
+                                shift: discriminant_size,
+                            })
+                            .apply(lift::Op::Cast(native)),
+                    ),
                 }));
 
                 let ident = &variant.ident;
@@ -95,6 +98,10 @@ pub(crate) fn new(
                 }
             });
 
+            let value = lift::lift(quote!(match unpacked { #(#discriminants),* }), native)
+                .ty_to_native()
+                .native_to_ty(**repr);
+
             quote! {
                 #[inline]
                 #vis const fn #new(
@@ -102,9 +109,7 @@ pub(crate) fn new(
                 ) -> Self {
                     let _: () = Self::_RIBBIT_ASSERT_LAYOUT;
                     Self {
-                        value: match unpacked {
-                            #(#discriminants),*
-                        },
+                        value: #value,
                         r#type: ::ribbit::private::PhantomData,
                     }
                 }

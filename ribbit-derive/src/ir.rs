@@ -6,6 +6,7 @@ use darling::util::AsShape as _;
 use darling::util::Shape;
 use darling::util::SpannedValue;
 use darling::FromMeta;
+use proc_macro2::Span;
 use quote::format_ident;
 use syn::parse_quote;
 
@@ -18,12 +19,16 @@ use crate::ty::Leaf;
 use crate::Spanned;
 
 pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
+    let Some(size) = item.opt.size.map(Spanned::from) else {
+        bail!(Span::call_site()=> crate::Error::TopLevelSize);
+    };
+
     let leaf = Leaf::new(
         item.opt
             .nonzero
             .map(Spanned::from)
             .unwrap_or_else(|| false.into()),
-        item.opt.size.into(),
+        size,
     );
 
     if let (true, leaf::Repr::Arbitrary(_)) = (*leaf.nonzero, *leaf.repr) {
@@ -42,7 +47,7 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
                         Shape::Newtype => ty::Tree::from_ty(
                             variant.fields.fields[0].ty.clone(),
                             variant.opt.nonzero.map(Spanned::from),
-                            Some(Spanned::from(variant.opt.size)),
+                            variant.opt.size.map(Spanned::from),
                         )
                         .map(Some)?,
                         Shape::Named | Shape::Tuple => {
@@ -50,7 +55,7 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
                             ty::Tree::from_ty(
                                 parse_quote!(#ident),
                                 variant.opt.nonzero.map(Spanned::from),
-                                Some(Spanned::from(variant.opt.size)),
+                                variant.opt.size.map(Spanned::from),
                             )
                             .map(Some)?
                         }
@@ -73,7 +78,7 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
             Data::Enum(Enum { variants })
         }
         darling::ast::Data::Struct(r#struct) => {
-            let mut bits = bitbox![0; *item.opt.size];
+            let mut bits = bitbox![0; *size];
 
             let fields = r#struct
                 .fields
@@ -83,7 +88,7 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
                 .collect::<Result<Vec<_>, _>>()?;
 
             if bits.not_all() {
-                bail!(item.opt.size=> crate::Error::Underflow {
+                bail!(size=> crate::Error::Underflow {
                     bits,
                 })
             }
@@ -160,7 +165,7 @@ pub(crate) struct Struct<'input> {
 
 #[derive(FromMeta, Clone, Debug)]
 pub(crate) struct StructOpt {
-    pub(crate) size: SpannedValue<usize>,
+    pub(crate) size: Option<SpannedValue<usize>>,
     pub(crate) nonzero: Option<SpannedValue<bool>>,
 
     #[darling(default)]

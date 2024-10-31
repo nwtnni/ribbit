@@ -4,7 +4,7 @@ use quote::quote_spanned;
 
 use crate::ir;
 
-pub(crate) fn pre(ir::Ir { data, .. }: &ir::Ir) -> TokenStream {
+pub(crate) fn pre(ir::Ir { data, repr, .. }: &ir::Ir) -> TokenStream {
     match data {
         ir::Data::Struct(ir::Struct { fields }) => {
             let fields = fields
@@ -35,7 +35,7 @@ pub(crate) fn pre(ir::Ir { data, .. }: &ir::Ir) -> TokenStream {
                 };
             }
         }
-        ir::Data::Enum(ir::Enum { variants }) => {
+        ir::Data::Enum(r#enum @ ir::Enum { variants }) => {
             let variants = variants
                 .iter()
                 .flat_map(|variant| &variant.ty)
@@ -46,15 +46,36 @@ pub(crate) fn pre(ir::Ir { data, .. }: &ir::Ir) -> TokenStream {
                 .filter(|ty| *ty.nonzero())
                 .map(|repr| quote!(::ribbit::private::assert_impl_all!(#repr: ::ribbit::NonZero)));
 
-            let pack = variants
-                .map(|ty| {
-                    let size = ty.size();
-                    quote_spanned! {size.span()=>
-                        if #size != <#ty as ::ribbit::Pack>::BITS {
-                            panic!(concat!("Annotated size does not match actual size of type ", stringify!(#ty)));
-                        }
+            let size_enum = repr.size();
+            let size_discriminant = r#enum.discriminant_size();
+            let size_variant = *size_enum - size_discriminant;
+
+            let pack = variants.map(|ty| {
+                let size = ty.size();
+                quote_spanned! {size.span()=>
+                    if #size != <#ty as ::ribbit::Pack>::BITS {
+                        panic!(concat!(
+                            "Annotated size ",
+                            stringify!(#size),
+                            " does not match actual size of type ",
+                            stringify!(#ty),
+                        ));
                     }
-                });
+
+                    if #size > #size_variant {
+                        panic!(concat!(
+                            "Type ",
+                            stringify!(#ty),
+                            " of size ",
+                            stringify!(#size),
+                            " does not fit in enum of size ",
+                            stringify!(#size_enum),
+                            " with discriminant size ",
+                            stringify!(#size_discriminant),
+                        ));
+                    }
+                }
+            });
 
             quote! {
                 #[doc(hidden)]

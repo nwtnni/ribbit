@@ -45,7 +45,7 @@ pub(crate) fn get<'ir>(
                 let value = match &variant.ty {
                     None => quote!(#unpacked::#ident),
                     Some(ty) => {
-                        let inner = lift::lift(quote!(self.value), repr.to_native())
+                        let inner = lift::lift(quote!(self.value), **repr)
                             .ty_to_native()
                             .apply(lift::Op::Shift {
                                 dir: lift::Dir::R,
@@ -60,7 +60,7 @@ pub(crate) fn get<'ir>(
                 quote!(#discriminant => #value)
             });
 
-            let discriminant = lift::lift(quote!(self.value), repr.to_native())
+            let discriminant = lift::lift(quote!(self.value), **repr)
                 .ty_to_native()
                 .apply(lift::Op::And(r#enum.discriminant_mask()));
 
