@@ -46,7 +46,6 @@ pub(crate) fn new(
                     |state, field| {
                         let ident = field.ident.escaped();
                         let value = lift::lift(ident, (*field.ty).clone())
-                            .ty_to_native()
                             .apply(lift::Op::Cast(repr.to_native()))
                             .apply(lift::Op::Shift {
                                 dir: lift::Dir::L,
@@ -82,7 +81,6 @@ pub(crate) fn new(
                     None => Box::new(lift::constant(0, native)) as Box<dyn lift::Native>,
                     Some(ty) => Box::new(
                         lift(quote!(inner), (**ty).clone())
-                            .ty_to_native()
                             .apply(lift::Op::Shift {
                                 dir: lift::Dir::L,
                                 shift: discriminant_size,
@@ -99,7 +97,6 @@ pub(crate) fn new(
             });
 
             let value = lift::lift(quote!(match unpacked { #(#discriminants),* }), native)
-                .ty_to_native()
                 .native_to_ty(**repr);
 
             quote! {

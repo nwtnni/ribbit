@@ -20,7 +20,6 @@ pub(crate) fn set<'ir>(
                 // Shift field by offset
                 let ident = field.ident.escaped();
                 let value_field = lift::lift(&ident, ty_field.clone())
-                    .ty_to_native()
                     .apply(lift::Op::Cast(ty_struct.to_native()))
                     .apply(lift::Op::Shift {
                         dir: lift::Dir::L,
@@ -28,7 +27,6 @@ pub(crate) fn set<'ir>(
                     });
 
                 let value_struct = lift::lift(quote!(self.value), ty_struct)
-                    .ty_to_native()
                     // Clear hole in struct
                     .apply(lift::Op::And(
                         !(ty_field.mask() << field.offset) & ty_struct.mask(),

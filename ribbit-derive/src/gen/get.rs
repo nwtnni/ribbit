@@ -17,7 +17,6 @@ pub(crate) fn get<'ir>(
             let ty_field = &*field.ty;
 
             let value_field = lift::lift(quote!(self.value), ty_struct)
-                .ty_to_native()
                 .apply(lift::Op::Shift {
                     dir: lift::Dir::R,
                     shift: field.offset,
@@ -46,7 +45,6 @@ pub(crate) fn get<'ir>(
                     None => quote!(#unpacked::#ident),
                     Some(ty) => {
                         let inner = lift::lift(quote!(self.value), **repr)
-                            .ty_to_native()
                             .apply(lift::Op::Shift {
                                 dir: lift::Dir::R,
                                 shift: r#enum.discriminant_size(),
@@ -61,7 +59,6 @@ pub(crate) fn get<'ir>(
             });
 
             let discriminant = lift::lift(quote!(self.value), **repr)
-                .ty_to_native()
                 .apply(lift::Op::And(r#enum.discriminant_mask()));
 
             Or::R(std::iter::once(quote! {

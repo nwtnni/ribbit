@@ -4,10 +4,6 @@ use quote::ToTokens;
 
 use crate::ty;
 
-trait Tree: ToTokens {
-    fn ty(&self) -> &ty::Tree;
-}
-
 pub(crate) trait Native: ToTokens {
     fn ty(&self) -> ty::Native;
     fn is_zero(&self) -> bool;
@@ -38,65 +34,55 @@ impl<'a> Native for Box<dyn Native + 'a> {
     }
 }
 
-pub(crate) fn constant(value: usize, native: ty::Native) -> Constant {
-    Constant { value, native }
+pub(crate) fn constant(value: usize, native: ty::Native) -> Loose<TokenStream> {
+    Loose {
+        ty: native.into(),
+        value: Value::Compile(value),
+    }
 }
 
-pub(crate) fn lift<V>(inner: V, ty: impl Into<ty::Tree>) -> Type<V> {
-    Type {
-        inner,
+pub(crate) fn lift<V>(value: V, ty: impl Into<ty::Tree>) -> Loose<V> {
+    Loose {
         ty: ty.into(),
+        value: Value::Run(value),
     }
 }
 
-pub(crate) struct Type<V> {
-    inner: V,
+pub(crate) struct Loose<V> {
     ty: ty::Tree,
+    value: Value<V>,
 }
 
-impl<V> Type<V> {
-    pub(crate) fn ty_to_native(self) -> TyToNative<Self> {
-        TyToNative { inner: self }
-    }
+pub(crate) enum Value<V> {
+    Compile(usize),
+    Run(V),
 }
 
-impl<V: ToTokens> Tree for Type<V> {
-    fn ty(&self) -> &ty::Tree {
-        &self.ty
-    }
-}
-
-impl<V: ToTokens> ToTokens for Type<V> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.inner.to_tokens(tokens)
-    }
-}
-
-pub(crate) struct TyToNative<V> {
-    inner: V,
-}
-
-impl<V: Tree> Native for TyToNative<V> {
+impl<V: ToTokens> Native for Loose<V> {
     fn ty(&self) -> ty::Native {
-        self.inner.ty().to_native()
+        self.ty.to_native()
     }
 
     fn is_zero(&self) -> bool {
-        false
+        match &self.value {
+            Value::Compile(0) => true,
+            Value::Compile(_) => false,
+            Value::Run(_) => false,
+        }
     }
 }
 
-impl<V: Tree> ToTokens for TyToNative<V> {
+impl<V: ToTokens> ToTokens for Loose<V> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let inner = self.inner.to_token_stream();
-
-        match self.inner.ty() {
-            ty::Tree::Leaf(leaf) if leaf.is_native() => inner,
-            ty::Tree::Leaf(_) | ty::Tree::Node(_) => {
-                quote!(::ribbit::private::pack(#inner))
-            }
+        match &self.value {
+            Value::Compile(value) => self.ty.to_native().literal(*value).to_tokens(tokens),
+            Value::Run(value) => match &self.ty {
+                ty::Tree::Leaf(leaf) if leaf.is_native() => value.to_tokens(tokens),
+                ty::Tree::Leaf(_) | ty::Tree::Node(_) => {
+                    quote!(::ribbit::private::pack(#value)).to_tokens(tokens)
+                }
+            },
         }
-        .to_tokens(tokens)
     }
 }
 
@@ -130,9 +116,9 @@ impl ToTokens for Dir {
 
 impl<V: Native> Native for Apply<'_, V> {
     fn ty(&self) -> ty::Native {
-        match self.op {
+        match &self.op {
             Op::Shift { .. } | Op::And(_) | Op::Or(_) => self.inner.ty(),
-            Op::Cast(native) => native,
+            Op::Cast(native) => *native,
         }
     }
 
@@ -203,26 +189,5 @@ impl<V: Native> ToTokens for NativeToTy<V> {
         };
 
         inner.to_tokens(tokens)
-    }
-}
-
-pub(crate) struct Constant {
-    value: usize,
-    native: ty::Native,
-}
-
-impl Native for Constant {
-    fn ty(&self) -> ty::Native {
-        self.native
-    }
-
-    fn is_zero(&self) -> bool {
-        self.value == 0
-    }
-}
-
-impl ToTokens for Constant {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.native.literal(self.value).to_tokens(tokens)
     }
 }

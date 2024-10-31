@@ -33,9 +33,7 @@ pub(crate) fn debug(
                 let name = field.ident.escaped();
                 let opt = &field.opt.debug;
 
-                let value = lift::lift(quote!(self.#name()), (*field.ty).clone())
-                    .ty_to_native()
-                    .to_token_stream();
+                let value = lift::lift(quote!(self.#name()), (*field.ty).clone()).to_token_stream();
 
                 let value = match &opt.format {
                     None => value,
