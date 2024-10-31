@@ -21,7 +21,7 @@ pub(crate) fn get<'ir>(
                     dir: lift::Dir::R,
                     shift: field.offset,
                 })
-                .apply(lift::Op::Cast(ty_field.to_native()))
+                .apply(lift::Op::Cast(ty_field.loosen()))
                 .apply(lift::Op::And(ty_field.mask()))
                 .tighten(ty_field.clone());
 
@@ -39,7 +39,7 @@ pub(crate) fn get<'ir>(
             let unpacked = r#enum.unpacked(ident);
 
             let variants = variants.iter().enumerate().map(|(index, variant)| {
-                let discriminant = repr.to_native().literal(index);
+                let discriminant = repr.loosen().literal(index);
                 let ident = &variant.ident;
                 let value = match &variant.ty {
                     None => quote!(#unpacked::#ident),

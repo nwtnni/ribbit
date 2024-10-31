@@ -20,7 +20,7 @@ pub(crate) fn set<'ir>(
                 // Shift field by offset
                 let ident = field.ident.escaped();
                 let value_field = lift::lift(&ident, ty_field.clone())
-                    .apply(lift::Op::Cast(ty_struct.to_native()))
+                    .apply(lift::Op::Cast(ty_struct.loosen()))
                     .apply(lift::Op::Shift {
                         dir: lift::Dir::L,
                         shift: field.offset,

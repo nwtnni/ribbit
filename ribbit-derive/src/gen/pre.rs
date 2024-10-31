@@ -10,11 +10,11 @@ pub(crate) fn pre(ir::Ir { data, repr, .. }: &ir::Ir) -> TokenStream {
             let fields = fields
                 .iter()
                 .map(|field| &field.ty)
-                .filter(|ty| !ty.is_leaf());
+                .filter(|ty| ty.is_node());
 
             let nonzero = fields
                 .clone()
-                .filter(|ty| *ty.nonzero())
+                .filter(|ty| ty.nonzero())
                 .map(|repr| quote!(::ribbit::private::assert_impl_all!(#repr: ::ribbit::NonZero)));
 
             let pack = fields.map(|ty| {
@@ -43,11 +43,11 @@ pub(crate) fn pre(ir::Ir { data, repr, .. }: &ir::Ir) -> TokenStream {
             let variants = variants
                 .iter()
                 .flat_map(|variant| &variant.ty)
-                .filter(|ty| !ty.is_leaf());
+                .filter(|ty| ty.is_node());
 
             let nonzero = variants
                 .clone()
-                .filter(|ty| *ty.nonzero())
+                .filter(|ty| ty.nonzero())
                 .map(|repr| quote!(::ribbit::private::assert_impl_all!(#repr: ::ribbit::NonZero)));
 
             let size_enum = repr.size();

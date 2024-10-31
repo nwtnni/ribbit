@@ -60,7 +60,7 @@ pub(crate) enum Value<V> {
 
 impl<V: ToTokens> Loosen for Loose<V> {
     fn loose(&self) -> ty::Loose {
-        self.ty.to_native()
+        self.ty.loosen()
     }
 
     fn is_zero(&self) -> bool {
@@ -75,9 +75,9 @@ impl<V: ToTokens> Loosen for Loose<V> {
 impl<V: ToTokens> ToTokens for Loose<V> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match &self.value {
-            Value::Compile(value) => self.ty.to_native().literal(*value).to_tokens(tokens),
+            Value::Compile(value) => self.ty.loosen().literal(*value).to_tokens(tokens),
             Value::Run(value) => match &self.ty {
-                ty::Tree::Leaf(leaf) if leaf.is_native() => value.to_tokens(tokens),
+                ty::Tree::Leaf(leaf) if leaf.is_loose() => value.to_tokens(tokens),
                 ty::Tree::Leaf(_) | ty::Tree::Node(_) => {
                     quote!(::ribbit::private::pack(#value)).to_tokens(tokens)
                 }
@@ -175,7 +175,7 @@ impl<V: Loosen> ToTokens for Tight<V> {
         let source = self.inner.loose();
 
         let target = &self.target;
-        let native = self.target.to_native();
+        let native = self.target.loosen();
 
         // Convert source type to target native type
         let inner = match source == native {

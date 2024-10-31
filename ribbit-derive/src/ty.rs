@@ -23,7 +23,7 @@ pub enum Tree {
 }
 
 impl Tree {
-    pub(crate) fn from_ty(
+    pub(crate) fn parse(
         ty: syn::Type,
         nonzero: Option<Spanned<bool>>,
         size: Option<Spanned<usize>>,
@@ -32,7 +32,7 @@ impl Tree {
             syn::Type::Path(path) => {
                 let span = path.span();
 
-                let repr = match Tight::from_path(&path) {
+                let repr = match Tight::parse(&path) {
                     Some(leaf) => Self::Leaf(leaf),
                     None => {
                         let Some(size) = size else {
@@ -41,7 +41,7 @@ impl Tree {
 
                         let leaf = Tight::new(nonzero.unwrap_or_else(|| false.into()), size);
 
-                        Self::Node(Node::from_path(path, leaf))
+                        Self::Node(Node::parse(path, leaf))
                     }
                 };
 
@@ -51,19 +51,19 @@ impl Tree {
         }
     }
 
-    pub(crate) fn is_leaf(&self) -> bool {
-        matches!(self, Tree::Leaf(_))
+    pub(crate) fn is_node(&self) -> bool {
+        matches!(self, Tree::Node(_))
     }
 
-    pub(crate) fn to_leaf(&self) -> Tight {
+    pub(crate) fn tighten(&self) -> Tight {
         match self {
             Tree::Node(node) => **node,
             Tree::Leaf(leaf) => *leaf,
         }
     }
 
-    pub(crate) fn to_native(&self) -> Loose {
-        self.to_leaf().to_native()
+    pub(crate) fn loosen(&self) -> Loose {
+        self.tighten().loosen()
     }
 
     pub(crate) fn size(&self) -> Spanned<usize> {
@@ -80,10 +80,10 @@ impl Tree {
         }
     }
 
-    pub(crate) fn nonzero(&self) -> Spanned<bool> {
+    pub(crate) fn nonzero(&self) -> bool {
         match self {
-            Tree::Node(node) => node.nonzero,
-            Tree::Leaf(leaf) => leaf.nonzero,
+            Tree::Node(node) => *node.nonzero,
+            Tree::Leaf(leaf) => *leaf.nonzero,
         }
     }
 }

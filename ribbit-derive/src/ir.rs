@@ -44,7 +44,7 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
                 .map(|variant| {
                     let ty = match variant.fields.as_shape() {
                         Shape::Unit => None,
-                        Shape::Newtype => ty::Tree::from_ty(
+                        Shape::Newtype => ty::Tree::parse(
                             variant.fields.fields[0].ty.clone(),
                             variant.opt.nonzero.map(Spanned::from),
                             variant.opt.size.map(Spanned::from),
@@ -52,7 +52,7 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
                         .map(Some)?,
                         Shape::Named | Shape::Tuple => {
                             let ident = &variant.ident;
-                            ty::Tree::from_ty(
+                            ty::Tree::parse(
                                 parse_quote!(#ident),
                                 variant.opt.nonzero.map(Spanned::from),
                                 variant.opt.size.map(Spanned::from),
@@ -61,8 +61,8 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
                         }
                     };
 
-                    if let Some(ty) = ty.as_ref().filter(|ty| !ty.is_leaf()) {
-                        let native = ty.to_native();
+                    if let Some(ty) = ty.as_ref().filter(|ty| ty.is_node()) {
+                        let native = ty.loosen();
                         r#where
                             .predicates
                             .push(parse_quote!(#ty: ::ribbit::Pack<Loose = #native>));
@@ -93,13 +93,13 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
                 })
             }
 
-            if *leaf.nonzero && fields.iter().all(|field| !*field.ty.nonzero()) {
+            if *leaf.nonzero && fields.iter().all(|field| !field.ty.nonzero()) {
                 bail!(leaf.nonzero=> crate::Error::StructNonZero);
             }
 
             for field in &fields {
                 let ty = &field.ty;
-                let native = field.ty.to_native();
+                let native = field.ty.loosen();
 
                 r#where
                     .predicates
@@ -187,7 +187,7 @@ impl<'input> Field<'input> {
         index: usize,
         field: &'input SpannedValue<input::Field>,
     ) -> darling::Result<Self> {
-        let repr = ty::Tree::from_ty(
+        let repr = ty::Tree::parse(
             field.ty.clone(),
             field.opt.nonzero.map(Spanned::from),
             field.opt.size.map(Spanned::from),

@@ -13,7 +13,7 @@ pub(crate) struct Node {
 }
 
 impl Node {
-    pub(crate) fn from_path(path: TypePath, repr: Tight) -> Self {
+    pub(crate) fn parse(path: TypePath, repr: Tight) -> Self {
         Self { path, repr }
     }
 }

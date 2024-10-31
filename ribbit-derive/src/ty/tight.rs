@@ -28,7 +28,7 @@ impl From<Loose> for Tight {
         Self {
             nonzero: Spanned::from(false),
             signed: false,
-            repr: Spanned::from(Repr::Native(native)),
+            repr: Spanned::from(Repr::Loose(native)),
         }
     }
 }
@@ -50,19 +50,19 @@ impl Tight {
         }
     }
 
-    pub(crate) fn is_native(&self) -> bool {
-        !*self.nonzero && !self.signed && matches!(&*self.repr, Repr::Native(_))
+    pub(crate) fn is_loose(&self) -> bool {
+        !*self.nonzero && !self.signed && matches!(&*self.repr, Repr::Loose(_))
     }
 
-    pub(crate) fn to_native(self) -> Loose {
+    pub(crate) fn loosen(self) -> Loose {
         match *self.repr {
             Repr::Bool => Loose::N8,
-            Repr::Native(native) => native,
-            Repr::Arbitrary(arbitrary) => arbitrary.as_native(),
+            Repr::Loose(loose) => loose,
+            Repr::Arbitrary(arbitrary) => arbitrary.loosen(),
         }
     }
 
-    pub(crate) fn from_path(syn::TypePath { path, .. }: &syn::TypePath) -> Option<Self> {
+    pub(crate) fn parse(syn::TypePath { path, .. }: &syn::TypePath) -> Option<Self> {
         let segment = match path.segments.first()? {
             segment if path.segments.len() > 1 || !segment.arguments.is_none() => return None,
             segment => segment,
@@ -109,17 +109,17 @@ impl Tight {
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Repr {
     Bool,
-    Native(Loose),
+    Loose(Loose),
     Arbitrary(Arbitrary),
 }
 
 impl Repr {
     fn new(size: usize) -> Self {
         match size {
-            8 => Repr::Native(Loose::N8),
-            16 => Repr::Native(Loose::N16),
-            32 => Repr::Native(Loose::N32),
-            64 => Repr::Native(Loose::N64),
+            8 => Repr::Loose(Loose::N8),
+            16 => Repr::Loose(Loose::N16),
+            32 => Repr::Loose(Loose::N32),
+            64 => Repr::Loose(Loose::N64),
             size => Repr::Arbitrary(Arbitrary::new(size)),
         }
     }
@@ -127,7 +127,7 @@ impl Repr {
     pub(crate) fn size(&self) -> usize {
         match self {
             Repr::Bool => 1,
-            Repr::Native(native) => native.size(),
+            Repr::Loose(native) => native.size(),
             Repr::Arbitrary(arbitrary) => arbitrary.size(),
         }
     }
@@ -135,7 +135,7 @@ impl Repr {
     pub(crate) fn mask(&self) -> usize {
         match self {
             Repr::Bool => 1,
-            Repr::Native(native) => native.mask(),
+            Repr::Loose(native) => native.mask(),
             Repr::Arbitrary(arbitrary) => arbitrary.mask(),
         }
     }
@@ -148,15 +148,15 @@ impl ToTokens for Tight {
 
             (_, _, Repr::Bool) => quote!(bool),
 
-            (true, _, Repr::Native(Loose::N8)) => quote!(NonZeroU8),
-            (true, _, Repr::Native(Loose::N16)) => quote!(NonZeroU16),
-            (true, _, Repr::Native(Loose::N32)) => quote!(NonZeroU32),
-            (true, _, Repr::Native(Loose::N64)) => quote!(NonZeroU64),
+            (true, _, Repr::Loose(Loose::N8)) => quote!(NonZeroU8),
+            (true, _, Repr::Loose(Loose::N16)) => quote!(NonZeroU16),
+            (true, _, Repr::Loose(Loose::N32)) => quote!(NonZeroU32),
+            (true, _, Repr::Loose(Loose::N64)) => quote!(NonZeroU64),
 
-            (false, _, Repr::Native(Loose::N8)) => quote!(u8),
-            (false, _, Repr::Native(Loose::N16)) => quote!(u16),
-            (false, _, Repr::Native(Loose::N32)) => quote!(u32),
-            (false, _, Repr::Native(Loose::N64)) => quote!(u64),
+            (false, _, Repr::Loose(Loose::N8)) => quote!(u8),
+            (false, _, Repr::Loose(Loose::N16)) => quote!(u16),
+            (false, _, Repr::Loose(Loose::N32)) => quote!(u32),
+            (false, _, Repr::Loose(Loose::N64)) => quote!(u64),
 
             (true, _, Repr::Arbitrary(_)) => todo!(),
             (false, _, Repr::Arbitrary(arbitrary)) => {

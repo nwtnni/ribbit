@@ -42,11 +42,11 @@ pub(crate) fn new(
             let value = fields
                 .iter()
                 .fold(
-                    Box::new(lift::constant(0, repr.to_native())) as Box<dyn lift::Loosen>,
+                    Box::new(lift::constant(0, repr.loosen())) as Box<dyn lift::Loosen>,
                     |state, field| {
                         let ident = field.ident.escaped();
                         let value = lift::lift(ident, (*field.ty).clone())
-                            .apply(lift::Op::Cast(repr.to_native()))
+                            .apply(lift::Op::Cast(repr.loosen()))
                             .apply(lift::Op::Shift {
                                 dir: lift::Dir::L,
                                 shift: field.offset,
@@ -74,7 +74,7 @@ pub(crate) fn new(
             let unpacked = r#enum.unpacked(ident);
 
             let discriminant_size = r#enum.discriminant_size();
-            let native = repr.to_native();
+            let native = repr.loosen();
 
             let discriminants = variants.iter().enumerate().map(|(index, variant)| {
                 let packed = lift::constant(index, native).apply(lift::Op::Or(match &variant.ty {
