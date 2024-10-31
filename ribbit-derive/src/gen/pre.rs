@@ -17,15 +17,19 @@ pub(crate) fn pre(ir::Ir { data, repr, .. }: &ir::Ir) -> TokenStream {
                 .filter(|ty| *ty.nonzero())
                 .map(|repr| quote!(::ribbit::private::assert_impl_all!(#repr: ::ribbit::NonZero)));
 
-            let pack = fields
-                .map(|ty| {
-                    let size = ty.size();
-                    quote_spanned! {size.span()=>
-                        if #size != <#ty as ::ribbit::Pack>::BITS {
-                            panic!(concat!("Annotated size does not match actual size of type ", stringify!(#ty)));
-                        }
+            let pack = fields.map(|ty| {
+                let size = ty.size();
+                quote_spanned! {size.span()=>
+                    if #size > <#ty as ::ribbit::Pack>::BITS {
+                        panic!(concat!(
+                            "Annotated size ",
+                            stringify!(#size),
+                            " does not match actual size of type ",
+                            stringify!(#ty),
+                        ));
                     }
-                });
+                }
+            });
 
             quote! {
                 #[doc(hidden)]

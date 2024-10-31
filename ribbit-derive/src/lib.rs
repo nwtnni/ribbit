@@ -49,9 +49,6 @@ fn pack_inner(
         darling::ast::Data::Enum(r#enum) => {
             for variant in r#enum {
                 match variant.fields.as_shape() {
-                    // Assume
-                    Shape::Newtype => (),
-
                     // Generate
                     Shape::Named | Shape::Tuple => {
                         let mut item = input::Item {
@@ -66,8 +63,7 @@ fn pack_inner(
                         stream.append_all(pack_item(&mut item)?);
                     }
 
-                    //
-                    Shape::Unit => (),
+                    Shape::Newtype | Shape::Unit => (),
                 }
             }
 
