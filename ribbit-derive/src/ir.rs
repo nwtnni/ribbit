@@ -62,10 +62,10 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
                     };
 
                     if let Some(ty) = ty.as_ref().filter(|ty| ty.is_node()) {
-                        let native = ty.loosen();
+                        let loose = ty.loosen();
                         r#where
                             .predicates
-                            .push(parse_quote!(#ty: ::ribbit::Pack<Loose = #native>));
+                            .push(parse_quote!(#ty: ::ribbit::Pack<Loose = #loose>));
                     }
 
                     Ok(Variant {
@@ -97,13 +97,16 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
                 bail!(leaf.nonzero=> crate::Error::StructNonZero);
             }
 
-            for field in &fields {
-                let ty = &field.ty;
-                let native = field.ty.loosen();
+            for ty in fields
+                .iter()
+                .map(|field| &field.ty)
+                .filter(|ty| ty.is_node())
+            {
+                let loose = ty.loosen();
 
                 r#where
                     .predicates
-                    .push(parse_quote!(#ty: ::ribbit::Pack<Loose = #native>));
+                    .push(parse_quote!(#ty: ::ribbit::Pack<Loose = #loose>));
             }
 
             Data::Struct(Struct { fields })

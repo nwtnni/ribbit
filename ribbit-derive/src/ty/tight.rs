@@ -24,11 +24,11 @@ impl PartialEq for Tight {
 impl Eq for Tight {}
 
 impl From<Loose> for Tight {
-    fn from(native: Loose) -> Self {
+    fn from(loose: Loose) -> Self {
         Self {
             nonzero: Spanned::from(false),
             signed: false,
-            repr: Spanned::from(Repr::Loose(native)),
+            repr: Spanned::from(Repr::Loose(loose)),
         }
     }
 }
@@ -127,7 +127,7 @@ impl Repr {
     pub(crate) fn size(&self) -> usize {
         match self {
             Repr::Bool => 1,
-            Repr::Loose(native) => native.size(),
+            Repr::Loose(loose) => loose.size(),
             Repr::Arbitrary(arbitrary) => arbitrary.size(),
         }
     }
@@ -135,7 +135,7 @@ impl Repr {
     pub(crate) fn mask(&self) -> usize {
         match self {
             Repr::Bool => 1,
-            Repr::Loose(native) => native.mask(),
+            Repr::Loose(loose) => loose.mask(),
             Repr::Arbitrary(arbitrary) => arbitrary.mask(),
         }
     }

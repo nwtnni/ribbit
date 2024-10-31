@@ -74,18 +74,18 @@ pub(crate) fn new(
             let unpacked = r#enum.unpacked(ident);
 
             let discriminant_size = r#enum.discriminant_size();
-            let native = repr.loosen();
+            let loose = repr.loosen();
 
             let discriminants = variants.iter().enumerate().map(|(index, variant)| {
-                let packed = lift::constant(index, native).apply(lift::Op::Or(match &variant.ty {
-                    None => Box::new(lift::constant(0, native)) as Box<dyn lift::Loosen>,
+                let packed = lift::constant(index, loose).apply(lift::Op::Or(match &variant.ty {
+                    None => Box::new(lift::constant(0, loose)) as Box<dyn lift::Loosen>,
                     Some(ty) => Box::new(
                         lift(quote!(inner), (**ty).clone())
                             .apply(lift::Op::Shift {
                                 dir: lift::Dir::L,
                                 shift: discriminant_size,
                             })
-                            .apply(lift::Op::Cast(native)),
+                            .apply(lift::Op::Cast(loose)),
                     ),
                 }));
 
@@ -97,7 +97,7 @@ pub(crate) fn new(
             });
 
             let value =
-                lift::lift(quote!(match unpacked { #(#discriminants),* }), native).tighten(**repr);
+                lift::lift(quote!(match unpacked { #(#discriminants),* }), loose).tighten(**repr);
 
             quote! {
                 #[inline]

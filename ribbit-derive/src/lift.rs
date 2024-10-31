@@ -177,7 +177,6 @@ impl<V: Loosen> ToTokens for Tight<V> {
         let target = &self.target;
         let loose = self.target.loosen();
 
-        // Convert source type to target native type
         let inner = match source == loose {
             false => quote!((#inner as #loose)),
             true => inner,

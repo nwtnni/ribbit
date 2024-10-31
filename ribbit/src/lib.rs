@@ -13,14 +13,14 @@ pub unsafe trait Pack: Copy + Sized {
 
 #[rustfmt::skip]
 macro_rules! impl_impl_number {
-    ($name:ident, $native:ty, $dollar:tt) => {
+    ($name:ident, $loose:ty, $dollar:tt) => {
         macro_rules! $name {
             ($dollar($ty:ident: $bits:expr),* $dollar(,)?) => {
                 $dollar(
                     unsafe impl Pack for private::$ty {
                         const BITS: usize = $bits;
                         type Tight = private::$ty;
-                        type Loose = $native;
+                        type Loose = $loose;
                     }
                 )*
             };

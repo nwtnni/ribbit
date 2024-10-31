@@ -104,7 +104,7 @@ impl From<Tight> for Tree {
 }
 
 impl From<Loose> for Tree {
-    fn from(native: Loose) -> Self {
-        Self::Leaf(Tight::from(native))
+    fn from(loose: Loose) -> Self {
+        Self::Leaf(Tight::from(loose))
     }
 }
