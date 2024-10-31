@@ -4,7 +4,7 @@ use quote::quote_spanned;
 
 use crate::ir;
 
-pub(crate) fn pre(ir::Ir { data, repr, .. }: &ir::Ir) -> TokenStream {
+pub(crate) fn pre(ir::Ir { data, tight, .. }: &ir::Ir) -> TokenStream {
     match data {
         ir::Data::Struct(ir::Struct { fields }) => {
             let fields = fields
@@ -15,7 +15,7 @@ pub(crate) fn pre(ir::Ir { data, repr, .. }: &ir::Ir) -> TokenStream {
             let nonzero = fields
                 .clone()
                 .filter(|ty| ty.nonzero())
-                .map(|repr| quote!(::ribbit::private::assert_impl_all!(#repr: ::ribbit::NonZero)));
+                .map(|ty| quote!(::ribbit::private::assert_impl_all!(#ty: ::ribbit::NonZero)));
 
             let pack = fields.map(|ty| {
                 let size = ty.size();
@@ -48,9 +48,9 @@ pub(crate) fn pre(ir::Ir { data, repr, .. }: &ir::Ir) -> TokenStream {
             let nonzero = variants
                 .clone()
                 .filter(|ty| ty.nonzero())
-                .map(|repr| quote!(::ribbit::private::assert_impl_all!(#repr: ::ribbit::NonZero)));
+                .map(|ty| quote!(::ribbit::private::assert_impl_all!(#ty: ::ribbit::NonZero)));
 
-            let size_enum = repr.size();
+            let size_enum = tight.size();
             let size_discriminant = r#enum.discriminant_size();
             let size_variant = *size_enum - size_discriminant;
 

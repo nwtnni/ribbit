@@ -18,7 +18,7 @@ pub(crate) fn new(
     ir::Ir {
         ident,
         opt,
-        repr,
+        tight,
         vis,
         data,
         ..
@@ -42,11 +42,11 @@ pub(crate) fn new(
             let value = fields
                 .iter()
                 .fold(
-                    Box::new(lift::constant(0, repr.loosen())) as Box<dyn lift::Loosen>,
+                    Box::new(lift::constant(0, tight.loosen())) as Box<dyn lift::Loosen>,
                     |state, field| {
                         let ident = field.ident.escaped();
                         let value = lift::lift(ident, (*field.ty).clone())
-                            .apply(lift::Op::Cast(repr.loosen()))
+                            .apply(lift::Op::Cast(tight.loosen()))
                             .apply(lift::Op::Shift {
                                 dir: lift::Dir::L,
                                 shift: field.offset,
@@ -55,7 +55,7 @@ pub(crate) fn new(
                         Box::new(state.apply(lift::Op::Or(Box::new(value))))
                     },
                 )
-                .tighten(**repr);
+                .tighten(**tight);
 
             quote! {
                 #[inline]
@@ -74,7 +74,7 @@ pub(crate) fn new(
             let unpacked = r#enum.unpacked(ident);
 
             let discriminant_size = r#enum.discriminant_size();
-            let loose = repr.loosen();
+            let loose = tight.loosen();
 
             let discriminants = variants.iter().enumerate().map(|(index, variant)| {
                 let packed = lift::constant(index, loose).apply(lift::Op::Or(match &variant.ty {
@@ -97,7 +97,7 @@ pub(crate) fn new(
             });
 
             let value =
-                lift::lift(quote!(match unpacked { #(#discriminants),* }), loose).tighten(**repr);
+                lift::lift(quote!(match unpacked { #(#discriminants),* }), loose).tighten(**tight);
 
             quote! {
                 #[inline]

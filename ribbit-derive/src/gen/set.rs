@@ -9,13 +9,13 @@ use crate::lift::LoosenExt as _;
 use crate::Or;
 
 pub(crate) fn set<'ir>(
-    ir::Ir { repr, data, .. }: &'ir ir::Ir,
+    ir::Ir { tight, data, .. }: &'ir ir::Ir,
 ) -> impl Iterator<Item = TokenStream> + 'ir {
     match data {
         ir::Data::Struct(ir::Struct { fields }) => {
             Or::L(fields.iter().map(|field| {
                 let ty_field = &*field.ty;
-                let ty_struct = **repr;
+                let ty_struct = **tight;
 
                 // Shift field by offset
                 let ident = field.ident.escaped();

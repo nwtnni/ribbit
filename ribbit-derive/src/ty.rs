@@ -32,20 +32,18 @@ impl Tree {
             syn::Type::Path(path) => {
                 let span = path.span();
 
-                let repr = match Tight::parse(&path) {
-                    Some(leaf) => Self::Leaf(leaf),
+                let ty = match Tight::parse(&path) {
+                    Some(tight) => Self::Leaf(tight),
                     None => {
                         let Some(size) = size else {
                             bail!(span=> Error::OpaqueSize);
                         };
-
-                        let leaf = Tight::new(nonzero.unwrap_or_else(|| false.into()), size);
-
-                        Self::Node(Node::parse(path, leaf))
+                        let tight = Tight::new(nonzero.unwrap_or_else(|| false.into()), size);
+                        Self::Node(Node::parse(path, tight))
                     }
                 };
 
-                Ok(Spanned::new(repr, span))
+                Ok(Spanned::new(ty, span))
             }
             _ => bail!(ty=> Error::UnsupportedType),
         }

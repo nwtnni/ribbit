@@ -8,12 +8,12 @@ use crate::Or;
 
 pub(crate) fn get<'ir>(
     ir::Ir {
-        ident, repr, data, ..
+        ident, tight, data, ..
     }: &'ir ir::Ir,
 ) -> impl Iterator<Item = TokenStream> + 'ir {
     match data {
         ir::Data::Struct(ir::Struct { fields }) => Or::L(fields.iter().map(|field| {
-            let ty_struct = **repr;
+            let ty_struct = **tight;
             let ty_field = &*field.ty;
 
             let value_field = lift::lift(quote!(self.value), ty_struct)
@@ -39,12 +39,12 @@ pub(crate) fn get<'ir>(
             let unpacked = r#enum.unpacked(ident);
 
             let variants = variants.iter().enumerate().map(|(index, variant)| {
-                let discriminant = repr.loosen().literal(index);
+                let discriminant = tight.loosen().literal(index);
                 let ident = &variant.ident;
                 let value = match &variant.ty {
                     None => quote!(#unpacked::#ident),
                     Some(ty) => {
-                        let inner = lift::lift(quote!(self.value), **repr)
+                        let inner = lift::lift(quote!(self.value), **tight)
                             .apply(lift::Op::Shift {
                                 dir: lift::Dir::R,
                                 shift: r#enum.discriminant_size(),
@@ -58,7 +58,7 @@ pub(crate) fn get<'ir>(
                 quote!(#discriminant => #value)
             });
 
-            let discriminant = lift::lift(quote!(self.value), **repr)
+            let discriminant = lift::lift(quote!(self.value), **tight)
                 .apply(lift::Op::And(r#enum.discriminant_mask()));
 
             Or::R(std::iter::once(quote! {

@@ -23,7 +23,7 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
         bail!(Span::call_site()=> crate::Error::TopLevelSize);
     };
 
-    let leaf = Tight::new(
+    let tight = Tight::new(
         item.opt
             .nonzero
             .map(Spanned::from)
@@ -31,8 +31,8 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
         size,
     );
 
-    if let (true, tight::Repr::Arbitrary(_)) = (*leaf.nonzero, *leaf.repr) {
-        bail!(leaf.nonzero=> crate::Error::ArbitraryNonZero);
+    if let (true, tight::Repr::Arbitrary(_)) = (*tight.nonzero, *tight.repr) {
+        bail!(tight.nonzero=> crate::Error::ArbitraryNonZero);
     }
 
     let r#where = item.generics.make_where_clause();
@@ -93,8 +93,8 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
                 })
             }
 
-            if *leaf.nonzero && fields.iter().all(|field| !field.ty.nonzero()) {
-                bail!(leaf.nonzero=> crate::Error::StructNonZero);
+            if *tight.nonzero && fields.iter().all(|field| !field.ty.nonzero()) {
+                bail!(tight.nonzero=> crate::Error::StructNonZero);
             }
 
             for ty in fields
@@ -114,7 +114,7 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
     };
 
     Ok(Ir {
-        repr: leaf.into(),
+        tight: tight.into(),
         opt: &item.opt,
         attrs: &item.attrs,
         vis: &item.vis,
@@ -125,7 +125,7 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
 }
 
 pub(crate) struct Ir<'input> {
-    pub(crate) repr: Spanned<Tight>,
+    pub(crate) tight: Spanned<Tight>,
     pub(crate) attrs: &'input [syn::Attribute],
     pub(crate) vis: &'input syn::Visibility,
     pub(crate) ident: &'input syn::Ident,
@@ -190,13 +190,13 @@ impl<'input> Field<'input> {
         index: usize,
         field: &'input SpannedValue<input::Field>,
     ) -> darling::Result<Self> {
-        let repr = ty::Tree::parse(
+        let ty = ty::Tree::parse(
             field.ty.clone(),
             field.opt.nonzero.map(Spanned::from),
             field.opt.size.map(Spanned::from),
         )?;
 
-        let size = *repr.size();
+        let size = *ty.size();
 
         let offset = match field.opt.offset {
             None => match bits.first_zero() {
@@ -230,7 +230,7 @@ impl<'input> Field<'input> {
         Ok(Self {
             vis: &field.vis,
             ident: FieldIdent::new(index, field.ident.as_ref()),
-            ty: repr,
+            ty,
             offset: *offset,
             opt: &field.opt,
         })

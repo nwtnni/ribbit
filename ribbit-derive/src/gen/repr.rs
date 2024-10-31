@@ -5,7 +5,7 @@ use crate::ir;
 
 pub(crate) fn repr(
     ir::Ir {
-        repr,
+        tight: repr,
         ident,
         vis,
         attrs,

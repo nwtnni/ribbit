@@ -9,12 +9,12 @@ use crate::ty::Tight;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Node {
     path: TypePath,
-    repr: Tight,
+    tight: Tight,
 }
 
 impl Node {
-    pub(crate) fn parse(path: TypePath, repr: Tight) -> Self {
-        Self { path, repr }
+    pub(crate) fn parse(path: TypePath, tight: Tight) -> Self {
+        Self { path, tight }
     }
 }
 
@@ -27,6 +27,6 @@ impl ToTokens for Node {
 impl Deref for Node {
     type Target = Tight;
     fn deref(&self) -> &Self::Target {
-        &self.repr
+        &self.tight
     }
 }
