@@ -4,29 +4,29 @@ use quote::ToTokens;
 
 use crate::ty;
 
-pub(crate) trait Native: ToTokens {
-    fn ty(&self) -> ty::Native;
+pub(crate) trait Loosen: ToTokens {
+    fn loose(&self) -> ty::Loose;
     fn is_zero(&self) -> bool;
 }
 
-pub(crate) trait NativeExt: Sized {
+pub(crate) trait LoosenExt: Sized {
     fn apply(self, op: Op) -> Apply<Self> {
         Apply { inner: self, op }
     }
 
-    fn native_to_ty(self, ty: impl Into<ty::Tree>) -> NativeToTy<Self> {
-        NativeToTy {
+    fn tighten(self, ty: impl Into<ty::Tree>) -> Tight<Self> {
+        Tight {
             inner: self,
             target: ty.into(),
         }
     }
 }
 
-impl<T: Native> NativeExt for T {}
+impl<T: Loosen> LoosenExt for T {}
 
-impl<'a> Native for Box<dyn Native + 'a> {
-    fn ty(&self) -> ty::Native {
-        (**self).ty()
+impl<'a> Loosen for Box<dyn Loosen + 'a> {
+    fn loose(&self) -> ty::Loose {
+        (**self).loose()
     }
 
     fn is_zero(&self) -> bool {
@@ -34,7 +34,7 @@ impl<'a> Native for Box<dyn Native + 'a> {
     }
 }
 
-pub(crate) fn constant(value: usize, native: ty::Native) -> Loose<TokenStream> {
+pub(crate) fn constant(value: usize, native: ty::Loose) -> Loose<TokenStream> {
     Loose {
         ty: native.into(),
         value: Value::Compile(value),
@@ -58,8 +58,8 @@ pub(crate) enum Value<V> {
     Run(V),
 }
 
-impl<V: ToTokens> Native for Loose<V> {
-    fn ty(&self) -> ty::Native {
+impl<V: ToTokens> Loosen for Loose<V> {
+    fn loose(&self) -> ty::Loose {
         self.ty.to_native()
     }
 
@@ -94,8 +94,8 @@ pub(crate) struct Apply<'ir, V> {
 pub(crate) enum Op<'ir> {
     Shift { dir: Dir, shift: usize },
     And(usize),
-    Or(Box<dyn Native + 'ir>),
-    Cast(ty::Native),
+    Or(Box<dyn Loosen + 'ir>),
+    Cast(ty::Loose),
 }
 
 #[derive(Copy, Clone)]
@@ -114,10 +114,10 @@ impl ToTokens for Dir {
     }
 }
 
-impl<V: Native> Native for Apply<'_, V> {
-    fn ty(&self) -> ty::Native {
+impl<V: Loosen> Loosen for Apply<'_, V> {
+    fn loose(&self) -> ty::Loose {
         match &self.op {
-            Op::Shift { .. } | Op::And(_) | Op::Or(_) => self.inner.ty(),
+            Op::Shift { .. } | Op::And(_) | Op::Or(_) => self.inner.loose(),
             Op::Cast(native) => *native,
         }
     }
@@ -128,35 +128,35 @@ impl<V: Native> Native for Apply<'_, V> {
     }
 }
 
-impl<V: Native> ToTokens for Apply<'_, V> {
+impl<V: Loosen> ToTokens for Apply<'_, V> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let inner = self.inner.to_token_stream();
 
         let inner = match &self.op {
             Op::Shift { dir: _, shift: 0 } => inner,
             Op::Shift { dir, shift } => {
-                let shift = self.ty().literal(*shift);
+                let shift = self.loose().literal(*shift);
                 quote!((#inner #dir #shift))
             }
 
-            Op::And(0) => self.ty().literal(0).to_token_stream(),
-            Op::And(mask) if *mask == self.ty().mask() => inner,
+            Op::And(0) => self.loose().literal(0).to_token_stream(),
+            Op::And(mask) if *mask == self.loose().mask() => inner,
             Op::And(value) => {
-                let value = self.ty().literal(*value);
+                let value = self.loose().literal(*value);
                 quote!((#inner & #value))
             }
 
             Op::Or(value) if self.inner.is_zero() => value.to_token_stream(),
             Op::Or(value) if value.is_zero() => self.inner.to_token_stream(),
             Op::Or(value) => {
-                let native = self.ty();
-                match value.ty() == native {
+                let native = self.loose();
+                match value.loose() == native {
                     false => quote!((#inner | (#value as #native))),
                     true => quote!((#inner | #value)),
                 }
             }
 
-            Op::Cast(native) if *native == self.inner.ty() => inner,
+            Op::Cast(native) if *native == self.inner.loose() => inner,
             Op::Cast(native) => quote!((#inner as #native)),
         };
 
@@ -164,15 +164,15 @@ impl<V: Native> ToTokens for Apply<'_, V> {
     }
 }
 
-pub(crate) struct NativeToTy<V> {
+pub(crate) struct Tight<V> {
     inner: V,
     target: ty::Tree,
 }
 
-impl<V: Native> ToTokens for NativeToTy<V> {
+impl<V: Loosen> ToTokens for Tight<V> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let inner = self.inner.to_token_stream();
-        let source = self.inner.ty();
+        let source = self.inner.loose();
 
         let target = &self.target;
         let native = self.target.to_native();
@@ -183,7 +183,7 @@ impl<V: Native> ToTokens for NativeToTy<V> {
             true => inner,
         };
 
-        let inner = match *target == ty::Tree::from(ty::Leaf::from(native)) {
+        let inner = match *target == ty::Tree::from(ty::Tight::from(native)) {
             true => inner,
             false => quote!(unsafe { ::ribbit::private::unpack::<#target>(#inner) }),
         };

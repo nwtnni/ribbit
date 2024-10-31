@@ -15,7 +15,7 @@ use crate::gen;
 use crate::input;
 use crate::ty;
 use crate::ty::leaf;
-use crate::ty::Leaf;
+use crate::ty::Tight;
 use crate::Spanned;
 
 pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
@@ -23,7 +23,7 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
         bail!(Span::call_site()=> crate::Error::TopLevelSize);
     };
 
-    let leaf = Leaf::new(
+    let leaf = Tight::new(
         item.opt
             .nonzero
             .map(Spanned::from)
@@ -122,7 +122,7 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
 }
 
 pub(crate) struct Ir<'input> {
-    pub(crate) repr: Spanned<Leaf>,
+    pub(crate) repr: Spanned<Tight>,
     pub(crate) attrs: &'input [syn::Attribute],
     pub(crate) vis: &'input syn::Visibility,
     pub(crate) ident: &'input syn::Ident,
@@ -150,7 +150,7 @@ impl Enum<'_> {
     }
 
     pub(crate) fn discriminant_mask(&self) -> usize {
-        crate::ty::Leaf::new(false.into(), self.discriminant_size().into()).mask()
+        crate::ty::Tight::new(false.into(), self.discriminant_size().into()).mask()
     }
 }
 

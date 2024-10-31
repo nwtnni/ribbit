@@ -1,4 +1,4 @@
-use crate::ty::Native;
+use crate::ty::Loose;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Arbitrary {
@@ -21,12 +21,12 @@ impl Arbitrary {
             .unwrap_or(usize::MAX)
     }
 
-    pub(crate) fn as_native(&self) -> Native {
+    pub(crate) fn as_native(&self) -> Loose {
         match self.size {
-            0..=7 => Native::N8,
-            9..=15 => Native::N16,
-            17..=31 => Native::N32,
-            33..=63 => Native::N64,
+            0..=7 => Loose::N8,
+            9..=15 => Loose::N16,
+            17..=31 => Loose::N32,
+            33..=63 => Loose::N64,
             _ => unreachable!(),
         }
     }

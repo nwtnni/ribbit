@@ -3,7 +3,7 @@ use quote::quote;
 
 use crate::ir;
 use crate::lift;
-use crate::lift::NativeExt as _;
+use crate::lift::LoosenExt as _;
 use crate::Or;
 
 pub(crate) fn get<'ir>(
@@ -23,7 +23,7 @@ pub(crate) fn get<'ir>(
                 })
                 .apply(lift::Op::Cast(ty_field.to_native()))
                 .apply(lift::Op::And(ty_field.mask()))
-                .native_to_ty(ty_field.clone());
+                .tighten(ty_field.clone());
 
             let vis = field.vis;
             let get = field.ident.escaped();
@@ -49,7 +49,7 @@ pub(crate) fn get<'ir>(
                                 dir: lift::Dir::R,
                                 shift: r#enum.discriminant_size(),
                             })
-                            .native_to_ty((**ty).clone());
+                            .tighten((**ty).clone());
 
                         quote!(#unpacked::#ident(#inner))
                     }

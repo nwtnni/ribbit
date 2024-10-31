@@ -4,8 +4,8 @@ mod native;
 mod node;
 
 pub(crate) use arbitrary::Arbitrary;
-pub(crate) use leaf::Leaf;
-pub(crate) use native::Native;
+pub(crate) use leaf::Tight;
+pub(crate) use native::Loose;
 pub(crate) use node::Node;
 
 use proc_macro2::TokenStream;
@@ -19,7 +19,7 @@ use crate::Spanned;
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Tree {
     Node(Node),
-    Leaf(Leaf),
+    Leaf(Tight),
 }
 
 impl Tree {
@@ -32,14 +32,14 @@ impl Tree {
             syn::Type::Path(path) => {
                 let span = path.span();
 
-                let repr = match Leaf::from_path(&path) {
+                let repr = match Tight::from_path(&path) {
                     Some(leaf) => Self::Leaf(leaf),
                     None => {
                         let Some(size) = size else {
                             bail!(span=> Error::OpaqueSize);
                         };
 
-                        let leaf = Leaf::new(nonzero.unwrap_or_else(|| false.into()), size);
+                        let leaf = Tight::new(nonzero.unwrap_or_else(|| false.into()), size);
 
                         Self::Node(Node::from_path(path, leaf))
                     }
@@ -55,14 +55,14 @@ impl Tree {
         matches!(self, Tree::Leaf(_))
     }
 
-    pub(crate) fn to_leaf(&self) -> Leaf {
+    pub(crate) fn to_leaf(&self) -> Tight {
         match self {
             Tree::Node(node) => **node,
             Tree::Leaf(leaf) => *leaf,
         }
     }
 
-    pub(crate) fn to_native(&self) -> Native {
+    pub(crate) fn to_native(&self) -> Loose {
         self.to_leaf().to_native()
     }
 
@@ -97,14 +97,14 @@ impl ToTokens for Tree {
     }
 }
 
-impl From<Leaf> for Tree {
-    fn from(leaf: Leaf) -> Self {
+impl From<Tight> for Tree {
+    fn from(leaf: Tight) -> Self {
         Self::Leaf(leaf)
     }
 }
 
-impl From<Native> for Tree {
-    fn from(native: Native) -> Self {
-        Self::Leaf(Leaf::from(native))
+impl From<Loose> for Tree {
+    fn from(native: Loose) -> Self {
+        Self::Leaf(Tight::from(native))
     }
 }

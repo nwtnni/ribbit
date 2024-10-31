@@ -5,7 +5,7 @@ use quote::quote;
 
 use crate::ir;
 use crate::lift;
-use crate::lift::NativeExt as _;
+use crate::lift::LoosenExt as _;
 use crate::Or;
 
 pub(crate) fn set<'ir>(
@@ -32,7 +32,7 @@ pub(crate) fn set<'ir>(
                         !(ty_field.mask() << field.offset) & ty_struct.mask(),
                     ))
                     .apply(lift::Op::Or(Box::new(value_field)))
-                    .native_to_ty(ty_struct);
+                    .tighten(ty_struct);
 
                 let vis = field.vis;
                 let with = field.ident.unescaped("with");

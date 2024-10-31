@@ -5,26 +5,26 @@ use quote::ToTokens;
 use syn::spanned::Spanned as _;
 
 use crate::ty::Arbitrary;
-use crate::ty::Native;
+use crate::ty::Loose;
 use crate::Spanned;
 
 #[derive(Copy, Clone, Debug)]
-pub(crate) struct Leaf {
+pub(crate) struct Tight {
     pub(crate) nonzero: Spanned<bool>,
     pub(crate) signed: bool,
     pub(crate) repr: Spanned<Repr>,
 }
 
-impl PartialEq for Leaf {
+impl PartialEq for Tight {
     fn eq(&self, other: &Self) -> bool {
         *self.nonzero == *other.nonzero && self.signed == other.signed && *self.repr == *other.repr
     }
 }
 
-impl Eq for Leaf {}
+impl Eq for Tight {}
 
-impl From<Native> for Leaf {
-    fn from(native: Native) -> Self {
+impl From<Loose> for Tight {
+    fn from(native: Loose) -> Self {
         Self {
             nonzero: Spanned::from(false),
             signed: false,
@@ -33,7 +33,7 @@ impl From<Native> for Leaf {
     }
 }
 
-impl Leaf {
+impl Tight {
     pub(crate) fn size(&self) -> Spanned<usize> {
         self.repr.map_ref(|repr| repr.size())
     }
@@ -54,9 +54,9 @@ impl Leaf {
         !*self.nonzero && !self.signed && matches!(&*self.repr, Repr::Native(_))
     }
 
-    pub(crate) fn to_native(self) -> Native {
+    pub(crate) fn to_native(self) -> Loose {
         match *self.repr {
-            Repr::Bool => Native::N8,
+            Repr::Bool => Loose::N8,
             Repr::Native(native) => native,
             Repr::Arbitrary(arbitrary) => arbitrary.as_native(),
         }
@@ -70,7 +70,7 @@ impl Leaf {
 
         let ident = segment.ident.to_string();
         if ident == "bool" {
-            return Some(Leaf {
+            return Some(Tight {
                 nonzero: false.into(),
                 signed: false,
                 repr: Spanned::new(Repr::Bool, ident.span()),
@@ -98,7 +98,7 @@ impl Leaf {
             .parse::<usize>()
             .ok()?;
 
-        Some(Leaf {
+        Some(Tight {
             nonzero: nonzero.into(),
             signed,
             repr: Spanned::new(Repr::new(size), path.span()),
@@ -109,17 +109,17 @@ impl Leaf {
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Repr {
     Bool,
-    Native(Native),
+    Native(Loose),
     Arbitrary(Arbitrary),
 }
 
 impl Repr {
     fn new(size: usize) -> Self {
         match size {
-            8 => Repr::Native(Native::N8),
-            16 => Repr::Native(Native::N16),
-            32 => Repr::Native(Native::N32),
-            64 => Repr::Native(Native::N64),
+            8 => Repr::Native(Loose::N8),
+            16 => Repr::Native(Loose::N16),
+            32 => Repr::Native(Loose::N32),
+            64 => Repr::Native(Loose::N64),
             size => Repr::Arbitrary(Arbitrary::new(size)),
         }
     }
@@ -141,22 +141,22 @@ impl Repr {
     }
 }
 
-impl ToTokens for Leaf {
+impl ToTokens for Tight {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let repr = match (*self.nonzero, self.signed, *self.repr) {
             (_, true, _) => todo!(),
 
             (_, _, Repr::Bool) => quote!(bool),
 
-            (true, _, Repr::Native(Native::N8)) => quote!(NonZeroU8),
-            (true, _, Repr::Native(Native::N16)) => quote!(NonZeroU16),
-            (true, _, Repr::Native(Native::N32)) => quote!(NonZeroU32),
-            (true, _, Repr::Native(Native::N64)) => quote!(NonZeroU64),
+            (true, _, Repr::Native(Loose::N8)) => quote!(NonZeroU8),
+            (true, _, Repr::Native(Loose::N16)) => quote!(NonZeroU16),
+            (true, _, Repr::Native(Loose::N32)) => quote!(NonZeroU32),
+            (true, _, Repr::Native(Loose::N64)) => quote!(NonZeroU64),
 
-            (false, _, Repr::Native(Native::N8)) => quote!(u8),
-            (false, _, Repr::Native(Native::N16)) => quote!(u16),
-            (false, _, Repr::Native(Native::N32)) => quote!(u32),
-            (false, _, Repr::Native(Native::N64)) => quote!(u64),
+            (false, _, Repr::Native(Loose::N8)) => quote!(u8),
+            (false, _, Repr::Native(Loose::N16)) => quote!(u16),
+            (false, _, Repr::Native(Loose::N32)) => quote!(u32),
+            (false, _, Repr::Native(Loose::N64)) => quote!(u64),
 
             (true, _, Repr::Arbitrary(_)) => todo!(),
             (false, _, Repr::Arbitrary(arbitrary)) => {

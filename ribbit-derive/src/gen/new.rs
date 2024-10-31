@@ -6,7 +6,7 @@ use quote::quote;
 use crate::ir;
 use crate::lift;
 use crate::lift::lift;
-use crate::lift::NativeExt as _;
+use crate::lift::LoosenExt as _;
 
 #[derive(FromMeta, Clone, Debug, Default)]
 pub(crate) struct StructOpt {
@@ -42,7 +42,7 @@ pub(crate) fn new(
             let value = fields
                 .iter()
                 .fold(
-                    Box::new(lift::constant(0, repr.to_native())) as Box<dyn lift::Native>,
+                    Box::new(lift::constant(0, repr.to_native())) as Box<dyn lift::Loosen>,
                     |state, field| {
                         let ident = field.ident.escaped();
                         let value = lift::lift(ident, (*field.ty).clone())
@@ -55,7 +55,7 @@ pub(crate) fn new(
                         Box::new(state.apply(lift::Op::Or(Box::new(value))))
                     },
                 )
-                .native_to_ty(**repr);
+                .tighten(**repr);
 
             quote! {
                 #[inline]
@@ -78,7 +78,7 @@ pub(crate) fn new(
 
             let discriminants = variants.iter().enumerate().map(|(index, variant)| {
                 let packed = lift::constant(index, native).apply(lift::Op::Or(match &variant.ty {
-                    None => Box::new(lift::constant(0, native)) as Box<dyn lift::Native>,
+                    None => Box::new(lift::constant(0, native)) as Box<dyn lift::Loosen>,
                     Some(ty) => Box::new(
                         lift(quote!(inner), (**ty).clone())
                             .apply(lift::Op::Shift {
@@ -96,8 +96,8 @@ pub(crate) fn new(
                 }
             });
 
-            let value = lift::lift(quote!(match unpacked { #(#discriminants),* }), native)
-                .native_to_ty(**repr);
+            let value =
+                lift::lift(quote!(match unpacked { #(#discriminants),* }), native).tighten(**repr);
 
             quote! {
                 #[inline]
