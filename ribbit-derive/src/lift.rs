@@ -34,9 +34,9 @@ impl<'a> Loosen for Box<dyn Loosen + 'a> {
     }
 }
 
-pub(crate) fn constant(value: usize, native: ty::Loose) -> Loose<TokenStream> {
+pub(crate) fn constant(value: usize, loose: ty::Loose) -> Loose<TokenStream> {
     Loose {
-        ty: native.into(),
+        ty: loose.into(),
         value: Value::Compile(value),
     }
 }
@@ -118,7 +118,7 @@ impl<V: Loosen> Loosen for Apply<'_, V> {
     fn loose(&self) -> ty::Loose {
         match &self.op {
             Op::Shift { .. } | Op::And(_) | Op::Or(_) => self.inner.loose(),
-            Op::Cast(native) => *native,
+            Op::Cast(loose) => *loose,
         }
     }
 
@@ -149,15 +149,15 @@ impl<V: Loosen> ToTokens for Apply<'_, V> {
             Op::Or(value) if self.inner.is_zero() => value.to_token_stream(),
             Op::Or(value) if value.is_zero() => self.inner.to_token_stream(),
             Op::Or(value) => {
-                let native = self.loose();
-                match value.loose() == native {
-                    false => quote!((#inner | (#value as #native))),
+                let loose = self.loose();
+                match value.loose() == loose {
+                    false => quote!((#inner | (#value as #loose))),
                     true => quote!((#inner | #value)),
                 }
             }
 
-            Op::Cast(native) if *native == self.inner.loose() => inner,
-            Op::Cast(native) => quote!((#inner as #native)),
+            Op::Cast(loose) if *loose == self.inner.loose() => inner,
+            Op::Cast(loose) => quote!((#inner as #loose)),
         };
 
         inner.to_tokens(tokens);
@@ -175,15 +175,15 @@ impl<V: Loosen> ToTokens for Tight<V> {
         let source = self.inner.loose();
 
         let target = &self.target;
-        let native = self.target.loosen();
+        let loose = self.target.loosen();
 
         // Convert source type to target native type
-        let inner = match source == native {
-            false => quote!((#inner as #native)),
+        let inner = match source == loose {
+            false => quote!((#inner as #loose)),
             true => inner,
         };
 
-        let inner = match *target == ty::Tree::from(ty::Tight::from(native)) {
+        let inner = match *target == loose.into() {
             true => inner,
             false => quote!(unsafe { ::ribbit::private::unpack::<#target>(#inner) }),
         };
