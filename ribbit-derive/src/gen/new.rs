@@ -5,6 +5,7 @@ use quote::quote;
 
 use crate::ir;
 use crate::lift;
+use crate::lift::lift;
 use crate::lift::NativeExt as _;
 
 #[derive(FromMeta, Clone, Debug, Default)]
@@ -15,6 +16,7 @@ pub(crate) struct StructOpt {
 
 pub(crate) fn new(
     ir::Ir {
+        ident,
         opt,
         repr,
         vis,
@@ -22,6 +24,13 @@ pub(crate) fn new(
         ..
     }: &ir::Ir,
 ) -> TokenStream {
+    let new = opt
+        .new
+        .rename
+        .clone()
+        .unwrap_or_else(|| format_ident!("new"));
+    let vis = opt.new.vis.as_ref().unwrap_or(vis);
+
     match data {
         ir::Data::Struct(ir::Struct { fields }) => {
             let parameters = fields.iter().map(|field| {
@@ -33,7 +42,7 @@ pub(crate) fn new(
             let value = fields
                 .iter()
                 .fold(
-                    Box::new(lift::zero(repr.to_native())) as Box<dyn lift::Native>,
+                    Box::new(lift::constant(0, repr.to_native())) as Box<dyn lift::Native>,
                     |state, field| {
                         let ident = field.ident.escaped();
                         let value = lift::lift(ident, (*field.ty).clone())
@@ -49,13 +58,6 @@ pub(crate) fn new(
                 )
                 .native_to_ty(**repr);
 
-            let new = opt
-                .new
-                .rename
-                .clone()
-                .unwrap_or_else(|| format_ident!("new"));
-            let vis = opt.new.vis.as_ref().unwrap_or(vis);
-
             quote! {
                 #[inline]
                 #vis const fn #new(
@@ -69,6 +71,44 @@ pub(crate) fn new(
                 }
             }
         }
-        ir::Data::Enum(_) => todo!(),
+        ir::Data::Enum(r#enum @ ir::Enum { variants }) => {
+            let unpacked = r#enum.unpacked(ident);
+
+            let discriminant_size = r#enum.discriminant_size();
+            let native = repr.to_native();
+
+            let discriminants = variants.iter().enumerate().map(|(index, variant)| {
+                let packed = lift::constant(index, native).apply(lift::Op::Or(match &variant.ty {
+                    None => Box::new(lift::constant(0, native)) as Box<dyn lift::Native>,
+                    Some(ty) => Box::new(lift(quote!(inner), (**ty).clone()).ty_to_native().apply(
+                        lift::Op::Shift {
+                            dir: lift::Dir::L,
+                            shift: discriminant_size,
+                        },
+                    )),
+                }));
+
+                let ident = &variant.ident;
+                match &variant.ty {
+                    None => quote!(#unpacked::#ident => #packed),
+                    Some(_) => quote!(#unpacked::#ident(inner) => #packed),
+                }
+            });
+
+            quote! {
+                #[inline]
+                #vis const fn #new(
+                    unpacked: #unpacked,
+                ) -> Self {
+                    let _: () = Self::_RIBBIT_ASSERT_LAYOUT;
+                    Self {
+                        value: match unpacked {
+                            #(#discriminants),*
+                        },
+                        r#type: ::ribbit::private::PhantomData,
+                    }
+                }
+            }
+        }
     }
 }

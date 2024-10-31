@@ -38,8 +38,8 @@ impl<'a> Native for Box<dyn Native + 'a> {
     }
 }
 
-pub(crate) fn zero(native: ty::Native) -> Zero {
-    Zero(native)
+pub(crate) fn constant(value: usize, native: ty::Native) -> Constant {
+    Constant { value, native }
 }
 
 pub(crate) fn lift<V>(inner: V, ty: impl Into<ty::Tree>) -> Type<V> {
@@ -205,20 +205,23 @@ impl<V: Native> ToTokens for NativeToTy<V> {
     }
 }
 
-pub(crate) struct Zero(ty::Native);
+pub(crate) struct Constant {
+    value: usize,
+    native: ty::Native,
+}
 
-impl Native for Zero {
+impl Native for Constant {
     fn ty(&self) -> ty::Native {
-        self.0
+        self.native
     }
 
     fn is_zero(&self) -> bool {
-        true
+        self.value == 0
     }
 }
 
-impl ToTokens for Zero {
+impl ToTokens for Constant {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.literal(0).to_tokens(tokens)
+        self.native.literal(self.value).to_tokens(tokens)
     }
 }

@@ -102,3 +102,9 @@ impl From<Leaf> for Tree {
         Self::Leaf(leaf)
     }
 }
+
+impl From<Native> for Tree {
+    fn from(native: Native) -> Self {
+        Self::Leaf(Leaf::from(native))
+    }
+}

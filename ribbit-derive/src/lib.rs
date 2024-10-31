@@ -45,32 +45,33 @@ fn pack_inner(
     let mut item = input::Item::from_derive_input(&input)?;
     let mut stream = TokenStream::new();
 
-    match item.data {
+    match &item.data {
         darling::ast::Data::Enum(r#enum) => {
             for variant in r#enum {
                 match variant.fields.as_shape() {
                     // Assume
-                    Shape::Newtype => todo!(),
+                    Shape::Newtype => (),
 
                     // Generate
-                    Shape::Named => {
+                    Shape::Named | Shape::Tuple => {
                         let mut item = input::Item {
                             opt: variant.opt.clone(),
                             attrs: variant.attrs.clone(),
                             vis: item.vis.clone(),
-                            ident: variant.ident,
+                            ident: variant.ident.clone(),
                             generics: syn::Generics::default(),
                             data: darling::ast::Data::Struct(variant.fields.clone()),
                         };
 
                         stream.append_all(pack_item(&mut item)?);
                     }
-                    Shape::Tuple => todo!(),
 
                     //
-                    Shape::Unit => todo!(),
+                    Shape::Unit => (),
                 }
             }
+
+            stream.append_all(pack_item(&mut item)?);
         }
         darling::ast::Data::Struct(_) => {
             stream.append_all(pack_item(&mut item)?);
@@ -158,5 +159,24 @@ impl<T: ToTokens> ToTokens for Spanned<T> {
 impl<T> From<SpannedValue<T>> for Spanned<T> {
     fn from(inner: SpannedValue<T>) -> Self {
         Self(inner)
+    }
+}
+
+pub(crate) enum Or<L, R> {
+    L(L),
+    R(R),
+}
+
+impl<L, R, T> Iterator for Or<L, R>
+where
+    L: Iterator<Item = T>,
+    R: Iterator<Item = T>,
+{
+    type Item = T;
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            Or::L(l) => l.next(),
+            Or::R(r) => r.next(),
+        }
     }
 }

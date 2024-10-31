@@ -2,6 +2,8 @@ use std::borrow::Cow;
 
 use bitvec::bitbox;
 use bitvec::boxed::BitBox;
+use darling::util::AsShape as _;
+use darling::util::Shape;
 use darling::util::SpannedValue;
 use darling::FromMeta;
 use quote::format_ident;
@@ -15,7 +17,7 @@ use crate::ty::leaf;
 use crate::ty::Leaf;
 use crate::Spanned;
 
-pub(crate) fn new<'input>(item: &'input mut input::Item) -> darling::Result<Ir<'input>> {
+pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
     let leaf = Leaf::new(
         item.opt
             .nonzero
@@ -28,15 +30,45 @@ pub(crate) fn new<'input>(item: &'input mut input::Item) -> darling::Result<Ir<'
         bail!(leaf.nonzero=> crate::Error::ArbitraryNonZero);
     }
 
+    let r#where = item.generics.make_where_clause();
+
     let data = match &item.data {
-        darling::ast::Data::Enum(r#enum) => {
-            let variants = r#enum
+        darling::ast::Data::Enum(variants) => {
+            let variants = variants
                 .iter()
-                .map(|variant| Variant {
-                    ident: &variant.ident,
-                    opt: &variant.opt,
+                .map(|variant| {
+                    let ty = match variant.fields.as_shape() {
+                        Shape::Unit => None,
+                        Shape::Newtype => ty::Tree::from_ty(
+                            variant.fields.fields[0].ty.clone(),
+                            variant.opt.nonzero.map(Spanned::from),
+                            Some(Spanned::from(variant.opt.size)),
+                        )
+                        .map(Some)?,
+                        Shape::Named | Shape::Tuple => {
+                            let ident = &variant.ident;
+                            ty::Tree::from_ty(
+                                parse_quote!(#ident),
+                                variant.opt.nonzero.map(Spanned::from),
+                                Some(Spanned::from(variant.opt.size)),
+                            )
+                            .map(Some)?
+                        }
+                    };
+
+                    if let Some(ty) = ty.as_ref().filter(|ty| !ty.is_leaf()) {
+                        let native = ty.to_native();
+                        r#where
+                            .predicates
+                            .push(parse_quote!(#ty: ::ribbit::Pack<Loose = #native>));
+                    }
+
+                    Ok(Variant {
+                        ident: &variant.ident,
+                        ty: ty.map(Spanned::from),
+                    })
                 })
-                .collect();
+                .collect::<darling::Result<_>>()?;
 
             Data::Enum(Enum { variants })
         }
@@ -60,7 +92,6 @@ pub(crate) fn new<'input>(item: &'input mut input::Item) -> darling::Result<Ir<'
                 bail!(leaf.nonzero=> crate::Error::StructNonZero);
             }
 
-            let r#where = item.generics.make_where_clause();
             for field in &fields {
                 let ty = &field.ty;
                 let native = field.ty.to_native();
@@ -105,14 +136,22 @@ pub(crate) struct Enum<'input> {
 }
 
 impl Enum<'_> {
-    pub(crate) fn discriminant(&self) -> usize {
+    pub(crate) fn unpacked(&self, ident: &syn::Ident) -> syn::Ident {
+        format_ident!("{}Unpacked", ident)
+    }
+
+    pub(crate) fn discriminant_size(&self) -> usize {
         self.variants.len().next_power_of_two().trailing_zeros() as usize
+    }
+
+    pub(crate) fn discriminant_mask(&self) -> usize {
+        crate::ty::Leaf::new(false.into(), self.discriminant_size().into()).mask()
     }
 }
 
 pub(crate) struct Variant<'input> {
     pub(crate) ident: &'input syn::Ident,
-    pub(crate) opt: &'input StructOpt,
+    pub(crate) ty: Option<Spanned<ty::Tree>>,
 }
 
 pub(crate) struct Struct<'input> {

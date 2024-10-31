@@ -1,16 +1,19 @@
+use core::iter;
+
 use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::ir;
 use crate::lift;
 use crate::lift::NativeExt as _;
+use crate::Or;
 
 pub(crate) fn set<'ir>(
     ir::Ir { repr, data, .. }: &'ir ir::Ir,
 ) -> impl Iterator<Item = TokenStream> + 'ir {
     match data {
         ir::Data::Struct(ir::Struct { fields }) => {
-            fields.iter().map(|field| {
+            Or::L(fields.iter().map(|field| {
                 let ty_field = &*field.ty;
                 let ty_struct = **repr;
 
@@ -45,8 +48,8 @@ pub(crate) fn set<'ir>(
                         }
                     }
                 }
-            })
+            }))
         }
-        ir::Data::Enum(_) => todo!(),
+        ir::Data::Enum(_) => Or::R(iter::empty()),
     }
 }

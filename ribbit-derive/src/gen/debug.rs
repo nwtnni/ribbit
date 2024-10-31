@@ -58,6 +58,30 @@ pub(crate) fn debug(
                 }
             }
         }
-        ir::Data::Enum(_) => todo!(),
+        ir::Data::Enum(r#enum @ ir::Enum { variants }) => {
+            let unpacked = r#enum.unpacked(ident);
+
+            let variants = variants.iter().map(|variant| {
+                let name = variant.ident;
+                match variant.ty.is_some() {
+                    true => quote!(Self::#name(variant) => ::core::fmt::Debug::fmt(variant, f)),
+                    false => quote!(write!(f, stringify!(#name))),
+                }
+            });
+
+            quote! {
+                impl ::core::fmt::Debug for #ident {
+                    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+                        ::core::fmt::Debug::fmt(&self.unpack(), f)
+                    }
+                }
+
+                impl ::core::fmt::Debug for #unpacked {
+                    fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
+                        match self { #(#variants)* }
+                    }
+                }
+            }
+        }
     }
 }
