@@ -1,3 +1,5 @@
+use core::ops::Deref as _;
+
 use darling::FromMeta;
 use proc_macro2::TokenStream;
 use quote::format_ident;
@@ -32,6 +34,9 @@ pub(crate) fn new(
         .unwrap_or_else(|| format_ident!("new"));
     let vis = opt.new.vis.as_ref().unwrap_or(vis);
 
+    let ty_struct = ty::Tree::from(**tight);
+    let ty_struct_loose = tight.loosen();
+
     match data {
         ir::Data::Struct(ir::Struct { fields }) => {
             let parameters = fields.iter().map(|field| {
@@ -40,15 +45,27 @@ pub(crate) fn new(
                 quote!(#ident: #ty)
             });
 
-            let value = fields.iter().fold(
-                Box::new(0usize.lift() % tight.loosen()) as Box<dyn lift::Loosen>,
-                |state, field| {
-                    let ident = field.ident.escaped().to_token_stream();
-                    let value =
-                        (ident.lift() % (*field.ty).clone() % tight.loosen()) << field.offset;
-                    Box::new(value | state)
-                },
-            ) % ty::Tree::from(**tight);
+            let value = fields
+                .iter()
+                .map(
+                    |ir::Field {
+                         ident, ty, offset, ..
+                     }| {
+                        (
+                            ident.escaped().to_token_stream().lift(),
+                            ty.deref().clone(),
+                            *offset,
+                        )
+                    },
+                )
+                .fold(
+                    Box::new(0usize.lift() % ty_struct_loose) as Box<dyn lift::Loosen>,
+                    |state, (ident, ty_field, offset)| {
+                        #[allow(clippy::precedence)]
+                        Box::new((ident % ty_field % ty_struct_loose << offset) | state)
+                    },
+                )
+                % ty_struct;
 
             quote! {
                 #[inline]
@@ -65,29 +82,29 @@ pub(crate) fn new(
         }
         ir::Data::Enum(r#enum @ ir::Enum { variants }) => {
             let unpacked = r#enum.unpacked(ident);
+            let variants = variants
+                .iter()
+                .map(|ir::Variant { ident, ty, .. }| (ident, ty.as_deref()))
+                .enumerate()
+                .map(|(discriminant, (ident, ty))| {
+                    #[allow(clippy::precedence)]
+                    let packed = (discriminant.lift() % ty_struct_loose)
+                        | match ty.cloned() {
+                            None => Box::new(0.lift() % ty_struct_loose) as Box<dyn lift::Loosen>,
+                            Some(ty_variant) => Box::new(
+                                (quote!(inner).lift() % ty_variant << r#enum.discriminant_size())
+                                    % ty_struct_loose,
+                            ),
+                        };
 
-            let discriminant_size = r#enum.discriminant_size();
-            let loose = tight.loosen();
+                    match ty {
+                        None => quote!(#unpacked::#ident => #packed),
+                        Some(_) => quote!(#unpacked::#ident(inner) => #packed),
+                    }
+                });
 
-            let discriminants = variants.iter().enumerate().map(|(index, variant)| {
-                let packed = (index.lift() % loose)
-                    | match &variant.ty {
-                        None => Box::new(0.lift() % loose) as Box<dyn lift::Loosen>,
-                        Some(ty) => Box::new(
-                            ((quote!(inner).lift() % (**ty).clone()) << discriminant_size) % loose,
-                        ),
-                    };
-
-                let ident = &variant.ident;
-                match &variant.ty {
-                    None => quote!(#unpacked::#ident => #packed),
-                    Some(_) => quote!(#unpacked::#ident(inner) => #packed),
-                }
-            });
-
-            let value = quote!(match unpacked { #(#discriminants),* }).lift()
-                % loose
-                % ty::Tree::from(**tight);
+            let value =
+                quote!(match unpacked { #(#variants),* }).lift() % ty_struct_loose % ty_struct;
 
             quote! {
                 #[inline]

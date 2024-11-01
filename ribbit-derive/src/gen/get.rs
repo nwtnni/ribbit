@@ -16,8 +16,9 @@ pub(crate) fn get<'ir>(
         ir::Data::Struct(ir::Struct { fields }) => Or::L(fields.iter().map(move |field| {
             let ty_field = &*field.ty;
 
-            let value_field = ((((quote!(self.value).lift() % ty_struct) >> field.offset)
-                % ty_field.loosen())
+            #[allow(clippy::precedence)]
+            let value_field = ((quote!(self.value).lift() % ty_struct >> field.offset)
+                % ty_field.loosen()
                 & ty_field.mask())
                 % ty_field.clone();
 
@@ -37,12 +38,13 @@ pub(crate) fn get<'ir>(
             let variants = variants.iter().enumerate().map(|(index, variant)| {
                 let discriminant = tight.loosen().literal(index);
                 let ident = &variant.ident;
-                let value = match variant.ty.as_deref() {
+                let value = match variant.ty.as_deref().cloned() {
                     None => quote!(#unpacked::#ident),
                     Some(ty_variant) => {
-                        let inner = ((quote!(self.value).lift() % ty_struct)
+                        #[allow(clippy::precedence)]
+                        let inner = (quote!(self.value).lift() % ty_struct
                             >> r#enum.discriminant_size())
-                            % ty_variant.clone();
+                            % ty_variant;
 
                         quote!(#unpacked::#ident(#inner))
                     }

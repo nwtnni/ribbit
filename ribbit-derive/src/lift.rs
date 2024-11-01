@@ -207,7 +207,11 @@ impl<V: Loosen> Loosen for Expression<'_, V> {
 
     fn is_zero(&self) -> bool {
         // Could be more precise, but this covers generated code
-        matches!(self.op, Op::And(0))
+        match self.op {
+            Op::Pass => self.inner.is_zero(),
+            Op::And(0) => true,
+            _ => false,
+        }
     }
 }
 
