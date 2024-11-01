@@ -1,10 +1,10 @@
 use darling::FromMeta;
 use proc_macro2::TokenStream;
 use quote::quote;
-use quote::ToTokens;
+use quote::ToTokens as _;
 
 use crate::ir;
-use crate::lift;
+use crate::lift::Lift as _;
 
 #[derive(FromMeta, Clone, Debug)]
 pub(crate) struct StructOpt;
@@ -33,10 +33,10 @@ pub(crate) fn debug(
                 let name = field.ident.escaped();
                 let opt = &field.opt.debug;
 
-                let value = lift::lift(quote!(self.#name()), (*field.ty).clone()).to_token_stream();
+                let value = quote!(self.#name()).lift() % (*field.ty).clone();
 
                 let value = match &opt.format {
-                    None => value,
+                    None => value.to_token_stream(),
                     Some(format) => quote!(format_args!(#format, #value)),
                 };
 

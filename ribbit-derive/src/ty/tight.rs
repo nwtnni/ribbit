@@ -9,7 +9,7 @@ use crate::ty::Loose;
 use crate::Spanned;
 
 #[derive(Copy, Clone, Debug)]
-pub(crate) struct Tight {
+pub struct Tight {
     pub(crate) nonzero: Spanned<bool>,
     pub(crate) signed: bool,
     pub(crate) repr: Spanned<Repr>,

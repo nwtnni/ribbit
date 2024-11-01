@@ -2,11 +2,12 @@ use darling::FromMeta;
 use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
+use quote::ToTokens;
 
 use crate::ir;
 use crate::lift;
-use crate::lift::lift;
-use crate::lift::LoosenExt as _;
+use crate::lift::Lift as _;
+use crate::ty;
 
 #[derive(FromMeta, Clone, Debug, Default)]
 pub(crate) struct StructOpt {
@@ -39,23 +40,15 @@ pub(crate) fn new(
                 quote!(#ident: #ty)
             });
 
-            let value = fields
-                .iter()
-                .fold(
-                    Box::new(lift::constant(0, tight.loosen())) as Box<dyn lift::Loosen>,
-                    |state, field| {
-                        let ident = field.ident.escaped();
-                        let value = lift::lift(ident, (*field.ty).clone())
-                            .apply(lift::Op::Cast(tight.loosen()))
-                            .apply(lift::Op::Shift {
-                                dir: lift::Dir::L,
-                                shift: field.offset,
-                            });
-
-                        Box::new(state.apply(lift::Op::Or(Box::new(value))))
-                    },
-                )
-                .tighten(**tight);
+            let value = fields.iter().fold(
+                Box::new(0usize.lift() % tight.loosen()) as Box<dyn lift::Loosen>,
+                |state, field| {
+                    let ident = field.ident.escaped().to_token_stream();
+                    let value =
+                        (ident.lift() % (*field.ty).clone() % tight.loosen()) << field.offset;
+                    Box::new(value | state)
+                },
+            ) % ty::Tree::from(**tight);
 
             quote! {
                 #[inline]
@@ -77,17 +70,13 @@ pub(crate) fn new(
             let loose = tight.loosen();
 
             let discriminants = variants.iter().enumerate().map(|(index, variant)| {
-                let packed = lift::constant(index, loose).apply(lift::Op::Or(match &variant.ty {
-                    None => Box::new(lift::constant(0, loose)) as Box<dyn lift::Loosen>,
-                    Some(ty) => Box::new(
-                        lift(quote!(inner), (**ty).clone())
-                            .apply(lift::Op::Shift {
-                                dir: lift::Dir::L,
-                                shift: discriminant_size,
-                            })
-                            .apply(lift::Op::Cast(loose)),
-                    ),
-                }));
+                let packed = (index.lift() % loose)
+                    | match &variant.ty {
+                        None => Box::new(0.lift() % loose) as Box<dyn lift::Loosen>,
+                        Some(ty) => Box::new(
+                            ((quote!(inner).lift() % (**ty).clone()) << discriminant_size) % loose,
+                        ),
+                    };
 
                 let ident = &variant.ident;
                 match &variant.ty {
@@ -96,8 +85,9 @@ pub(crate) fn new(
                 }
             });
 
-            let value =
-                lift::lift(quote!(match unpacked { #(#discriminants),* }), loose).tighten(**tight);
+            let value = quote!(match unpacked { #(#discriminants),* }).lift()
+                % loose
+                % ty::Tree::from(**tight);
 
             quote! {
                 #[inline]

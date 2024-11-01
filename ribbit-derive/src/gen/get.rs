@@ -2,8 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::ir;
-use crate::lift;
-use crate::lift::LoosenExt as _;
+use crate::lift::Lift as _;
 use crate::Or;
 
 pub(crate) fn get<'ir>(
@@ -11,19 +10,16 @@ pub(crate) fn get<'ir>(
         ident, tight, data, ..
     }: &'ir ir::Ir,
 ) -> impl Iterator<Item = TokenStream> + 'ir {
+    let ty_struct = **tight;
+
     match data {
-        ir::Data::Struct(ir::Struct { fields }) => Or::L(fields.iter().map(|field| {
-            let ty_struct = **tight;
+        ir::Data::Struct(ir::Struct { fields }) => Or::L(fields.iter().map(move |field| {
             let ty_field = &*field.ty;
 
-            let value_field = lift::lift(quote!(self.value), ty_struct)
-                .apply(lift::Op::Shift {
-                    dir: lift::Dir::R,
-                    shift: field.offset,
-                })
-                .apply(lift::Op::Cast(ty_field.loosen()))
-                .apply(lift::Op::And(ty_field.mask()))
-                .tighten(ty_field.clone());
+            let value_field = ((((quote!(self.value).lift() % ty_struct) >> field.offset)
+                % ty_field.loosen())
+                & ty_field.mask())
+                % ty_field.clone();
 
             let vis = field.vis;
             let get = field.ident.escaped();
@@ -41,15 +37,12 @@ pub(crate) fn get<'ir>(
             let variants = variants.iter().enumerate().map(|(index, variant)| {
                 let discriminant = tight.loosen().literal(index);
                 let ident = &variant.ident;
-                let value = match &variant.ty {
+                let value = match variant.ty.as_deref() {
                     None => quote!(#unpacked::#ident),
-                    Some(ty) => {
-                        let inner = lift::lift(quote!(self.value), **tight)
-                            .apply(lift::Op::Shift {
-                                dir: lift::Dir::R,
-                                shift: r#enum.discriminant_size(),
-                            })
-                            .tighten((**ty).clone());
+                    Some(ty_variant) => {
+                        let inner = ((quote!(self.value).lift() % ty_struct)
+                            >> r#enum.discriminant_size())
+                            % ty_variant.clone();
 
                         quote!(#unpacked::#ident(#inner))
                     }
@@ -58,8 +51,7 @@ pub(crate) fn get<'ir>(
                 quote!(#discriminant => #value)
             });
 
-            let discriminant = lift::lift(quote!(self.value), **tight)
-                .apply(lift::Op::And(r#enum.discriminant_mask()));
+            let discriminant = (quote!(self.value).lift() % ty_struct) & r#enum.discriminant_mask();
 
             Or::R(std::iter::once(quote! {
                 #[inline]

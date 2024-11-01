@@ -7,7 +7,7 @@ use syn::TypePath;
 use crate::ty::Tight;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) struct Node {
+pub struct Node {
     path: TypePath,
     tight: Tight,
 }
