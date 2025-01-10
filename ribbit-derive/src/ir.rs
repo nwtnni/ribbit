@@ -101,6 +101,7 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
                 .iter()
                 .map(|field| &field.ty)
                 .filter(|ty| ty.is_node())
+                .filter(|ty| *ty.size() != 0)
             {
                 let loose = ty.loosen();
 
@@ -197,6 +198,17 @@ impl<'input> Field<'input> {
         )?;
 
         let size = *ty.size();
+
+        // Special-case ZSTs
+        if size == 0 {
+            return Ok(Self {
+                vis: &field.vis,
+                ident: FieldIdent::new(index, field.ident.as_ref()),
+                ty,
+                offset: bits.len(),
+                opt: &field.opt,
+            });
+        }
 
         let offset = match field.opt.offset {
             None => match bits.first_zero() {

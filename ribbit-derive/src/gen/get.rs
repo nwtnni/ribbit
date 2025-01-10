@@ -13,25 +13,30 @@ pub(crate) fn get<'ir>(
     let ty_struct = **tight;
 
     match data {
-        ir::Data::Struct(ir::Struct { fields }) => Or::L(fields.iter().map(move |field| {
-            let ty_field = &*field.ty;
+        ir::Data::Struct(ir::Struct { fields }) => Or::L(
+            fields
+                .iter()
+                .filter(|field| *field.ty.size() != 0)
+                .map(move |field| {
+                    let ty_field = &*field.ty;
 
-            #[allow(clippy::precedence)]
-            let value_field = ((quote!(self.value).lift() % ty_struct >> field.offset)
-                % ty_field.loosen()
-                & ty_field.mask())
-                % ty_field.clone();
+                    #[allow(clippy::precedence)]
+                    let value_field = ((quote!(self.value).lift() % ty_struct >> field.offset)
+                        % ty_field.loosen()
+                        & ty_field.mask())
+                        % ty_field.clone();
 
-            let vis = field.vis;
-            let get = field.ident.escaped();
-            quote! {
-                #[inline]
-                #vis const fn #get(&self) -> #ty_field {
-                    let _: () = Self::_RIBBIT_ASSERT_LAYOUT;
-                    #value_field
-                }
-            }
-        })),
+                    let vis = field.vis;
+                    let get = field.ident.escaped();
+                    quote! {
+                        #[inline]
+                        #vis const fn #get(&self) -> #ty_field {
+                            let _: () = Self::_RIBBIT_ASSERT_LAYOUT;
+                            #value_field
+                        }
+                    }
+                }),
+        ),
         ir::Data::Enum(r#enum @ ir::Enum { variants }) => {
             let unpacked = r#enum.unpacked(ident);
 

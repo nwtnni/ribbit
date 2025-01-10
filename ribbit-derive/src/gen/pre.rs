@@ -19,8 +19,12 @@ pub(crate) fn pre(ir::Ir { data, tight, .. }: &ir::Ir) -> TokenStream {
 
             let pack = fields.map(|ty| {
                 let size = ty.size();
+                let expected = match *size {
+                    0 => quote!(::core::mem::size_of::<#ty>()),
+                    _ => quote!(<#ty as ::ribbit::Pack>::BITS),
+                };
                 quote_spanned! {size.span()=>
-                    if #size > <#ty as ::ribbit::Pack>::BITS {
+                    if #size > #expected {
                         panic!(concat!(
                             "Annotated size ",
                             stringify!(#size),

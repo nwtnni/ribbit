@@ -56,6 +56,7 @@ impl Tight {
 
     pub(crate) fn loosen(self) -> Loose {
         match *self.repr {
+            Repr::Unit => unreachable!("Should never loosen zero-sized type"),
             Repr::Bool => Loose::N8,
             Repr::Loose(loose) => loose,
             Repr::Arbitrary(arbitrary) => arbitrary.loosen(),
@@ -108,6 +109,7 @@ impl Tight {
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Repr {
+    Unit,
     Bool,
     Loose(Loose),
     Arbitrary(Arbitrary),
@@ -116,6 +118,7 @@ pub(crate) enum Repr {
 impl Repr {
     fn new(size: usize) -> Self {
         match size {
+            0 => Repr::Unit,
             8 => Repr::Loose(Loose::N8),
             16 => Repr::Loose(Loose::N16),
             32 => Repr::Loose(Loose::N32),
@@ -126,6 +129,7 @@ impl Repr {
 
     pub(crate) fn size(&self) -> usize {
         match self {
+            Repr::Unit => 0,
             Repr::Bool => 1,
             Repr::Loose(loose) => loose.size(),
             Repr::Arbitrary(arbitrary) => arbitrary.size(),
@@ -134,6 +138,7 @@ impl Repr {
 
     pub(crate) fn mask(&self) -> usize {
         match self {
+            Repr::Unit => 0,
             Repr::Bool => 1,
             Repr::Loose(loose) => loose.mask(),
             Repr::Arbitrary(arbitrary) => arbitrary.mask(),
@@ -144,6 +149,7 @@ impl Repr {
 impl ToTokens for Tight {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let repr = match (*self.nonzero, self.signed, *self.repr) {
+            (_, _, Repr::Unit) => quote!(()),
             (_, true, _) => todo!(),
 
             (_, _, Repr::Bool) => quote!(bool),

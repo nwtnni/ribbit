@@ -39,14 +39,16 @@ pub(crate) fn new(
 
     match data {
         ir::Data::Struct(ir::Struct { fields }) => {
-            let parameters = fields.iter().map(|field| {
+            let fields = fields.iter().filter(|field| *field.ty.size() != 0);
+
+            let parameters = fields.clone().map(|field| {
                 let ident = field.ident.escaped();
                 let ty = &field.ty;
                 quote!(#ident: #ty)
             });
 
             let value = fields
-                .iter()
+                .clone()
                 .map(
                     |ir::Field {
                          ident, ty, offset, ..

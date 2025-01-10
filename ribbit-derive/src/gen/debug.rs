@@ -29,21 +29,24 @@ pub(crate) fn debug(
 
     match data {
         ir::Data::Struct(ir::Struct { fields }) => {
-            let fields = fields.iter().map(|field| {
-                let name = field.ident.escaped();
-                let opt = &field.opt.debug;
+            let fields = fields
+                .iter()
+                .filter(|field| *field.ty.size() != 0)
+                .map(|field| {
+                    let name = field.ident.escaped();
+                    let opt = &field.opt.debug;
 
-                let value = quote!(self.#name()).lift() % (*field.ty).clone();
+                    let value = quote!(self.#name()).lift() % (*field.ty).clone();
 
-                let value = match &opt.format {
-                    None => value.to_token_stream(),
-                    Some(format) => quote!(format_args!(#format, #value)),
-                };
+                    let value = match &opt.format {
+                        None => value.to_token_stream(),
+                        Some(format) => quote!(format_args!(#format, #value)),
+                    };
 
-                quote! {
-                    .field(stringify!(#name), &#value)
-                }
-            });
+                    quote! {
+                        .field(stringify!(#name), &#value)
+                    }
+                });
 
             let (r#impl, ty, r#where) = generics.split_for_impl();
             quote! {
