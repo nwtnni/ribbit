@@ -28,6 +28,12 @@ macro_rules! impl_impl_number {
     };
 }
 
+unsafe impl Pack for () {
+    const BITS: usize = 0;
+    type Tight = ();
+    type Loose = ();
+}
+
 unsafe impl Pack for bool {
     const BITS: usize = 1;
     type Tight = bool;
@@ -146,6 +152,7 @@ pub unsafe trait NonZero {}
 #[rustfmt::skip]
 pub mod private {
     pub use ::core::primitive::bool;
+    pub type Unit = ();
 
     pub use ::arbitrary_int::Number;
     pub use ::arbitrary_int::u1;

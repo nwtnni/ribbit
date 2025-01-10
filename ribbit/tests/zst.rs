@@ -61,3 +61,18 @@ fn phantom_nonzero() {
     assert_eq!(h.value.get(), 0xdead_beef);
     assert_eq!(h.a().get(), 0xdead_beef);
 }
+
+#[test]
+fn pack_zst() {
+    #[ribbit::pack(size = 0, debug)]
+    #[derive(Copy, Clone, PartialEq, Eq)]
+    struct Foo;
+
+    let zst = Foo::new();
+
+    #[allow(clippy::let_unit_value)]
+    let packed = ribbit::private::pack(zst);
+    let unpacked = unsafe { ribbit::private::unpack::<Foo>(packed) };
+
+    assert_eq!(zst, unpacked);
+}
