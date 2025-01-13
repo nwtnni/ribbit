@@ -85,3 +85,19 @@ fn mixed() {
         _ => unreachable!(),
     }
 }
+
+#[ribbit::pack(size = 8)]
+#[derive(Copy, Clone)]
+enum Wrapper {
+    #[ribbit(size = 8)]
+    Byte(u8),
+}
+
+#[test]
+fn wrapper() {
+    let b = Wrapper::new(WrapperUnpacked::Byte(3));
+
+    match b.unpack() {
+        WrapperUnpacked::Byte(b) => assert_eq!(b, 3),
+    }
+}
