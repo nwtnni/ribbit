@@ -4,17 +4,17 @@ use quote::quote;
 use crate::ir;
 
 pub(crate) fn repr(
-    ir::Ir {
+    ir @ ir::Ir {
         tight: repr,
         ident,
         vis,
         attrs,
-        generics,
         data,
         ..
     }: &ir::Ir,
 ) -> TokenStream {
     let size = repr.size();
+    let generics = ir.generics_bounded(None);
     let (generics_impl, generics_ty, generics_where) = generics.split_for_impl();
 
     let nonzero = match *repr.nonzero {

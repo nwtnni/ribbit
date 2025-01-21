@@ -9,6 +9,7 @@ use darling::FromMeta;
 use proc_macro2::Span;
 use quote::format_ident;
 use syn::parse_quote;
+use syn::punctuated::Punctuated;
 
 use crate::error::bail;
 use crate::gen;
@@ -18,7 +19,7 @@ use crate::ty::tight;
 use crate::ty::Tight;
 use crate::Spanned;
 
-pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
+pub(crate) fn new(item: &input::Item) -> darling::Result<Ir> {
     let Some(size) = item.opt.size.map(Spanned::from) else {
         bail!(Span::call_site()=> crate::Error::TopLevelSize);
     };
@@ -35,10 +36,8 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
         bail!(tight.nonzero=> crate::Error::ArbitraryNonZero);
     }
 
-    let generics = item.generics.clone();
-    let (_, generics_ty, _) = generics.split_for_impl();
-
-    let r#where = item.generics.make_where_clause();
+    let (_, generics_ty, _) = item.generics.split_for_impl();
+    let mut bounds: Punctuated<syn::WherePredicate, syn::Token![,]> = parse_quote!();
 
     let data = match &item.data {
         darling::ast::Data::Enum(variants) => {
@@ -66,9 +65,7 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
 
                     if let Some(ty) = ty.as_ref().filter(|ty| ty.is_node()) {
                         let loose = ty.loosen();
-                        r#where
-                            .predicates
-                            .push(parse_quote!(#ty: ::ribbit::Pack<Loose = #loose>));
+                        bounds.push(parse_quote!(#ty: ::ribbit::Pack<Loose = #loose>));
                     }
 
                     Ok(Variant {
@@ -78,10 +75,7 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
                 })
                 .collect::<darling::Result<_>>()?;
 
-            Data::Enum(Enum {
-                generics: &item.generics,
-                variants,
-            })
+            Data::Enum(Enum { variants })
         }
         darling::ast::Data::Struct(r#struct) => {
             let mut bits = bitbox![0; *size];
@@ -111,9 +105,7 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
             {
                 let loose = ty.loosen();
 
-                r#where
-                    .predicates
-                    .push(parse_quote!(#ty: ::ribbit::Pack<Loose = #loose>));
+                bounds.push(parse_quote!(#ty: ::ribbit::Pack<Loose = #loose>));
             }
 
             Data::Struct(Struct { fields })
@@ -127,6 +119,7 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
         vis: &item.vis,
         ident: &item.ident,
         generics: &item.generics,
+        bounds,
         data,
     })
 }
@@ -136,9 +129,31 @@ pub(crate) struct Ir<'input> {
     pub(crate) attrs: &'input [syn::Attribute],
     pub(crate) vis: &'input syn::Visibility,
     pub(crate) ident: &'input syn::Ident,
-    pub(crate) generics: &'input syn::Generics,
+    generics: &'input syn::Generics,
     pub(crate) data: Data<'input>,
+    bounds: Punctuated<syn::WherePredicate, syn::Token![,]>,
     pub(crate) opt: &'input StructOpt,
+}
+
+impl Ir<'_> {
+    pub(crate) fn generics(&self) -> &syn::Generics {
+        self.generics
+    }
+
+    pub(crate) fn generics_bounded(&self, extra: Option<syn::TypeParamBound>) -> syn::Generics {
+        let mut generics = (*self.generics).clone();
+        let r#where = generics.make_where_clause();
+
+        for mut bound in self.bounds.clone() {
+            if let (syn::WherePredicate::Type(ty), Some(extra)) = (&mut bound, &extra) {
+                ty.bounds.push(extra.clone());
+            };
+
+            r#where.predicates.push(bound);
+        }
+
+        generics
+    }
 }
 
 pub(crate) enum Data<'input> {
@@ -147,7 +162,6 @@ pub(crate) enum Data<'input> {
 }
 
 pub(crate) struct Enum<'input> {
-    pub(crate) generics: &'input syn::Generics,
     pub(crate) variants: Vec<Variant<'input>>,
 }
 

@@ -6,7 +6,7 @@ use crate::lift::Lift as _;
 use crate::Or;
 
 pub(crate) fn get<'ir>(
-    ir::Ir {
+    ir @ ir::Ir {
         ident, tight, data, ..
     }: &'ir ir::Ir,
 ) -> impl Iterator<Item = TokenStream> + 'ir {
@@ -37,7 +37,7 @@ pub(crate) fn get<'ir>(
                     }
                 }),
         ),
-        ir::Data::Enum(r#enum @ ir::Enum { generics, variants }) => {
+        ir::Data::Enum(r#enum @ ir::Enum { variants }) => {
             let unpacked = r#enum.unpacked(ident);
 
             let variants = variants.iter().enumerate().map(|(index, variant)| {
@@ -60,7 +60,7 @@ pub(crate) fn get<'ir>(
 
             let discriminant = (quote!(self.value).lift() % ty_struct) & r#enum.discriminant_mask();
 
-            let (_, ty, _) = generics.split_for_impl();
+            let (_, ty, _) = ir.generics().split_for_impl();
             Or::R(std::iter::once(quote! {
                 #[inline]
                 pub fn unpack(&self) -> #unpacked #ty {

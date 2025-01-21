@@ -87,14 +87,17 @@ fn r#enum_newtype() {
 
 #[test]
 fn r#enum_named() {
-    #[ribbit::pack(size = 8, copy)]
+    #[ribbit::pack(size = 8, copy, debug)]
+    #[derive(PartialEq, Eq)]
     enum Either<T> {
-        #[ribbit(size = 7, copy)]
+        #[ribbit(size = 7, copy, debug)]
+        #[derive(PartialEq, Eq)]
         Left {
             #[ribbit(size = 7)]
             l: T,
         },
-        #[ribbit(size = 7, copy)]
+        #[ribbit(size = 7, copy, debug)]
+        #[derive(PartialEq, Eq)]
         Right {
             #[ribbit(size = 7)]
             r: T,
@@ -103,6 +106,9 @@ fn r#enum_named() {
 
     let a = Either::new(EitherUnpacked::Left(Left::new(u7::new(1))));
     let b = Either::new(EitherUnpacked::Right(Right::new(u7::new(1))));
+
+    assert_eq!(a, Left::new(u7::new(1)).into());
+    assert_eq!(b, Right::new(u7::new(1)).into());
 
     match a.unpack() {
         EitherUnpacked::Left(l) => assert_eq!(l.l().value(), 1),

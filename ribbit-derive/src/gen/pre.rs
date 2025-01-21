@@ -43,12 +43,7 @@ pub(crate) fn pre(ir::Ir { data, tight, .. }: &ir::Ir) -> TokenStream {
                 };
             }
         }
-        ir::Data::Enum(
-            r#enum @ ir::Enum {
-                generics: _,
-                variants,
-            },
-        ) => {
+        ir::Data::Enum(r#enum @ ir::Enum { variants }) => {
             let variants = variants
                 .iter()
                 .filter_map(|variant| variant.ty.as_ref())

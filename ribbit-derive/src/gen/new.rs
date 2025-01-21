@@ -17,8 +17,14 @@ pub(crate) struct StructOpt {
     vis: Option<syn::Visibility>,
 }
 
+impl StructOpt {
+    pub(crate) fn name(&self) -> syn::Ident {
+        self.rename.clone().unwrap_or_else(|| format_ident!("new"))
+    }
+}
+
 pub(crate) fn new(
-    ir::Ir {
+    ir @ ir::Ir {
         ident,
         opt,
         tight,
@@ -27,11 +33,7 @@ pub(crate) fn new(
         ..
     }: &ir::Ir,
 ) -> TokenStream {
-    let new = opt
-        .new
-        .rename
-        .clone()
-        .unwrap_or_else(|| format_ident!("new"));
+    let new = opt.new.name();
     let vis = opt.new.vis.as_ref().unwrap_or(vis);
 
     let ty_struct = ty::Tree::from(**tight);
@@ -82,7 +84,7 @@ pub(crate) fn new(
                 }
             }
         }
-        ir::Data::Enum(r#enum @ ir::Enum { generics, variants }) => {
+        ir::Data::Enum(r#enum @ ir::Enum { variants }) => {
             let unpacked = r#enum.unpacked(ident);
             let variants = variants
                 .iter()
@@ -108,7 +110,7 @@ pub(crate) fn new(
             let value =
                 quote!(match unpacked { #(#variants),* }).lift() % ty_struct_loose % ty_struct;
 
-            let (_, ty, _) = generics.split_for_impl();
+            let (_, ty, _) = ir.generics().split_for_impl();
             quote! {
                 #[inline]
                 #vis const fn #new(

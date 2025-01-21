@@ -15,8 +15,10 @@ use darling::util::SpannedValue;
 pub(crate) use error::Error;
 
 use darling::FromDeriveInput as _;
+use ir::Ir;
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
+use quote::format_ident;
 use quote::quote;
 use quote::quote_spanned;
 use quote::ToTokens;
@@ -42,54 +44,69 @@ fn pack_inner(
 ) -> Result<TokenStream, darling::Error> {
     input.attrs.push(parse_quote!(#[ribbit(#attr)]));
 
-    let mut item = input::Item::from_derive_input(&input)?;
     let mut stream = TokenStream::new();
+    let parent = input::Item::from_derive_input(&input)?;
+    let parent_ir = ir::new(&parent)?;
 
-    match &item.data {
+    stream.append_all(pack_item(&parent_ir)?);
+
+    match &parent.data {
+        darling::ast::Data::Struct(_) => (),
         darling::ast::Data::Enum(r#enum) => {
             for variant in r#enum {
                 match variant.fields.as_shape() {
                     // Generate
                     Shape::Named | Shape::Tuple => {
-                        let mut item = input::Item {
+                        let child = input::Item {
                             opt: variant.opt.clone(),
                             attrs: variant.attrs.clone(),
-                            vis: item.vis.clone(),
+                            vis: parent.vis.clone(),
                             ident: variant.ident.clone(),
-                            // Note: assumes every variant uses every generic
-                            generics: item.generics.clone(),
+                            generics: parent.generics.clone(),
                             data: darling::ast::Data::Struct(variant.fields.clone()),
                         };
+                        let child_ir = ir::new(&child)?;
 
-                        stream.append_all(pack_item(&mut item)?);
+                        stream.append_all(pack_item(&child_ir)?);
+
+                        // Use all of parent's where clauses here.
+                        let generics = parent_ir.generics_bounded(None);
+                        let (r#impl, ty, r#where) = generics.split_for_impl();
+                        let from = &variant.ident;
+                        let into = &parent.ident;
+                        // FIXME: can't access methods in parent IR here
+                        let unpacked = format_ident!("{}Unpacked", into);
+                        let new = parent.opt.new.name();
+
+                        stream.append_all(quote!(
+                            impl #r#impl From<#from #ty> for #into #ty #r#where {
+                                fn from(variant: #from #ty) -> Self {
+                                    #into::#new(#unpacked::#from(variant))
+                                }
+                            }
+                        ));
                     }
 
                     Shape::Newtype | Shape::Unit => (),
                 }
             }
-
-            stream.append_all(pack_item(&mut item)?);
-        }
-        darling::ast::Data::Struct(_) => {
-            stream.append_all(pack_item(&mut item)?);
         }
     }
 
     Ok(stream)
 }
 
-fn pack_item(item: &mut input::Item) -> Result<TokenStream, darling::Error> {
-    let ir = ir::new(item)?;
+fn pack_item(ir: &Ir) -> Result<TokenStream, darling::Error> {
+    let pre = gen::pre(ir);
+    let repr = gen::repr(ir);
+    let new = gen::new(ir);
+    let get = gen::get(ir);
+    let set = gen::set(ir);
+    let copy = gen::copy(ir);
+    let debug = gen::debug(ir);
 
-    let pre = gen::pre(&ir);
-    let repr = gen::repr(&ir);
-    let new = gen::new(&ir);
-    let get = gen::get(&ir);
-    let set = gen::set(&ir);
-    let copy = gen::copy(&ir);
-    let debug = gen::debug(&ir);
-
-    let (r#impl, ty, r#where) = ir.generics.split_for_impl();
+    let generics = ir.generics_bounded(None);
+    let (r#impl, ty, r#where) = generics.split_for_impl();
     let ident = &ir.ident;
 
     Ok(quote! {

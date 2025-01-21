@@ -7,19 +7,12 @@ use crate::ir;
 #[derive(FromMeta, Clone, Debug)]
 pub(crate) struct StructOpt;
 
-pub(crate) fn copy(
-    ir::Ir {
-        opt,
-        ident,
-        generics,
-        ..
-    }: &ir::Ir,
-) -> TokenStream {
+pub(crate) fn copy(ir @ ir::Ir { opt, ident, .. }: &ir::Ir) -> TokenStream {
     if opt.copy.is_none() {
         return TokenStream::new();
     }
 
-    let (r#impl, ty, r#where) = generics.split_for_impl();
+    let (r#impl, ty, r#where) = ir.generics().split_for_impl();
 
     quote!(
         impl #r#impl Copy for #ident #ty #r#where {}

@@ -2,6 +2,7 @@ use darling::FromMeta;
 use proc_macro2::TokenStream;
 use quote::quote;
 use quote::ToTokens as _;
+use syn::parse_quote;
 
 use crate::ir;
 use crate::lift::Lift as _;
@@ -15,17 +16,18 @@ pub(crate) struct FieldOpt {
 }
 
 pub(crate) fn debug(
-    ir::Ir {
-        opt,
-        ident,
-        generics,
-        data,
-        ..
+    ir @ ir::Ir {
+        opt, ident, data, ..
     }: &ir::Ir,
 ) -> TokenStream {
     if opt.debug.is_none() {
         return TokenStream::new();
     }
+
+    // Debug implementation requires access to getters, which
+    // requires stronger bounds
+    let generics = ir.generics_bounded(Some(parse_quote!(::core::fmt::Debug)));
+    let (r#impl, ty, r#where) = generics.split_for_impl();
 
     match data {
         ir::Data::Struct(ir::Struct { fields }) => {
@@ -48,7 +50,6 @@ pub(crate) fn debug(
                     }
                 });
 
-            let (r#impl, ty, r#where) = generics.split_for_impl();
             quote! {
                 impl #r#impl ::core::fmt::Debug for #ident #ty #r#where {
                     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
@@ -59,18 +60,17 @@ pub(crate) fn debug(
                 }
             }
         }
-        ir::Data::Enum(r#enum @ ir::Enum { generics, variants }) => {
+        ir::Data::Enum(r#enum @ ir::Enum { variants }) => {
             let unpacked = r#enum.unpacked(ident);
 
             let variants = variants.iter().map(|variant| {
                 let name = variant.ident;
                 match variant.ty.is_some() {
                     true => quote!(Self::#name(variant) => ::core::fmt::Debug::fmt(variant, f)),
-                    false => quote!(write!(f, stringify!(#name))),
+                    false => quote!(Self::#name => write!(f, stringify!(#name))),
                 }
             });
 
-            let (r#impl, ty, r#where) = generics.split_for_impl();
             quote! {
                 impl #r#impl ::core::fmt::Debug for #ident #ty #r#where {
                     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
@@ -80,7 +80,7 @@ pub(crate) fn debug(
 
                 impl #r#impl ::core::fmt::Debug for #unpacked #ty #r#where {
                     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-                        match self { #(#variants)* }
+                        match self { #(#variants),* }
                     }
                 }
             }
