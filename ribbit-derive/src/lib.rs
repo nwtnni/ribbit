@@ -86,6 +86,7 @@ fn pack_item(item: &mut input::Item) -> Result<TokenStream, darling::Error> {
     let new = gen::new(&ir);
     let get = gen::get(&ir);
     let set = gen::set(&ir);
+    let copy = gen::copy(&ir);
     let debug = gen::debug(&ir);
 
     let (r#impl, ty, r#where) = ir.generics.split_for_impl();
@@ -103,6 +104,8 @@ fn pack_item(item: &mut input::Item) -> Result<TokenStream, darling::Error> {
 
             #pre
         }
+
+        #copy
 
         #debug
     }

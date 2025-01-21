@@ -87,39 +87,18 @@ fn r#enum_newtype() {
 
 #[test]
 fn r#enum_named() {
-    #[ribbit::pack(size = 8)]
+    #[ribbit::pack(size = 8, copy)]
     enum Either<T> {
-        #[ribbit(size = 7)]
+        #[ribbit(size = 7, copy)]
         Left {
             #[ribbit(size = 7)]
             l: T,
         },
-        #[ribbit(size = 7)]
+        #[ribbit(size = 7, copy)]
         Right {
             #[ribbit(size = 7)]
             r: T,
         },
-    }
-
-    impl<T> Copy for Either<T> {}
-    impl<T> Clone for Either<T> {
-        fn clone(&self) -> Self {
-            *self
-        }
-    }
-
-    impl<T> Copy for Left<T> {}
-    impl<T> Clone for Left<T> {
-        fn clone(&self) -> Self {
-            *self
-        }
-    }
-
-    impl<T> Copy for Right<T> {}
-    impl<T> Clone for Right<T> {
-        fn clone(&self) -> Self {
-            *self
-        }
     }
 
     let a = Either::new(EitherUnpacked::Left(Left::new(u7::new(1))));
