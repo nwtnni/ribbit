@@ -56,7 +56,8 @@ fn pack_inner(
                             attrs: variant.attrs.clone(),
                             vis: item.vis.clone(),
                             ident: variant.ident.clone(),
-                            generics: syn::Generics::default(),
+                            // Note: assumes every variant uses every generic
+                            generics: item.generics.clone(),
                             data: darling::ast::Data::Struct(variant.fields.clone()),
                         };
 

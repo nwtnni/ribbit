@@ -1,3 +1,5 @@
+use arbitrary_int::u7;
+
 #[ribbit::pack(size = 48)]
 #[derive(Copy, Clone)]
 struct Versioned<T> {
@@ -54,4 +56,31 @@ fn compose() {
     assert_eq!(b.version(), 99);
     assert_eq!(b.inner().hi(), 5);
     assert_eq!(b.inner().lo(), 2);
+}
+
+#[test]
+fn r#enum() {
+    #[ribbit::pack(size = 8)]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+    enum Either<T> {
+        #[ribbit(size = 7)]
+        Left(T),
+        #[ribbit(size = 7)]
+        Right(T),
+    }
+
+    let a = Either::new(EitherUnpacked::Left(u7::new(1)));
+    let b = Either::new(EitherUnpacked::Right(u7::new(1)));
+
+    assert_ne!(a, b);
+
+    match a.unpack() {
+        EitherUnpacked::Left(l) => assert_eq!(l.value(), 1),
+        EitherUnpacked::Right(_) => unreachable!(),
+    }
+
+    match b.unpack() {
+        EitherUnpacked::Left(_) => unreachable!(),
+        EitherUnpacked::Right(r) => assert_eq!(r.value(), 1),
+    }
 }

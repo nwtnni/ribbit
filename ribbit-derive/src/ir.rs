@@ -71,11 +71,15 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
                     Ok(Variant {
                         ident: &variant.ident,
                         ty: ty.map(Spanned::from),
+                        newtype: variant.fields.is_newtype(),
                     })
                 })
                 .collect::<darling::Result<_>>()?;
 
-            Data::Enum(Enum { variants })
+            Data::Enum(Enum {
+                generics: &item.generics,
+                variants,
+            })
         }
         darling::ast::Data::Struct(r#struct) => {
             let mut bits = bitbox![0; *size];
@@ -141,6 +145,7 @@ pub(crate) enum Data<'input> {
 }
 
 pub(crate) struct Enum<'input> {
+    pub(crate) generics: &'input syn::Generics,
     pub(crate) variants: Vec<Variant<'input>>,
 }
 
@@ -161,6 +166,7 @@ impl Enum<'_> {
 pub(crate) struct Variant<'input> {
     pub(crate) ident: &'input syn::Ident,
     pub(crate) ty: Option<Spanned<ty::Tree>>,
+    pub(crate) newtype: bool,
 }
 
 pub(crate) struct Struct<'input> {

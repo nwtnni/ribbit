@@ -36,9 +36,6 @@ pub(crate) fn repr(
     let unpacked = match data {
         ir::Data::Struct(_) => TokenStream::new(),
         ir::Data::Enum(r#enum) => {
-            // TODO
-            assert!(generics.params.is_empty());
-
             let variants = r#enum
                 .variants
                 .iter()
@@ -49,7 +46,7 @@ pub(crate) fn repr(
 
             let unpacked = r#enum.unpacked(ident);
             quote! {
-                #vis enum #unpacked {
+                #vis enum #unpacked #ty {
                     #(#variants),*
                 }
             }

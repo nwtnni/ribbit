@@ -59,7 +59,7 @@ pub(crate) fn debug(
                 }
             }
         }
-        ir::Data::Enum(r#enum @ ir::Enum { variants }) => {
+        ir::Data::Enum(r#enum @ ir::Enum { generics, variants }) => {
             let unpacked = r#enum.unpacked(ident);
 
             let variants = variants.iter().map(|variant| {
@@ -70,14 +70,15 @@ pub(crate) fn debug(
                 }
             });
 
+            let (r#impl, ty, r#where) = generics.split_for_impl();
             quote! {
-                impl ::core::fmt::Debug for #ident {
+                impl #r#impl ::core::fmt::Debug for #ident #ty #r#where {
                     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
                         ::core::fmt::Debug::fmt(&self.unpack(), f)
                     }
                 }
 
-                impl ::core::fmt::Debug for #unpacked {
+                impl #r#impl ::core::fmt::Debug for #unpacked #ty #r#where {
                     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
                         match self { #(#variants)* }
                     }

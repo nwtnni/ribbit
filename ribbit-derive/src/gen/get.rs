@@ -37,7 +37,7 @@ pub(crate) fn get<'ir>(
                     }
                 }),
         ),
-        ir::Data::Enum(r#enum @ ir::Enum { variants }) => {
+        ir::Data::Enum(r#enum @ ir::Enum { generics, variants }) => {
             let unpacked = r#enum.unpacked(ident);
 
             let variants = variants.iter().enumerate().map(|(index, variant)| {
@@ -60,9 +60,10 @@ pub(crate) fn get<'ir>(
 
             let discriminant = (quote!(self.value).lift() % ty_struct) & r#enum.discriminant_mask();
 
+            let (_, ty, _) = generics.split_for_impl();
             Or::R(std::iter::once(quote! {
                 #[inline]
-                pub fn unpack(&self) -> #unpacked {
+                pub fn unpack(&self) -> #unpacked #ty {
                     match #discriminant {
                         #(#variants,)*
                         _ => unsafe {

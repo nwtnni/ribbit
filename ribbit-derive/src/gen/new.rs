@@ -82,7 +82,7 @@ pub(crate) fn new(
                 }
             }
         }
-        ir::Data::Enum(r#enum @ ir::Enum { variants }) => {
+        ir::Data::Enum(r#enum @ ir::Enum { generics, variants }) => {
             let unpacked = r#enum.unpacked(ident);
             let variants = variants
                 .iter()
@@ -108,10 +108,11 @@ pub(crate) fn new(
             let value =
                 quote!(match unpacked { #(#variants),* }).lift() % ty_struct_loose % ty_struct;
 
+            let (_, ty, _) = generics.split_for_impl();
             quote! {
                 #[inline]
                 #vis const fn #new(
-                    unpacked: #unpacked,
+                    unpacked: #unpacked #ty,
                 ) -> Self {
                     let _: () = Self::_RIBBIT_ASSERT_LAYOUT;
                     Self {

@@ -43,25 +43,38 @@ pub(crate) fn pre(ir::Ir { data, tight, .. }: &ir::Ir) -> TokenStream {
                 };
             }
         }
-        ir::Data::Enum(r#enum @ ir::Enum { variants }) => {
+        ir::Data::Enum(r#enum @ ir::Enum { generics, variants }) => {
+            let (_, generics, _) = generics.split_for_impl();
+
             let variants = variants
                 .iter()
-                .flat_map(|variant| &variant.ty)
-                .filter(|ty| ty.is_node());
+                .filter_map(|variant| variant.ty.as_ref().map(|ty| (variant.newtype, ty)))
+                .filter(|(_, ty)| ty.is_node())
+                .map(|(newtype, ty)| {
+                    (
+                        match newtype {
+                            false => quote!(#ty #generics),
+                            true => quote!(#ty),
+                        },
+                        ty,
+                    )
+                });
 
             let nonzero = variants
                 .clone()
-                .filter(|ty| ty.nonzero())
-                .map(|ty| quote!(::ribbit::private::assert_impl_all!(#ty: ::ribbit::NonZero)));
+                .filter(|(_, ty)| ty.nonzero())
+                .map(|(newtype, _)| {
+                    quote!(::ribbit::private::assert_impl_all!(#newtype: ::ribbit::NonZero))
+                });
 
             let size_enum = tight.size();
             let size_discriminant = r#enum.discriminant_size();
             let size_variant = *size_enum - size_discriminant;
 
-            let pack = variants.map(|ty| {
+            let pack = variants.map(|(newtype, ty)| {
                 let size = ty.size();
                 quote_spanned! {size.span()=>
-                    if #size != <#ty as ::ribbit::Pack>::BITS {
+                    if #size != <#newtype as ::ribbit::Pack>::BITS {
                         panic!(concat!(
                             "Annotated size ",
                             stringify!(#size),
