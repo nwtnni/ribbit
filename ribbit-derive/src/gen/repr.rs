@@ -15,10 +15,12 @@ pub(crate) fn repr(
     }: &ir::Ir,
 ) -> TokenStream {
     let size = repr.size();
-    let (r#impl, ty, r#where) = generics.split_for_impl();
+    let (generics_impl, generics_ty, generics_where) = generics.split_for_impl();
 
     let nonzero = match *repr.nonzero {
-        true => quote!(unsafe impl #r#impl ::ribbit::NonZero for #ident #ty #r#where {}),
+        true => {
+            quote!(unsafe impl #generics_impl ::ribbit::NonZero for #ident #generics_ty #generics_where {})
+        }
         false => quote!(),
     };
 
@@ -27,7 +29,7 @@ pub(crate) fn repr(
     let tys = generics.type_params();
 
     let r#struct = quote! {
-        #vis struct #ident #ty {
+        #vis struct #ident #generics_ty {
             value: #repr,
             r#type: ::ribbit::private::PhantomData<fn(#(#lifetimes),*) -> (#(#tys),*)>,
         }
@@ -39,14 +41,14 @@ pub(crate) fn repr(
             let variants = r#enum
                 .variants
                 .iter()
-                .map(|ir::Variant { ident, ty, .. }| match ty {
-                    Some(ty) => quote!(#ident(#ty)),
+                .map(|ir::Variant { ident, ty }| match ty {
                     None => quote!(#ident),
+                    Some(ty) => quote!(#ident(#ty)),
                 });
 
             let unpacked = r#enum.unpacked(ident);
             quote! {
-                #vis enum #unpacked #ty {
+                #vis enum #unpacked #generics_ty {
                     #(#variants),*
                 }
             }
@@ -59,7 +61,7 @@ pub(crate) fn repr(
 
         #unpacked
 
-        unsafe impl #r#impl ::ribbit::Pack for #ident #ty #r#where {
+        unsafe impl #generics_impl ::ribbit::Pack for #ident #generics_ty #generics_where {
             const BITS: usize = #size;
             type Tight = #repr;
             type Loose = <#repr as ::ribbit::Pack>::Loose;

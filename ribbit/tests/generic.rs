@@ -59,7 +59,7 @@ fn compose() {
 }
 
 #[test]
-fn r#enum() {
+fn r#enum_newtype() {
     #[ribbit::pack(size = 8)]
     #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     enum Either<T> {
@@ -82,5 +82,56 @@ fn r#enum() {
     match b.unpack() {
         EitherUnpacked::Left(_) => unreachable!(),
         EitherUnpacked::Right(r) => assert_eq!(r.value(), 1),
+    }
+}
+
+#[test]
+fn r#enum_named() {
+    #[ribbit::pack(size = 8)]
+    enum Either<T> {
+        #[ribbit(size = 7)]
+        Left {
+            #[ribbit(size = 7)]
+            l: T,
+        },
+        #[ribbit(size = 7)]
+        Right {
+            #[ribbit(size = 7)]
+            r: T,
+        },
+    }
+
+    impl<T> Copy for Either<T> {}
+    impl<T> Clone for Either<T> {
+        fn clone(&self) -> Self {
+            *self
+        }
+    }
+
+    impl<T> Copy for Left<T> {}
+    impl<T> Clone for Left<T> {
+        fn clone(&self) -> Self {
+            *self
+        }
+    }
+
+    impl<T> Copy for Right<T> {}
+    impl<T> Clone for Right<T> {
+        fn clone(&self) -> Self {
+            *self
+        }
+    }
+
+    let a = Either::new(EitherUnpacked::Left(Left::new(u7::new(1))));
+    let b = Either::new(EitherUnpacked::Right(Right::new(u7::new(1))));
+
+    match a.unpack() {
+        EitherUnpacked::Left(l) => assert_eq!(l.l().value(), 1),
+        EitherUnpacked::Right(_) => unreachable!(),
+    }
+
+    match b.unpack() {
+        EitherUnpacked::Left(_) => unreachable!(),
+        EitherUnpacked::Right(r) => assert_eq!(r.r().value(), 1),
     }
 }

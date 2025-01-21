@@ -35,6 +35,9 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
         bail!(tight.nonzero=> crate::Error::ArbitraryNonZero);
     }
 
+    let generics = item.generics.clone();
+    let (_, generics_ty, _) = generics.split_for_impl();
+
     let r#where = item.generics.make_where_clause();
 
     let data = match &item.data {
@@ -53,7 +56,7 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
                         Shape::Named | Shape::Tuple => {
                             let ident = &variant.ident;
                             ty::Tree::parse(
-                                parse_quote!(#ident),
+                                parse_quote!(#ident #generics_ty),
                                 variant.opt.nonzero.map(Spanned::from),
                                 variant.opt.size.map(Spanned::from),
                             )
@@ -71,7 +74,6 @@ pub(crate) fn new(item: &mut input::Item) -> darling::Result<Ir> {
                     Ok(Variant {
                         ident: &variant.ident,
                         ty: ty.map(Spanned::from),
-                        newtype: variant.fields.is_newtype(),
                     })
                 })
                 .collect::<darling::Result<_>>()?;
@@ -166,7 +168,6 @@ impl Enum<'_> {
 pub(crate) struct Variant<'input> {
     pub(crate) ident: &'input syn::Ident,
     pub(crate) ty: Option<Spanned<ty::Tree>>,
-    pub(crate) newtype: bool,
 }
 
 pub(crate) struct Struct<'input> {
