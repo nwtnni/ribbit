@@ -1,6 +1,3 @@
-use core::num::NonZeroU16;
-
-#[derive(Copy, Clone)]
 #[ribbit::pack(size = 16, nonzero)]
 struct Inner(NonZeroU16);
 

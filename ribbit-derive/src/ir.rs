@@ -198,7 +198,9 @@ pub(crate) struct StructOpt {
     #[darling(default)]
     pub(crate) new: gen::new::StructOpt,
     pub(crate) debug: Option<gen::debug::StructOpt>,
-    pub(crate) copy: Option<gen::copy::StructOpt>,
+    pub(crate) eq: Option<gen::eq::StructOpt>,
+    pub(crate) ord: Option<gen::ord::StructOpt>,
+    pub(crate) hash: Option<gen::hash::StructOpt>,
     pub(crate) from: Option<gen::from::StructOpt>,
 }
 

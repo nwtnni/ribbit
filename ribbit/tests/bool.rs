@@ -1,5 +1,4 @@
 #[ribbit::pack(size = 1)]
-#[derive(Copy, Clone)]
 struct A(bool);
 
 #[test]
@@ -9,7 +8,6 @@ fn single() {
 }
 
 #[ribbit::pack(size = 2)]
-#[derive(Copy, Clone)]
 struct B(bool, bool);
 
 #[test]

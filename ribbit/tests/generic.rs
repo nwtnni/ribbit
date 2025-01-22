@@ -1,7 +1,6 @@
 use arbitrary_int::u7;
 
 #[ribbit::pack(size = 48)]
-#[derive(Copy, Clone)]
 struct Versioned<T> {
     version: u16,
     #[ribbit(size = 32)]
@@ -9,11 +8,9 @@ struct Versioned<T> {
 }
 
 #[ribbit::pack(size = 32)]
-#[derive(Copy, Clone)]
 struct A(u32);
 
 #[ribbit::pack(size = 32)]
-#[derive(Copy, Clone)]
 struct B {
     hi: u16,
     lo: u16,
@@ -60,8 +57,7 @@ fn compose() {
 
 #[test]
 fn r#enum_newtype() {
-    #[ribbit::pack(size = 8)]
-    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
+    #[ribbit::pack(size = 8, debug, eq)]
     enum Either<T> {
         #[ribbit(size = 7)]
         Left(T),
@@ -87,17 +83,14 @@ fn r#enum_newtype() {
 
 #[test]
 fn r#enum_named() {
-    #[ribbit::pack(size = 8, copy, debug)]
-    #[derive(PartialEq, Eq)]
+    #[ribbit::pack(size = 8, debug, eq)]
     enum Either<T> {
-        #[ribbit(size = 7, copy, debug, from)]
-        #[derive(PartialEq, Eq)]
+        #[ribbit(size = 7, debug, from)]
         Left {
             #[ribbit(size = 7)]
             l: T,
         },
-        #[ribbit(size = 7, copy, debug, from)]
-        #[derive(PartialEq, Eq)]
+        #[ribbit(size = 7, debug, from)]
         Right {
             #[ribbit(size = 7)]
             r: T,

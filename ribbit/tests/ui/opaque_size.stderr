@@ -1,5 +1,5 @@
 error: Opaque type requires size attribute #[ribbit(size = ...)]
-  --> tests/ui/opaque_size.rs:10:12
-   |
-10 |     inner: Inner,
-   |            ^^^^^
+ --> tests/ui/opaque_size.rs:7:12
+  |
+7 |     inner: Inner,
+  |            ^^^^^

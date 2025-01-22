@@ -89,9 +89,12 @@ fn pack_item(ir: &Ir) -> Result<TokenStream, darling::Error> {
     let new = gen::new(ir);
     let get = gen::get(ir);
     let set = gen::set(ir);
-    let copy = gen::copy(ir);
     let from = gen::from(ir);
     let debug = gen::debug(ir);
+    let copy = gen::copy(ir);
+    let hash = gen::hash(ir);
+    let eq = gen::eq(ir);
+    let ord = gen::ord(ir);
 
     let generics = ir.generics_bounded(None);
     let (r#impl, ty, r#where) = generics.split_for_impl();
@@ -101,20 +104,22 @@ fn pack_item(ir: &Ir) -> Result<TokenStream, darling::Error> {
         #repr
 
         impl #r#impl #ident #ty #r#where {
+            #pre
+
             #new
 
             #(#get)*
 
             #(#set)*
-
-            #pre
         }
 
-        #copy
-
         #from
-
         #debug
+
+        #copy
+        #hash
+        #eq
+        #ord
     }
     .to_token_stream())
 }

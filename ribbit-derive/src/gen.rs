@@ -1,17 +1,23 @@
 pub(crate) mod copy;
 pub(crate) mod debug;
+pub(crate) mod eq;
 pub(crate) mod from;
 pub(crate) mod get;
+pub(crate) mod hash;
 pub(crate) mod new;
+pub(crate) mod ord;
 pub(crate) mod pre;
 pub(crate) mod repr;
 pub(crate) mod set;
 
 pub(crate) use copy::copy;
 pub(crate) use debug::debug;
+pub(crate) use eq::eq;
 pub(crate) use from::from;
 pub(crate) use get::get;
+pub(crate) use hash::hash;
 pub(crate) use new::new;
+pub(crate) use ord::ord;
 pub(crate) use pre::pre;
 pub(crate) use repr::repr;
 pub(crate) use set::set;

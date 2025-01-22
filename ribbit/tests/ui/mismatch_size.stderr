@@ -1,24 +1,24 @@
 error[E0271]: type mismatch resolving `<A as Pack>::Loose == u8`
- --> tests/ui/mismatch_size.rs:5:1
+ --> tests/ui/mismatch_size.rs:4:1
   |
-5 | #[ribbit::pack(size = 16)]
+4 | #[ribbit::pack(size = 16)]
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^ expected `u16`, found `u8`
   |
   = help: see issue #48214
   = note: this error originates in the attribute macro `ribbit::pack` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0080]: evaluation of constant value failed
- --> tests/ui/mismatch_size.rs:8:21
+ --> tests/ui/mismatch_size.rs:6:21
   |
-8 |     #[ribbit(size = 1)]
-  |                     ^ the evaluated program panicked at 'Annotated size 1 is too small to fit type "A" of size 16', $DIR/tests/ui/mismatch_size.rs:8:21
+6 |     #[ribbit(size = 1)]
+  |                     ^ the evaluated program panicked at 'Annotated size 1 is too small to fit type "A" of size 16', $DIR/tests/ui/mismatch_size.rs:6:21
   |
   = note: this error originates in the macro `$crate::concat_panic` which comes from the expansion of the macro `::ribbit::private::concat_assert` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 note: erroneous constant encountered
- --> tests/ui/mismatch_size.rs:5:1
+ --> tests/ui/mismatch_size.rs:4:1
   |
-5 | #[ribbit::pack(size = 16)]
+4 | #[ribbit::pack(size = 16)]
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^
   |
   = note: this note originates in the attribute macro `ribbit::pack` (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -3,7 +3,6 @@ use core::num::NonZeroU64;
 #[test]
 fn one_native() {
     #[ribbit::pack(size = 32)]
-    #[derive(Copy, Clone)]
     pub struct OneNative(u32);
 
     let native = OneNative::new(5);
@@ -15,7 +14,6 @@ fn one_native() {
 #[test]
 fn one_non_zero() {
     #[ribbit::pack(size = 64, nonzero)]
-    #[derive(Copy, Clone)]
     pub struct OneNonZero(NonZeroU64);
 
     let non_zero = OneNonZero::new(NonZeroU64::MIN);

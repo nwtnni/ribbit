@@ -3,7 +3,6 @@ use core::num::NonZeroU8;
 use arbitrary_int::u2;
 
 #[ribbit::pack(size = 26, debug)]
-#[derive(Copy, Clone)]
 pub struct A {
     l: u16,
     m: NonZeroU8,
@@ -17,7 +16,6 @@ fn check() {
 }
 
 #[ribbit::pack(size = 26, debug)]
-#[derive(Copy, Clone)]
 pub struct B {
     l: u16,
 

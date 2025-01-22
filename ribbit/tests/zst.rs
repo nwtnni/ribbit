@@ -6,7 +6,6 @@ fn custom_zst() {
     struct Foo;
 
     #[ribbit::pack(size = 64)]
-    #[derive(Copy, Clone)]
     struct S {
         a: u64,
         #[ribbit(size = 0)]
@@ -27,14 +26,6 @@ fn phantom() {
         foo: PhantomData<A>,
     }
 
-    impl<A> Copy for Phantom<A> {}
-
-    impl<A> Clone for Phantom<A> {
-        fn clone(&self) -> Self {
-            *self
-        }
-    }
-
     let h = Phantom::<usize>::new(0xdead_beef);
     assert_eq!(h.value, 0xdead_beef);
     assert_eq!(h.a(), 0xdead_beef);
@@ -49,14 +40,6 @@ fn phantom_nonzero() {
         foo: PhantomData<A>,
     }
 
-    impl<A> Copy for Phantom<A> {}
-
-    impl<A> Clone for Phantom<A> {
-        fn clone(&self) -> Self {
-            *self
-        }
-    }
-
     let h = Phantom::<usize>::new(NonZeroU64::new(0xdead_beef).unwrap());
     assert_eq!(h.value.get(), 0xdead_beef);
     assert_eq!(h.a().get(), 0xdead_beef);
@@ -64,8 +47,7 @@ fn phantom_nonzero() {
 
 #[test]
 fn pack_zst() {
-    #[ribbit::pack(size = 0, debug)]
-    #[derive(Copy, Clone, PartialEq, Eq)]
+    #[ribbit::pack(size = 0, debug, eq)]
     struct Foo;
 
     let zst = Foo::new();

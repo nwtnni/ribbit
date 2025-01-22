@@ -1,8 +1,6 @@
 #[ribbit::pack(size = 16)]
-#[derive(Copy, Clone)]
 enum SingleNamed {
     #[ribbit(size = 16)]
-    #[derive(Copy, Clone)]
     A { a: u16 },
 }
 
@@ -16,11 +14,9 @@ fn single_named() {
 }
 
 #[ribbit::pack(size = 8)]
-#[derive(Copy, Clone)]
 struct Byte(u8);
 
 #[ribbit::pack(size = 8)]
-#[derive(Copy, Clone)]
 enum SingleNewtype {
     #[ribbit(size = 8)]
     Byte(Byte),
@@ -36,7 +32,6 @@ fn single_newtype() {
 }
 
 #[ribbit::pack(size = 8)]
-#[derive(Copy, Clone)]
 enum SingleUnit {
     Unit,
 }
@@ -51,10 +46,8 @@ fn single_unit() {
 }
 
 #[ribbit::pack(size = 34)]
-#[derive(Copy, Clone)]
 enum Mixed {
     #[ribbit(size = 16)]
-    #[derive(Copy, Clone)]
     X {
         a: u16,
     },
@@ -87,7 +80,6 @@ fn mixed() {
 }
 
 #[ribbit::pack(size = 8)]
-#[derive(Copy, Clone)]
 enum Wrapper {
     #[ribbit(size = 8)]
     Byte(u8),
@@ -104,10 +96,9 @@ fn wrapper() {
 
 #[test]
 fn from() {
-    #[ribbit::pack(size = 8, copy, debug, from)]
-    #[derive(PartialEq, Eq)]
+    #[ribbit::pack(size = 8, debug, from, eq)]
     enum Outer {
-        #[ribbit(size = 8, copy, debug, from)]
+        #[ribbit(size = 8, debug, from, eq)]
         Inner { value: u8 },
     }
 
