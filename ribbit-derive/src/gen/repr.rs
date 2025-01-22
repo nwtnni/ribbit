@@ -46,7 +46,7 @@ pub(crate) fn repr(
                     Some(ty) => quote!(#ident(#ty)),
                 });
 
-            let unpacked = r#enum.unpacked(ident);
+            let unpacked = ir::Enum::unpacked(ident);
             quote! {
                 #vis enum #unpacked #generics_ty {
                     #(#variants),*

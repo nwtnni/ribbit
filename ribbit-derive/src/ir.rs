@@ -168,7 +168,7 @@ pub(crate) struct Enum<'input> {
 }
 
 impl Enum<'_> {
-    pub(crate) fn unpacked(&self, ident: &syn::Ident) -> syn::Ident {
+    pub(crate) fn unpacked(ident: &syn::Ident) -> syn::Ident {
         format_ident!("{}Unpacked", ident)
     }
 

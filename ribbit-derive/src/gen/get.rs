@@ -38,7 +38,7 @@ pub(crate) fn get<'ir>(
                 }),
         ),
         ir::Data::Enum(r#enum @ ir::Enum { variants }) => {
-            let unpacked = r#enum.unpacked(ident);
+            let unpacked = ir::Enum::unpacked(ident);
 
             let variants = variants.iter().enumerate().map(|(index, variant)| {
                 let discriminant = tight.loosen().literal(index);

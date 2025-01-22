@@ -1,6 +1,5 @@
 use darling::FromMeta;
 use proc_macro2::TokenStream;
-use quote::format_ident;
 use quote::quote;
 
 use crate::ir;
@@ -27,7 +26,7 @@ pub(crate) fn from(
     match parent {
         None => {
             let packed = ident;
-            let unpacked = format_ident!("{}Unpacked", ident);
+            let unpacked = ir::Enum::unpacked(packed);
             let new = opt.new.name();
 
             quote! {
@@ -41,7 +40,7 @@ pub(crate) fn from(
         Some(parent) => {
             let variant = &ident;
             let packed = &parent.ident;
-            let unpacked = format_ident!("{}Unpacked", packed);
+            let unpacked = ir::Enum::unpacked(packed);
             let new = parent.opt.new.name();
 
             quote!(

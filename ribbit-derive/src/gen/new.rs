@@ -85,7 +85,7 @@ pub(crate) fn new(
             }
         }
         ir::Data::Enum(r#enum @ ir::Enum { variants }) => {
-            let unpacked = r#enum.unpacked(ident);
+            let unpacked = ir::Enum::unpacked(ident);
             let variants = variants
                 .iter()
                 .map(|ir::Variant { ident, ty, .. }| (ident, ty.as_deref()))

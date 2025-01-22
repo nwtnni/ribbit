@@ -60,8 +60,8 @@ pub(crate) fn debug(
                 }
             }
         }
-        ir::Data::Enum(r#enum @ ir::Enum { variants }) => {
-            let unpacked = r#enum.unpacked(ident);
+        ir::Data::Enum(ir::Enum { variants }) => {
+            let unpacked = ir::Enum::unpacked(ident);
 
             let variants = variants.iter().map(|variant| {
                 let name = variant.ident;
