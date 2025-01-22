@@ -24,16 +24,15 @@ pub(crate) fn pre(ir::Ir { data, tight, .. }: &ir::Ir) -> TokenStream {
                     _ => quote!(<#ty as ::ribbit::Pack>::BITS),
                 };
                 quote_spanned! {size.span()=>
-                    if #size > #expected {
-                        panic!(concat!(
-                            "Annotated size ",
-                            stringify!(#size),
-                            " does not match actual size of type ",
-                            stringify!(#ty),
-                            " = ",
-                            stringify!(#expected),
-                        ));
-                    }
+                    ::ribbit::private::concat_assert! {
+                        #size <= #expected,
+                        "Annotated size ",
+                        #size,
+                        " does not match actual size of type ",
+                        stringify!(#ty),
+                        ": ",
+                        #expected,
+                    };
                 }
             });
 
@@ -62,28 +61,30 @@ pub(crate) fn pre(ir::Ir { data, tight, .. }: &ir::Ir) -> TokenStream {
 
             let pack = variants.map(|ty| {
                 let size = ty.size();
-                quote_spanned! {size.span()=>
-                    if #size != <#ty as ::ribbit::Pack>::BITS {
-                        panic!(concat!(
-                            "Annotated size ",
-                            stringify!(#size),
-                            " does not match actual size of type ",
-                            stringify!(#ty),
-                        ));
-                    }
+                let expected = quote!(<#ty as ::ribbit::Pack>::BITS);
 
-                    if #size > #size_variant {
-                        panic!(concat!(
-                            "Type ",
-                            stringify!(#ty),
-                            " of size ",
-                            stringify!(#size),
-                            " does not fit in enum of size ",
-                            stringify!(#size_enum),
-                            " with discriminant size ",
-                            stringify!(#size_discriminant),
-                        ));
-                    }
+                quote_spanned! {size.span()=>
+                    ::ribbit::private::concat_assert! {
+                        #size <= #expected,
+                        "Annotated size ",
+                        #size,
+                        " does not match actual size of type ",
+                        stringify!(#ty),
+                        ": ",
+                        #expected,
+                    };
+
+                    ::ribbit::private::concat_assert! {
+                        #size <= #size_variant,
+                        "Type ",
+                        stringify!(#ty),
+                        " of size ",
+                        #size,
+                        " does not fit in enum of size ",
+                        #size_enum,
+                        " with discriminant size ",
+                        #size_discriminant,
+                    };
                 }
             });
 

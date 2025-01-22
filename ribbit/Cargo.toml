@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 arbitrary-int = "1.2"
+const_panic = "0.2"
 ribbit-derive = { path = "../ribbit-derive" }
 static_assertions = "1.1"
 
