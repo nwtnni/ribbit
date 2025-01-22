@@ -17,7 +17,7 @@ pub(crate) fn set<'ir>(
         ir::Data::Struct(ir::Struct { fields }) => Or::L(
             fields
                 .iter()
-                .filter(|field| *field.ty.size() != 0)
+                .filter(|field| *field.ty.size_expected() != 0)
                 .map(
                     |ir::Field {
                          vis,

@@ -101,7 +101,7 @@ pub(crate) fn new<'a>(item: &'a input::Item, parent: Option<&'a Ir>) -> darling:
                 .iter()
                 .map(|field| &field.ty)
                 .filter(|ty| ty.is_node())
-                .filter(|ty| *ty.size() != 0)
+                .filter(|ty| *ty.size_expected() != 0)
             {
                 let loose = ty.loosen();
 
@@ -222,7 +222,7 @@ impl<'input> Field<'input> {
             field.opt.size.map(Spanned::from),
         )?;
 
-        let size = *ty.size();
+        let size = *ty.size_expected();
 
         // Special-case ZSTs
         if size == 0 {

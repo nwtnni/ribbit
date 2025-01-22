@@ -18,20 +18,17 @@ pub(crate) fn pre(ir::Ir { data, tight, .. }: &ir::Ir) -> TokenStream {
                 .map(|ty| quote!(::ribbit::private::assert_impl_all!(<#ty as ::ribbit::Pack>::Tight: ::ribbit::NonZero)));
 
             let pack = fields.map(|ty| {
-                let size = ty.size();
-                let expected = match *size {
-                    0 => quote!(::core::mem::size_of::<#ty>()),
-                    _ => quote!(<#ty as ::ribbit::Pack>::BITS),
-                };
-                quote_spanned! {size.span()=>
+                let expected = ty.size_expected();
+                let actual = ty.size_actual();
+                quote_spanned! {expected.span()=>
                     ::ribbit::private::concat_assert! {
-                        #size <= #expected,
+                        #expected >= #actual,
                         "Annotated size ",
-                        #size,
-                        " does not match actual size of type ",
-                        stringify!(#ty),
-                        ": ",
                         #expected,
+                        " is too small to fit type ",
+                        stringify!(#ty),
+                        " of size ",
+                        #actual,
                     };
                 }
             });
@@ -60,26 +57,26 @@ pub(crate) fn pre(ir::Ir { data, tight, .. }: &ir::Ir) -> TokenStream {
             let size_variant = *size_enum - size_discriminant;
 
             let pack = variants.map(|ty| {
-                let size = ty.size();
-                let expected = quote!(<#ty as ::ribbit::Pack>::BITS);
+                let expected = ty.size_expected();
+                let actual = ty.size_actual();
 
-                quote_spanned! {size.span()=>
+                quote_spanned! {expected.span()=>
                     ::ribbit::private::concat_assert! {
-                        #size <= #expected,
+                        #expected >= #actual,
                         "Annotated size ",
-                        #size,
-                        " does not match actual size of type ",
-                        stringify!(#ty),
-                        ": ",
                         #expected,
+                        " is too small to fit type ",
+                        stringify!(#ty),
+                        " of size ",
+                        #actual,
                     };
 
                     ::ribbit::private::concat_assert! {
-                        #size <= #size_variant,
-                        "Type ",
+                        #size_variant >= #expected,
+                        "Variant of type ",
                         stringify!(#ty),
-                        " of size ",
-                        #size,
+                        " and annotated size ",
+                        #expected,
                         " does not fit in enum of size ",
                         #size_enum,
                         " with discriminant size ",

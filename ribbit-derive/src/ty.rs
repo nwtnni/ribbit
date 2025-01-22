@@ -9,6 +9,7 @@ pub(crate) use node::Node;
 pub(crate) use tight::Tight;
 
 use proc_macro2::TokenStream;
+use quote::quote;
 use quote::ToTokens;
 use syn::spanned::Spanned as _;
 
@@ -64,10 +65,18 @@ impl Tree {
         self.tighten().loosen()
     }
 
-    pub(crate) fn size(&self) -> Spanned<usize> {
+    pub(crate) fn size_expected(&self) -> Spanned<usize> {
         match self {
             Tree::Node(node) => node.size(),
             Tree::Leaf(leaf) => leaf.size(),
+        }
+    }
+
+    pub(crate) fn size_actual(&self) -> TokenStream {
+        match *self.size_expected() {
+            // Avoid requiring that ZSTs implement `ribbit::Pack`
+            0 => quote!(::core::mem::size_of::<#self>()),
+            _ => quote!(<#self as ::ribbit::Pack>::BITS),
         }
     }
 
