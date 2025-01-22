@@ -55,7 +55,13 @@ fn pack_inner(
         darling::ast::Data::Enum(r#enum) => {
             for variant in r#enum {
                 match variant.fields.as_shape() {
-                    // Generate
+                    // Assume wrapped type implements `ribbit::Pack`
+                    Shape::Newtype => (),
+
+                    // No generation needed
+                    Shape::Unit => (),
+
+                    // Generate struct for variant
                     Shape::Named | Shape::Tuple => {
                         let child = input::Item {
                             opt: variant.opt.clone(),
@@ -78,7 +84,14 @@ fn pack_inner(
                         let unpacked = format_ident!("{}Unpacked", into);
                         let new = parent.opt.new.name();
 
+                        // Generate `From` implementations to unpacked and packed types
                         stream.append_all(quote!(
+                            impl #r#impl From<#from #ty> for #unpacked #ty #r#where {
+                                fn from(variant: #from #ty) -> Self {
+                                    #unpacked::#from(variant)
+                                }
+                            }
+
                             impl #r#impl From<#from #ty> for #into #ty #r#where {
                                 fn from(variant: #from #ty) -> Self {
                                     #into::#new(#unpacked::#from(variant))
@@ -86,8 +99,6 @@ fn pack_inner(
                             }
                         ));
                     }
-
-                    Shape::Newtype | Shape::Unit => (),
                 }
             }
         }

@@ -101,3 +101,19 @@ fn wrapper() {
         WrapperUnpacked::Byte(b) => assert_eq!(b, 3),
     }
 }
+
+#[test]
+fn from() {
+    #[ribbit::pack(size = 8, copy, debug)]
+    #[derive(PartialEq, Eq)]
+    enum Outer {
+        #[ribbit(size = 8, copy, debug)]
+        Inner { value: u8 },
+    }
+
+    let a = Outer::from(Inner::new(0u8));
+    let b = OuterUnpacked::from(Inner::new(0u8));
+    let c = Outer::from(b);
+
+    assert_eq!(a, c);
+}
