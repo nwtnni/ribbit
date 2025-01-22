@@ -30,6 +30,8 @@ pub(crate) fn pre(ir::Ir { data, tight, .. }: &ir::Ir) -> TokenStream {
                             stringify!(#size),
                             " does not match actual size of type ",
                             stringify!(#ty),
+                            " = ",
+                            stringify!(#expected),
                         ));
                     }
                 }
