@@ -17,13 +17,6 @@ pub(crate) fn repr(
     let generics = ir.generics_bounded(None);
     let (generics_impl, generics_ty, generics_where) = generics.split_for_impl();
 
-    let nonzero = match *repr.nonzero {
-        true => {
-            quote!(unsafe impl #generics_impl ::ribbit::NonZero for #ident #generics_ty #generics_where {})
-        }
-        false => quote!(),
-    };
-
     // https://github.com/MrGVSV/to_phantom/blob/main/src/lib.rs
     let lifetimes = generics.lifetimes().map(|lifetime| quote!(&#lifetime ()));
     let tys = generics.type_params();
@@ -66,7 +59,5 @@ pub(crate) fn repr(
             type Tight = #repr;
             type Loose = <#repr as ::ribbit::Pack>::Loose;
         }
-
-        #nonzero
     }
 }

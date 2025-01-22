@@ -15,7 +15,7 @@ pub(crate) fn pre(ir::Ir { data, tight, .. }: &ir::Ir) -> TokenStream {
             let nonzero = fields
                 .clone()
                 .filter(|ty| ty.nonzero())
-                .map(|ty| quote!(::ribbit::private::assert_impl_all!(#ty: ::ribbit::NonZero)));
+                .map(|ty| quote!(::ribbit::private::assert_impl_all!(<#ty as ::ribbit::Pack>::Tight: ::ribbit::NonZero)));
 
             let pack = fields.map(|ty| {
                 let size = ty.size();

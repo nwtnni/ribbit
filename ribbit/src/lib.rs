@@ -5,15 +5,28 @@ use core::num::NonZeroU8;
 
 pub use ribbit_derive::pack;
 
+/// Marks a type that can be packed into `BITS`.
+///
+/// Currently supports sizes up to 64 bits.
 pub unsafe trait Pack: Copy + Sized {
+    /// The number of bits in the packed representation.
     const BITS: usize;
-    type Tight: Copy;
-    type Loose: Copy;
+
+    #[allow(private_bounds)]
+    type Tight: Copy + Tight;
+
+    #[allow(private_bounds)]
+    type Loose: Copy + Loose;
 }
+
+trait Loose {}
+trait Tight {}
 
 #[rustfmt::skip]
 macro_rules! impl_impl_number {
     ($name:ident, $loose:ty, $dollar:tt) => {
+        impl Loose for $loose {}
+
         macro_rules! $name {
             ($dollar($ty:ident: $bits:expr),* $dollar(,)?) => {
                 $dollar(
@@ -22,6 +35,8 @@ macro_rules! impl_impl_number {
                         type Tight = private::$ty;
                         type Loose = $loose;
                     }
+
+                    impl Tight for private::$ty {}
                 )*
             };
         }
@@ -34,11 +49,16 @@ unsafe impl Pack for () {
     type Loose = ();
 }
 
+impl Loose for () {}
+impl Tight for () {}
+
 unsafe impl Pack for bool {
     const BITS: usize = 1;
     type Tight = bool;
     type Loose = u8;
 }
+
+impl Tight for bool {}
 
 impl_impl_number!(impl_u8, u8, $);
 impl_u8!(
@@ -120,6 +140,13 @@ impl_u64!(
     u64: 64,
 );
 
+#[allow(private_bounds)]
+pub trait NonZero: seal::Seal {}
+
+mod seal {
+    pub(super) trait Seal {}
+}
+
 macro_rules! impl_nonzero {
     ($ty:ty, $loose:ty, $bits:expr) => {
         unsafe impl Pack for $ty {
@@ -128,7 +155,9 @@ macro_rules! impl_nonzero {
             type Loose = $loose;
         }
 
-        unsafe impl NonZero for $ty {}
+        impl Tight for $ty {}
+        impl seal::Seal for $ty {}
+        impl NonZero for $ty {}
     };
 }
 
@@ -137,16 +166,17 @@ impl_nonzero!(NonZeroU16, u16, 16);
 impl_nonzero!(NonZeroU32, u32, 32);
 impl_nonzero!(NonZeroU64, u64, 64);
 
+impl<T> Tight for Option<T> where T: Tight + NonZero {}
+
 unsafe impl<T> Pack for Option<T>
 where
-    T: Pack + NonZero,
+    T: Pack,
+    T::Tight: Tight + NonZero,
 {
     const BITS: usize = T::BITS;
     type Tight = Option<T::Tight>;
     type Loose = T::Loose;
 }
-
-pub unsafe trait NonZero {}
 
 #[doc(hidden)]
 #[rustfmt::skip]
