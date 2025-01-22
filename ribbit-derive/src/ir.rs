@@ -19,7 +19,7 @@ use crate::ty::tight;
 use crate::ty::Tight;
 use crate::Spanned;
 
-pub(crate) fn new(item: &input::Item) -> darling::Result<Ir> {
+pub(crate) fn new<'a>(item: &'a input::Item, parent: Option<&'a Ir>) -> darling::Result<Ir<'a>> {
     let Some(size) = item.opt.size.map(Spanned::from) else {
         bail!(Span::call_site()=> crate::Error::TopLevelSize);
     };
@@ -121,6 +121,7 @@ pub(crate) fn new(item: &input::Item) -> darling::Result<Ir> {
         generics: &item.generics,
         bounds,
         data,
+        parent,
     })
 }
 
@@ -133,6 +134,7 @@ pub(crate) struct Ir<'input> {
     pub(crate) data: Data<'input>,
     bounds: Punctuated<syn::WherePredicate, syn::Token![,]>,
     pub(crate) opt: &'input StructOpt,
+    pub(crate) parent: Option<&'input Ir<'input>>,
 }
 
 impl Ir<'_> {
@@ -197,6 +199,7 @@ pub(crate) struct StructOpt {
     pub(crate) new: gen::new::StructOpt,
     pub(crate) debug: Option<gen::debug::StructOpt>,
     pub(crate) copy: Option<gen::copy::StructOpt>,
+    pub(crate) from: Option<gen::from::StructOpt>,
 }
 
 pub(crate) struct Field<'input> {

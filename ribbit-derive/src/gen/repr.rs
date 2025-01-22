@@ -10,7 +10,6 @@ pub(crate) fn repr(
         vis,
         attrs,
         data,
-        opt,
         ..
     }: &ir::Ir,
 ) -> TokenStream {
@@ -47,18 +46,10 @@ pub(crate) fn repr(
                     Some(ty) => quote!(#ident(#ty)),
                 });
 
-            let packed = ident;
             let unpacked = r#enum.unpacked(ident);
-            let new = opt.new.name();
             quote! {
                 #vis enum #unpacked #generics_ty {
                     #(#variants),*
-                }
-
-                impl #generics_impl From<#unpacked #generics_ty> for #packed #generics_ty #generics_where {
-                    fn from(unpacked: #unpacked #generics_ty) -> Self {
-                        Self::#new(unpacked)
-                    }
                 }
             }
         }

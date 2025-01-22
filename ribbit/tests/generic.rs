@@ -90,13 +90,13 @@ fn r#enum_named() {
     #[ribbit::pack(size = 8, copy, debug)]
     #[derive(PartialEq, Eq)]
     enum Either<T> {
-        #[ribbit(size = 7, copy, debug)]
+        #[ribbit(size = 7, copy, debug, from)]
         #[derive(PartialEq, Eq)]
         Left {
             #[ribbit(size = 7)]
             l: T,
         },
-        #[ribbit(size = 7, copy, debug)]
+        #[ribbit(size = 7, copy, debug, from)]
         #[derive(PartialEq, Eq)]
         Right {
             #[ribbit(size = 7)]

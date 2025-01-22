@@ -18,7 +18,6 @@ use darling::FromDeriveInput as _;
 use ir::Ir;
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
-use quote::format_ident;
 use quote::quote;
 use quote::quote_spanned;
 use quote::ToTokens;
@@ -46,7 +45,7 @@ fn pack_inner(
 
     let mut stream = TokenStream::new();
     let parent = input::Item::from_derive_input(&input)?;
-    let parent_ir = ir::new(&parent)?;
+    let parent_ir = ir::new(&parent, None)?;
 
     stream.append_all(pack_item(&parent_ir)?);
 
@@ -71,33 +70,10 @@ fn pack_inner(
                             generics: parent.generics.clone(),
                             data: darling::ast::Data::Struct(variant.fields.clone()),
                         };
-                        let child_ir = ir::new(&child)?;
+
+                        let child_ir = ir::new(&child, Some(&parent_ir))?;
 
                         stream.append_all(pack_item(&child_ir)?);
-
-                        // Use all of parent's where clauses here.
-                        let generics = parent_ir.generics_bounded(None);
-                        let (r#impl, ty, r#where) = generics.split_for_impl();
-                        let from = &variant.ident;
-                        let into = &parent.ident;
-                        // FIXME: can't access methods in parent IR here
-                        let unpacked = format_ident!("{}Unpacked", into);
-                        let new = parent.opt.new.name();
-
-                        // Generate `From` implementations to unpacked and packed types
-                        stream.append_all(quote!(
-                            impl #r#impl From<#from #ty> for #unpacked #ty #r#where {
-                                fn from(variant: #from #ty) -> Self {
-                                    #unpacked::#from(variant)
-                                }
-                            }
-
-                            impl #r#impl From<#from #ty> for #into #ty #r#where {
-                                fn from(variant: #from #ty) -> Self {
-                                    #into::#new(#unpacked::#from(variant))
-                                }
-                            }
-                        ));
                     }
                 }
             }
@@ -114,6 +90,7 @@ fn pack_item(ir: &Ir) -> Result<TokenStream, darling::Error> {
     let get = gen::get(ir);
     let set = gen::set(ir);
     let copy = gen::copy(ir);
+    let from = gen::from(ir);
     let debug = gen::debug(ir);
 
     let generics = ir.generics_bounded(None);
@@ -134,6 +111,8 @@ fn pack_item(ir: &Ir) -> Result<TokenStream, darling::Error> {
         }
 
         #copy
+
+        #from
 
         #debug
     }

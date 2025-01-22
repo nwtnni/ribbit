@@ -104,10 +104,10 @@ fn wrapper() {
 
 #[test]
 fn from() {
-    #[ribbit::pack(size = 8, copy, debug)]
+    #[ribbit::pack(size = 8, copy, debug, from)]
     #[derive(PartialEq, Eq)]
     enum Outer {
-        #[ribbit(size = 8, copy, debug)]
+        #[ribbit(size = 8, copy, debug, from)]
         Inner { value: u8 },
     }
 
