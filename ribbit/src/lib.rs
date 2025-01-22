@@ -184,7 +184,6 @@ pub mod private {
     pub use ::core::primitive::bool;
     pub type Unit = ();
 
-    pub use ::arbitrary_int::Number;
     pub use ::arbitrary_int::u1;
     pub use ::arbitrary_int::u2;
     pub use ::arbitrary_int::u3;
@@ -286,6 +285,6 @@ pub mod private {
 
     pub const unsafe fn unpack<T: Pack>(loose: T::Loose) -> T {
         const { assert_layout::<T>() }
-         Transmute { loose }.value
+        Transmute { loose }.value
     }
 }
