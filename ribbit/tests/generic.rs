@@ -1,3 +1,4 @@
+use arbitrary_int::u3;
 use arbitrary_int::u7;
 
 #[ribbit::pack(size = 48)]
@@ -112,4 +113,23 @@ fn r#enum_named() {
         EitherUnpacked::Left(_) => unreachable!(),
         EitherUnpacked::Right(r) => assert_eq!(r.r().value(), 1),
     }
+}
+
+#[test]
+fn relax() {
+    #[ribbit::pack(size = 3, debug, eq)]
+    struct Small(u3);
+
+    #[ribbit::pack(size = 24, debug)]
+    struct Large<T> {
+        #[ribbit(size = 16)]
+        a: T,
+        b: u8,
+    }
+
+    let a = Small::new(u3::new(3));
+    let b = Large::new(a, 7);
+
+    assert_eq!(b.a(), a);
+    assert_eq!(b.b(), 7);
 }

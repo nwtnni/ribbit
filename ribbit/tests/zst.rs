@@ -58,3 +58,16 @@ fn pack_zst() {
 
     assert_eq!(zst, unpacked);
 }
+
+#[test]
+fn pack_zst_large() {
+    #[ribbit::pack(size = 0, debug, eq)]
+    struct Zst;
+
+    #[ribbit::pack(size = 32, debug, eq)]
+    struct Hole(Zst);
+
+    let zst = Zst::new();
+    let hole = Hole::new(zst);
+    assert_eq!(zst, hole._0());
+}
