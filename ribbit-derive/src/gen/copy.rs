@@ -9,6 +9,7 @@ pub(crate) fn copy(ir @ ir::Ir { ident, .. }: &ir::Ir) -> TokenStream {
     quote!(
         impl #r#impl Copy for #ident #ty #r#where {}
         impl #r#impl Clone for #ident #ty #r#where {
+            #[inline]
             fn clone(&self) -> Self {
                 *self
             }

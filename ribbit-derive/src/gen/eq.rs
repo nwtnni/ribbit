@@ -17,6 +17,7 @@ pub(crate) fn eq(ir @ ir::Ir { opt, ident, .. }: &ir::Ir) -> TokenStream {
     quote!(
         impl #r#impl Eq for #ident #ty #r#where {}
         impl #r#impl PartialEq for #ident #ty #r#where {
+            #[inline]
             fn eq(&self, other: &Self) -> bool {
                 self.value.eq(&other.value)
             }

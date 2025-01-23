@@ -16,6 +16,7 @@ pub(crate) fn hash(ir @ ir::Ir { opt, ident, .. }: &ir::Ir) -> TokenStream {
 
     quote!(
         impl #r#impl ::core::hash::Hash for #ident #ty #r#where {
+            #[inline]
             fn hash<H: ::core::hash::Hasher>(&self, state: &mut H) {
                 self.value.hash(state);
             }

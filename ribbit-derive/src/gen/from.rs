@@ -31,6 +31,7 @@ pub(crate) fn from(
 
             quote! {
                 impl #r#impl From<#unpacked #ty> for #packed #ty #r#where {
+                    #[inline]
                     fn from(unpacked: #unpacked #ty) -> Self {
                         Self::#new(unpacked)
                     }
@@ -45,12 +46,14 @@ pub(crate) fn from(
 
             quote!(
                 impl #r#impl From<#variant #ty> for #unpacked #ty #r#where {
+                    #[inline]
                     fn from(variant: #variant #ty) -> Self {
                         #unpacked::#variant(variant)
                     }
                 }
 
                 impl #r#impl From<#variant #ty> for #packed #ty #r#where {
+                    #[inline]
                     fn from(variant: #variant #ty) -> Self {
                         #packed::#new(#unpacked::#variant(variant))
                     }
