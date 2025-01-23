@@ -282,13 +282,13 @@ pub mod private {
         }
     }
 
-    #[inline(always)]
+    #[inline]
     pub const fn pack<T: Pack>(value: T) -> T::Loose {
         const { assert_layout::<T>() }
         unsafe { Transmute { value }.loose }
     }
 
-    #[inline(always)]
+    #[inline]
     pub const unsafe fn unpack<T: Pack>(loose: T::Loose) -> T {
         const { assert_layout::<T>() }
         Transmute { loose }.value
@@ -299,9 +299,14 @@ pub mod private {
         into: I,
     }
 
+    #[inline]
     #[allow(private_bounds)]
-    #[inline(always)]
     pub const fn convert<F: Loose, I: Loose>(from: F) -> I {
-        unsafe { Convert { from }.into }
+        unsafe {
+            // Required to avoid reading uninitialized memory
+            let mut zeroed = core::mem::zeroed::<Convert<F, I>>();
+            zeroed.from = from;
+            zeroed.into
+        }
     }
 }
