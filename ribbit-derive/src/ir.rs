@@ -298,6 +298,10 @@ impl<'input> FieldIdent<'input> {
             .unwrap_or_else(|| FieldIdent::Unnamed(index))
     }
 
+    pub(crate) fn is_named(&self) -> bool {
+        matches!(self, Self::Named(_))
+    }
+
     pub(crate) fn unescaped(&self, prefix: &'static str) -> syn::Ident {
         match self {
             FieldIdent::Named(named) => format_ident!("{}_{}", prefix, named),

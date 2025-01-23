@@ -30,6 +30,7 @@ pub(crate) fn debug(
 
     match data {
         ir::Data::Struct(ir::Struct { fields }) => {
+            let named = fields.iter().any(|field| field.ident.is_named());
             let fields = fields
                 .iter()
                 .filter(|field| *field.ty.size_expected() != 0)
@@ -43,16 +44,24 @@ pub(crate) fn debug(
                         Some(format) => quote!(format_args!(#format, #value)),
                     };
 
-                    quote! {
-                        .field(stringify!(#name), &#value)
+                    match field.ident.is_named() {
+                        true => quote!(stringify!(#name), &#value),
+                        false => quote!(&#value),
                     }
                 });
+
+            let debug = match named {
+                true => quote!(debug_struct),
+                false => quote!(debug_tuple),
+            };
 
             quote! {
                 impl #r#impl ::core::fmt::Debug for #ident #ty #r#where {
                     fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
-                        f.debug_struct(stringify!(#ident))
-                            #(#fields)*
+                        f.#debug(stringify!(#ident))
+                            #(
+                                .field(#fields)
+                            )*
                             .finish()
                     }
                 }
