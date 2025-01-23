@@ -79,12 +79,14 @@ pub(crate) fn new<'a>(item: &'a input::Item, parent: Option<&'a Ir>) -> darling:
         darling::ast::Data::Struct(r#struct) => {
             let mut bits = bitbox![0; *size];
 
-            let fields = r#struct
-                .fields
-                .iter()
-                .enumerate()
-                .map(|(index, field)| Field::new(&mut bits, index, field))
-                .collect::<Result<Vec<_>, _>>()?;
+            let fields = match r#struct.fields.as_slice() {
+                [field] => vec![Field::new(&mut bits, 0, Some(&item.opt), field)?],
+                fields => fields
+                    .iter()
+                    .enumerate()
+                    .map(|(index, field)| Field::new(&mut bits, index, None, field))
+                    .collect::<Result<Vec<_>, _>>()?,
+            };
 
             if *tight.nonzero && fields.iter().all(|field| !field.ty.nonzero()) {
                 bail!(tight.nonzero=> crate::Error::StructNonZero);
@@ -205,12 +207,21 @@ impl<'input> Field<'input> {
     fn new(
         bits: &mut BitBox,
         index: usize,
+        forward: Option<&StructOpt>,
         field: &'input SpannedValue<input::Field>,
     ) -> darling::Result<Self> {
         let ty = ty::Tree::parse(
             field.ty.clone(),
-            field.opt.nonzero.map(Spanned::from),
-            field.opt.size.map(Spanned::from),
+            field
+                .opt
+                .nonzero
+                .or_else(|| forward.and_then(|opt| opt.nonzero))
+                .map(Spanned::from),
+            field
+                .opt
+                .size
+                .or_else(|| forward.and_then(|opt| opt.size))
+                .map(Spanned::from),
         )?;
 
         let size = *ty.size_expected();
