@@ -77,8 +77,13 @@ impl<V: ToTokens> ToTokens for Loose<V> {
             Value::Compile(value) => self.ty.loosen().literal(*value).to_tokens(tokens),
             Value::Run(value) => match &self.ty {
                 ty::Tree::Leaf(leaf) if leaf.is_loose() => value.to_tokens(tokens),
-                ty::Tree::Leaf(_) | ty::Tree::Node(_) => {
-                    quote!(::ribbit::private::pack(#value)).to_tokens(tokens)
+                ty::Tree::Leaf(_) => quote!(::ribbit::private::pack(#value)).to_tokens(tokens),
+                ty::Tree::Node(node) => {
+                    let loose = node.loosen();
+                    quote! {
+                        ::ribbit::private::convert::<_, #loose>(::ribbit::private::pack(#value))
+                    }
+                    .to_tokens(tokens)
                 }
             },
         }
@@ -238,15 +243,11 @@ impl<V: Loosen> ToTokens for Expression<'_, V> {
             Op::Or(value) if self.inner.is_zero() => value.to_token_stream(),
             Op::Or(value) if value.is_zero() => self.inner.to_token_stream(),
             Op::Or(value) => {
-                let loose = self.loose();
-                match value.loose() == loose {
-                    false => quote!((#inner | (#value as #loose))),
-                    true => quote!((#inner | #value)),
-                }
+                let cast = ty::Loose::cast(value.loose(), self.loose(), quote!(#value));
+                quote!((#inner | #cast))
             }
 
-            Op::Cast(loose) if *loose == self.inner.loose() => inner,
-            Op::Cast(loose) => quote!((#inner as #loose)),
+            Op::Cast(loose) => ty::Loose::cast(self.inner.loose(), *loose, inner),
         };
 
         inner.to_tokens(tokens);
@@ -266,14 +267,12 @@ impl<V: Loosen> ToTokens for Tight<V> {
         let target = &self.ty;
         let loose = self.ty.loosen();
 
-        let inner = match source == loose {
-            false => quote!((#inner as #loose)),
-            true => inner,
-        };
-
+        let inner = ty::Loose::cast(source, loose, inner);
         let inner = match *target == loose.into() {
             true => inner,
-            false => quote!(unsafe { ::ribbit::private::unpack::<#target>(#inner) }),
+            false => quote!(unsafe {
+                ::ribbit::private::unpack::<#target>(::ribbit::private::convert(#inner))
+            }),
         };
 
         inner.to_tokens(tokens)

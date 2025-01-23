@@ -5,7 +5,6 @@ use quote::ToTokens as _;
 use syn::parse_quote;
 
 use crate::ir;
-use crate::lift::Lift as _;
 
 #[derive(FromMeta, Clone, Debug)]
 pub(crate) struct StructOpt;
@@ -38,8 +37,7 @@ pub(crate) fn debug(
                     let name = field.ident.escaped();
                     let opt = &field.opt.debug;
 
-                    let value = quote!(self.#name()).lift() % (*field.ty).clone();
-
+                    let value = quote!(self.#name());
                     let value = match &opt.format {
                         None => value.to_token_stream(),
                         Some(format) => quote!(format_args!(#format, #value)),

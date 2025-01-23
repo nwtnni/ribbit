@@ -13,18 +13,19 @@ pub unsafe trait Pack: Copy + Sized {
     const BITS: usize;
 
     #[allow(private_bounds)]
-    type Tight: Copy + Tight;
+    type Tight: Tight;
 
     #[allow(private_bounds)]
-    type Loose: Copy + Loose;
+    type Loose: Loose;
 }
 
-trait Loose {}
-trait Tight {}
+trait Loose: Copy {}
+trait Tight: Copy {}
 
 #[rustfmt::skip]
 macro_rules! impl_impl_number {
     ($name:ident, $loose:ty, $dollar:tt) => {
+        impl seal::Seal for $loose {}
         impl Loose for $loose {}
 
         macro_rules! $name {
@@ -49,6 +50,7 @@ unsafe impl Pack for () {
     type Loose = ();
 }
 
+impl seal::Seal for () {}
 impl Loose for () {}
 impl Tight for () {}
 
@@ -258,6 +260,7 @@ pub mod private {
     pub use ::const_panic::concat_assert;
     pub use ::core::marker::PhantomData;
 
+    use crate::Loose;
     use crate::Pack;
 
     union Transmute<T: Pack> {
@@ -287,5 +290,15 @@ pub mod private {
     pub const unsafe fn unpack<T: Pack>(loose: T::Loose) -> T {
         const { assert_layout::<T>() }
         Transmute { loose }.value
+    }
+
+    union Convert<F: Loose, I: Loose> {
+        from: F,
+        into: I,
+    }
+
+    #[allow(private_bounds)]
+    pub const fn convert<F: Loose, I: Loose>(from: F) -> I {
+        unsafe { Convert { from }.into }
     }
 }

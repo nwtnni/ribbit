@@ -15,6 +15,14 @@ pub(crate) enum Loose {
 }
 
 impl Loose {
+    pub(crate) fn cast(from: Self, into: Self, value: TokenStream) -> TokenStream {
+        if from == into {
+            return value;
+        }
+
+        quote!((#value as #into))
+    }
+
     pub(crate) fn size(&self) -> usize {
         match self {
             Self::Unit => 0,

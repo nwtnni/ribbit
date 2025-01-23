@@ -64,8 +64,7 @@ pub(crate) fn new<'a>(item: &'a input::Item, parent: Option<&'a Ir>) -> darling:
                     };
 
                     if let Some(ty) = ty.as_ref().filter(|ty| ty.is_node()) {
-                        let loose = ty.loosen();
-                        bounds.push(parse_quote!(#ty: ::ribbit::Pack<Loose = #loose>));
+                        bounds.push(parse_quote!(#ty: ::ribbit::Pack));
                     }
 
                     Ok(Variant {
@@ -91,15 +90,12 @@ pub(crate) fn new<'a>(item: &'a input::Item, parent: Option<&'a Ir>) -> darling:
                 bail!(tight.nonzero=> crate::Error::StructNonZero);
             }
 
-            for ty in fields
+            fields
                 .iter()
                 .map(|field| &field.ty)
                 .filter(|ty| ty.is_node())
                 .filter(|ty| *ty.size_expected() != 0)
-            {
-                let loose = ty.loosen();
-                bounds.push(parse_quote!(#ty: ::ribbit::Pack<Loose = #loose>));
-            }
+                .for_each(|ty| bounds.push(parse_quote!(#ty: ::ribbit::Pack)));
 
             Data::Struct(Struct { fields })
         }
