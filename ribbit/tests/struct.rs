@@ -114,3 +114,12 @@ fn explicit() {
     assert_eq!(mix.a().get(), 999);
     assert_eq!(mix.b().value(), 0);
 }
+
+#[test]
+fn underflow() {
+    #[ribbit::pack(size = 8)]
+    struct Zst;
+
+    let zst = Zst::new();
+    assert_eq!(zst.value, 0);
+}

@@ -12,10 +12,6 @@ pub enum Error {
         required: usize,
     },
 
-    Underflow {
-        bits: BitBox,
-    },
-
     TopLevelSize,
     StructNonZero,
     OpaqueSize,
@@ -32,7 +28,6 @@ macro_rules! bail {
 }
 
 pub(crate) use bail;
-use bitvec::boxed::BitBox;
 
 impl Display for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -43,9 +38,6 @@ impl Display for Error {
                 required,
             } => {
                 write!(f, "Field requires {required} bits at offset {offset}, but only {available} are available")
-            }
-            Error::Underflow { bits } => {
-                write!(f, "All bits must be used: {bits:?}")
             }
             Error::StructNonZero => {
                 write!(

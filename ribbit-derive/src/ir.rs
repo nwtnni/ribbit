@@ -87,12 +87,6 @@ pub(crate) fn new<'a>(item: &'a input::Item, parent: Option<&'a Ir>) -> darling:
                 .map(|(index, field)| Field::new(&mut bits, index, field))
                 .collect::<Result<Vec<_>, _>>()?;
 
-            if bits.not_all() {
-                bail!(size=> crate::Error::Underflow {
-                    bits,
-                })
-            }
-
             if *tight.nonzero && fields.iter().all(|field| !field.ty.nonzero()) {
                 bail!(tight.nonzero=> crate::Error::StructNonZero);
             }
@@ -104,7 +98,6 @@ pub(crate) fn new<'a>(item: &'a input::Item, parent: Option<&'a Ir>) -> darling:
                 .filter(|ty| *ty.size_expected() != 0)
             {
                 let loose = ty.loosen();
-
                 bounds.push(parse_quote!(#ty: ::ribbit::Pack<Loose = #loose>));
             }
 
