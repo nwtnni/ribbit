@@ -282,11 +282,13 @@ pub mod private {
         }
     }
 
+    #[inline(always)]
     pub const fn pack<T: Pack>(value: T) -> T::Loose {
         const { assert_layout::<T>() }
         unsafe { Transmute { value }.loose }
     }
 
+    #[inline(always)]
     pub const unsafe fn unpack<T: Pack>(loose: T::Loose) -> T {
         const { assert_layout::<T>() }
         Transmute { loose }.value
@@ -298,6 +300,7 @@ pub mod private {
     }
 
     #[allow(private_bounds)]
+    #[inline(always)]
     pub const fn convert<F: Loose, I: Loose>(from: F) -> I {
         unsafe { Convert { from }.into }
     }
