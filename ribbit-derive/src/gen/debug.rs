@@ -29,28 +29,24 @@ pub(crate) fn debug(
     let (r#impl, ty, r#where) = generics.split_for_impl();
 
     match data {
-        ir::Data::Struct(ir::Struct { fields }) => {
-            let named = fields.iter().any(|field| field.ident.is_named());
-            let fields = fields
-                .iter()
-                .filter(|field| *field.ty.size_expected() != 0)
-                .map(|field| {
-                    let name = field.ident.escaped();
-                    let opt = &field.opt.debug;
+        ir::Data::Struct(r#struct) => {
+            let fields = r#struct.fields().map(|field| {
+                let name = field.ident.escaped();
+                let opt = &field.opt.debug;
 
-                    let value = quote!(self.#name());
-                    let value = match &opt.format {
-                        None => value.to_token_stream(),
-                        Some(format) => quote!(format_args!(#format, #value)),
-                    };
+                let value = quote!(self.#name());
+                let value = match &opt.format {
+                    None => value.to_token_stream(),
+                    Some(format) => quote!(format_args!(#format, #value)),
+                };
 
-                    match field.ident.is_named() {
-                        true => quote!(stringify!(#name), &#value),
-                        false => quote!(&#value),
-                    }
-                });
+                match field.ident.is_named() {
+                    true => quote!(stringify!(#name), &#value),
+                    false => quote!(&#value),
+                }
+            });
 
-            let debug = match named {
+            let debug = match r#struct.is_named() {
                 true => quote!(debug_struct),
                 false => quote!(debug_tuple),
             };

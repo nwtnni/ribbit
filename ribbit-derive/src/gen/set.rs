@@ -14,10 +14,9 @@ pub(crate) fn set<'ir>(
     ir::Ir { tight, data, .. }: &'ir ir::Ir,
 ) -> impl Iterator<Item = TokenStream> + 'ir {
     match data {
-        ir::Data::Struct(ir::Struct { fields }) => Or::L(
-            fields
-                .iter()
-                .filter(|field| *field.ty.size_expected() != 0)
+        ir::Data::Struct(r#struct) => Or::L(
+            r#struct
+                .fields()
                 .map(
                     |ir::Field {
                          vis,

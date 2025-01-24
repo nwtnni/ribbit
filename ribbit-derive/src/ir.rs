@@ -181,6 +181,22 @@ pub(crate) struct Struct<'input> {
     pub(crate) fields: Vec<Field<'input>>,
 }
 
+impl Struct<'_> {
+    pub(crate) fn is_named(&self) -> bool {
+        self.fields().any(|field| field.ident.is_named())
+    }
+
+    pub(crate) fn is_newtype(&self) -> bool {
+        self.fields().count() == 1
+    }
+
+    pub(crate) fn fields(&self) -> impl Iterator<Item = &Field> {
+        self.fields
+            .iter()
+            .filter(|field| *field.ty.size_expected() != 0)
+    }
+}
+
 #[derive(FromMeta, Clone, Debug)]
 pub(crate) struct StructOpt {
     pub(crate) size: Option<SpannedValue<usize>>,

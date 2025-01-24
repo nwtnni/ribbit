@@ -13,30 +13,35 @@ pub(crate) fn get<'ir>(
     let ty_struct = **tight;
 
     match data {
-        ir::Data::Struct(ir::Struct { fields }) => Or::L(
-            fields
-                .iter()
-                .filter(|field| *field.ty.size_expected() != 0)
-                .map(move |field| {
-                    let ty_field = &*field.ty;
+        ir::Data::Struct(r#struct) => Or::L({
+            let newtype = r#struct.is_newtype();
 
-                    #[allow(clippy::precedence)]
-                    let value_field = ((quote!(self.value).lift() % ty_struct >> field.offset)
-                        % ty_field.loosen()
-                        & ty_field.mask())
-                        % ty_field.clone();
+            r#struct.fields().map(move |field| {
+                let ty_field = &*field.ty;
 
-                    let vis = field.vis;
-                    let get = field.ident.escaped();
-                    quote! {
-                        #[inline]
-                        #vis const fn #get(&self) -> #ty_field {
-                            let _: () = Self::_RIBBIT_ASSERT_LAYOUT;
-                            #value_field
-                        }
+                // Only need to mask if there might be overlapping data
+                let mask = match newtype {
+                    true => ty_field.loosen().mask(),
+                    false => ty_field.mask(),
+                };
+
+                #[allow(clippy::precedence)]
+                let value_field = ((quote!(self.value).lift() % ty_struct >> field.offset)
+                    % ty_field.loosen()
+                    & mask)
+                    % ty_field.clone();
+
+                let vis = field.vis;
+                let get = field.ident.escaped();
+                quote! {
+                    #[inline]
+                    #vis const fn #get(&self) -> #ty_field {
+                        let _: () = Self::_RIBBIT_ASSERT_LAYOUT;
+                        #value_field
                     }
-                }),
-        ),
+                }
+            })
+        }),
         ir::Data::Enum(r#enum @ ir::Enum { variants }) => {
             let unpacked = ir::Enum::unpacked(ident);
 

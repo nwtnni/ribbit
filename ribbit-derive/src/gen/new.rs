@@ -40,17 +40,15 @@ pub(crate) fn new(
     let ty_struct_loose = tight.loosen();
 
     match data {
-        ir::Data::Struct(ir::Struct { fields }) => {
-            let fields = fields.iter().filter(|field| *field.ty.size_expected() != 0);
-
-            let parameters = fields.clone().map(|field| {
+        ir::Data::Struct(r#struct) => {
+            let parameters = r#struct.fields().map(|field| {
                 let ident = field.ident.escaped();
                 let ty = &field.ty;
                 quote!(#ident: #ty)
             });
 
-            let value = fields
-                .clone()
+            let value = r#struct
+                .fields()
                 .map(
                     |ir::Field {
                          ident, ty, offset, ..
