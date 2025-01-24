@@ -261,26 +261,20 @@ pub struct Tight<V> {
 
 impl<V: Loosen> ToTokens for Tight<V> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let inner = self.inner.to_token_stream();
         let source = self.inner.loose();
 
-        let target = &self.ty;
-        let loose = self.ty.loosen();
+        let inner = self.inner.to_token_stream();
+        let inner = ty::Loose::cast(source, self.ty.loosen(), inner);
 
-        let inner = ty::Loose::cast(source, loose, inner);
-        if *target == loose.into() {
-            inner.to_tokens(tokens);
-            return;
-        };
-
-        let inner = match target.is_node() {
-            false => inner,
-            true => quote!(::ribbit::private::convert(#inner)),
-        };
-
-        quote!(unsafe {
-            ::ribbit::private::unpack::<#target>(#inner)
-        })
+        match &self.ty {
+            ty::Tree::Leaf(leaf) if leaf.is_loose() => inner,
+            ty::Tree::Leaf(leaf) => quote!(unsafe {
+                ::ribbit::private::unpack::<#leaf>(#inner)
+            }),
+            ty::Tree::Node(node) => quote! {
+                unsafe { ::ribbit::private::unpack::<#node>(::ribbit::private::convert(#inner)) }
+            },
+        }
         .to_tokens(tokens)
     }
 }
