@@ -16,7 +16,7 @@ pub(crate) fn get<'ir>(
     match data {
         ir::Data::Struct(r#struct) => Or::L({
             let newtype = r#struct.is_newtype();
-            r#struct.fields().map(move |field| {
+            r#struct.iter().map(move |field| {
                 let ty_field = &*field.ty;
 
                 let value = quote!(self.value);

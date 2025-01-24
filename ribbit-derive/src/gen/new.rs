@@ -41,33 +41,46 @@ pub(crate) fn new(
 
     match data {
         ir::Data::Struct(r#struct) => {
-            let parameters = r#struct.fields().map(|field| {
+            let parameters = r#struct.iter().map(|field| {
                 let ident = field.ident.escaped();
                 let ty = &field.ty;
                 quote!(#ident: #ty)
             });
 
-            let value = r#struct
-                .fields()
-                .map(
-                    |ir::Field {
-                         ident, ty, offset, ..
-                     }| {
-                        (
-                            ident.escaped().to_token_stream().lift(),
-                            ty.deref().clone(),
-                            *offset,
+            let value = match r#struct.is_newtype() {
+                true => r#struct.iter().fold(quote!(), |_, field| {
+                    let ident = field.ident.escaped().to_token_stream();
+                    match field.ty.is_leaf() {
+                        true => ident,
+                        false => (ident.lift() % (*field.ty).clone() % ty_struct.clone())
+                            .to_token_stream(),
+                    }
+                }),
+                false => {
+                    r#struct
+                        .iter()
+                        .map(
+                            |ir::Field {
+                                 ident, ty, offset, ..
+                             }| {
+                                (
+                                    ident.escaped().to_token_stream().lift(),
+                                    ty.deref().clone(),
+                                    *offset,
+                                )
+                            },
                         )
-                    },
-                )
-                .fold(
-                    Box::new(0usize.lift() % ty_struct_loose) as Box<dyn lift::Loosen>,
-                    |state, (ident, ty_field, offset)| {
-                        #[allow(clippy::precedence)]
-                        Box::new((ident % ty_field % ty_struct_loose << offset) | state)
-                    },
-                )
-                % ty_struct;
+                        .fold(
+                            Box::new(0usize.lift() % ty_struct_loose) as Box<dyn lift::Loosen>,
+                            |state, (ident, ty_field, offset)| {
+                                #[allow(clippy::precedence)]
+                                Box::new((ident % ty_field % ty_struct_loose << offset) | state)
+                            },
+                        )
+                        % ty_struct
+                }
+                .to_token_stream(),
+            };
 
             quote! {
                 #[inline]

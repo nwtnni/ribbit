@@ -30,7 +30,7 @@ pub(crate) fn debug(
 
     match data {
         ir::Data::Struct(r#struct) => {
-            let fields = r#struct.fields().map(|field| {
+            let fields = r#struct.iter().map(|field| {
                 let name = field.ident.escaped();
                 let opt = &field.opt.debug;
 

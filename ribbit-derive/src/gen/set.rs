@@ -18,7 +18,7 @@ pub(crate) fn set<'ir>(
             let newtype = r#struct.is_newtype();
 
             r#struct
-                .fields()
+                .iter()
                 .map(
                     |ir::Field {
                          vis,
