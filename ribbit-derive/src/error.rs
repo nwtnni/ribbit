@@ -1,5 +1,7 @@
 use std::fmt::Display;
 
+use crate::ty;
+
 pub enum Error {
     Overflow {
         /// Which bit the field should start at.
@@ -15,6 +17,11 @@ pub enum Error {
     TopLevelSize,
     StructNonZero,
     OpaqueSize,
+    WrongSize {
+        ty: ty::Tight,
+        expected: usize,
+        actual: usize,
+    },
     ArbitraryNonZero,
     UnsupportedType,
 }
@@ -49,6 +56,17 @@ impl Display for Error {
                 write!(
                     f,
                     "Opaque type requires size attribute #[ribbit(size = ...)]"
+                )
+            }
+            Error::WrongSize {
+                ty,
+                expected,
+                actual,
+            } => {
+                write!(
+                    f,
+                    "Size attribute #[ribbit(size = {})] does not match size of {}: {}",
+                    expected, ty, actual,
                 )
             }
             Error::ArbitraryNonZero => {

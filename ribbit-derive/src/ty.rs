@@ -36,7 +36,17 @@ impl Tree {
                 let span = path.span();
 
                 let ty = match Tight::from_path(&path) {
-                    Some(tight) => Self::Leaf(tight),
+                    Some(tight) => {
+                        if let Some(expected) = size.filter(|size| **size != *tight.size()) {
+                            bail!(span=> Error::WrongSize {
+                                ty: tight,
+                                expected: *expected,
+                                actual: *tight.size(),
+                            });
+                        }
+
+                        Self::Leaf(tight)
+                    }
                     None => {
                         let Some(size) = size else {
                             bail!(span=> Error::OpaqueSize);

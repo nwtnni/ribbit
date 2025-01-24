@@ -1,3 +1,5 @@
+use core::fmt::Display;
+
 use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
@@ -167,5 +169,30 @@ impl ToTokens for Tight {
         };
 
         quote!(::ribbit::private::#repr).to_tokens(tokens)
+    }
+}
+
+impl Display for Tight {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let name = match (*self.nonzero, self.signed, *self.repr) {
+            (_, true, _) => todo!(),
+
+            (true, _, Repr::Loose(Loose::N8)) => "NonZeroU8",
+            (true, _, Repr::Loose(Loose::N16)) => "NonZeroU16",
+            (true, _, Repr::Loose(Loose::N32)) => "NonZeroU32",
+            (true, _, Repr::Loose(Loose::N64)) => "NonZeroU64",
+
+            (_, _, Repr::Loose(Loose::Unit)) => "()",
+            (_, _, Repr::Loose(Loose::Bool)) => "bool",
+            (_, _, Repr::Loose(Loose::N8)) => "u8",
+            (_, _, Repr::Loose(Loose::N16)) => "u16",
+            (_, _, Repr::Loose(Loose::N32)) => "u32",
+            (_, _, Repr::Loose(Loose::N64)) => "u64",
+
+            (true, _, Repr::Arbitrary(_)) => todo!(),
+            (false, _, Repr::Arbitrary(arbitrary)) => return write!(f, "u{}", arbitrary.size()),
+        };
+
+        name.fmt(f)
     }
 }

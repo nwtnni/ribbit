@@ -1,0 +1,5 @@
+error: Size attribute #[ribbit(size = 3)] does not match size of u8: 8
+ --> tests/ui/mismatch_size_field.rs:4:9
+  |
+4 |     lo: u8,
+  |         ^^
