@@ -56,6 +56,10 @@ impl Tree {
         matches!(self, Tree::Node(_))
     }
 
+    pub(crate) fn is_leaf(&self) -> bool {
+        matches!(self, Tree::Leaf(_))
+    }
+
     pub(crate) fn tighten(&self) -> Tight {
         match self {
             Tree::Node(node) => **node,

@@ -1,5 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::quote;
+use quote::ToTokens;
 
 use crate::ir;
 use crate::lift::Lift as _;
@@ -15,21 +16,24 @@ pub(crate) fn get<'ir>(
     match data {
         ir::Data::Struct(r#struct) => Or::L({
             let newtype = r#struct.is_newtype();
-
             r#struct.fields().map(move |field| {
                 let ty_field = &*field.ty;
 
-                // Only need to mask if there might be overlapping data
-                let mask = match newtype {
-                    true => ty_field.loosen().mask(),
-                    false => ty_field.mask(),
-                };
+                let value = quote!(self.value);
 
-                #[allow(clippy::precedence)]
-                let value_field = ((quote!(self.value).lift() % ty_struct >> field.offset)
-                    % ty_field.loosen()
-                    & mask)
-                    % ty_field.clone();
+                let value_field = match newtype {
+                    // Forward underlying type directly
+                    true if ty_field.is_leaf() => value.to_token_stream(),
+                    // Skip conversion through loose types
+                    true => (value.lift() % ty_struct % ty_field.clone()).to_token_stream(),
+                    #[allow(clippy::precedence)]
+                    false => {
+                        ((value.lift() % ty_struct >> field.offset) % ty_field.loosen()
+                            & ty_field.mask())
+                            % ty_field.clone()
+                    }
+                    .to_token_stream(),
+                };
 
                 let vis = field.vis;
                 let get = field.ident.escaped();
