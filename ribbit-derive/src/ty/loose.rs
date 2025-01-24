@@ -22,6 +22,7 @@ impl Loose {
         }
 
         match into {
+            Loose::Unit => quote!(()),
             Loose::Bool => {
                 // Serves as a truncating cast
                 let zero = from.literal(0);

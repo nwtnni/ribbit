@@ -2,6 +2,7 @@ use std::borrow::Cow;
 
 use bitvec::bitbox;
 use bitvec::boxed::BitBox;
+use darling::usage::GenericsExt;
 use darling::util::AsShape as _;
 use darling::util::Shape;
 use darling::util::SpannedValue;
@@ -37,6 +38,8 @@ pub(crate) fn new<'a>(item: &'a input::Item, parent: Option<&'a Ir>) -> darling:
     }
 
     let (_, generics_ty, _) = item.generics.split_for_impl();
+    let ty_params = item.generics.declared_type_params();
+
     let mut bounds: Punctuated<syn::WherePredicate, syn::Token![,]> = parse_quote!();
 
     let data = match &item.data {
@@ -47,6 +50,7 @@ pub(crate) fn new<'a>(item: &'a input::Item, parent: Option<&'a Ir>) -> darling:
                     let ty = match variant.fields.as_shape() {
                         Shape::Unit => None,
                         Shape::Newtype => ty::Tree::parse(
+                            &ty_params,
                             variant.fields.fields[0].ty.clone(),
                             variant.opt.nonzero.map(Spanned::from),
                             variant.opt.size.map(Spanned::from),
@@ -55,6 +59,7 @@ pub(crate) fn new<'a>(item: &'a input::Item, parent: Option<&'a Ir>) -> darling:
                         Shape::Named | Shape::Tuple => {
                             let ident = &variant.ident;
                             ty::Tree::parse(
+                                &ty_params,
                                 parse_quote!(#ident #generics_ty),
                                 variant.opt.nonzero.map(Spanned::from),
                                 variant.opt.size.map(Spanned::from),
@@ -78,15 +83,38 @@ pub(crate) fn new<'a>(item: &'a input::Item, parent: Option<&'a Ir>) -> darling:
         }
         darling::ast::Data::Struct(r#struct) => {
             let mut bits = bitbox![0; *size];
+            let newtype = r#struct.fields.len() == 1;
 
-            let fields = match r#struct.fields.as_slice() {
-                [field] => vec![Field::new(&mut bits, 0, Some(&item.opt), field)?],
-                fields => fields
-                    .iter()
-                    .enumerate()
-                    .map(|(index, field)| Field::new(&mut bits, index, None, field))
-                    .collect::<Result<Vec<_>, _>>()?,
-            };
+            let fields = r#struct
+                .fields
+                .iter()
+                .map(|field| -> darling::Result<_> {
+                    // For convenience, forward nonzero and size annotations
+                    // for newtype structs.
+                    let nonzero = match (newtype, field.opt.nonzero) {
+                        (false, nonzero) | (true, nonzero @ Some(_)) => nonzero,
+                        (true, None) => item.opt.nonzero,
+                    };
+                    let size = match (newtype, field.opt.size) {
+                        (false, size) | (true, size @ Some(_)) => size,
+                        (true, None) => item.opt.size,
+                    };
+
+                    let ty = ty::Tree::parse(
+                        &ty_params,
+                        field.ty.clone(),
+                        nonzero.map(Spanned::from),
+                        size.map(Spanned::from),
+                    )?;
+
+                    Ok((field, ty))
+                })
+                .enumerate()
+                .map(|(index, field)| {
+                    let (field, ty) = field?;
+                    Field::new(ty, &mut bits, index, field)
+                })
+                .collect::<Result<Vec<_>, _>>()?;
 
             if *tight.nonzero && fields.iter().all(|field| !field.ty.nonzero()) {
                 bail!(tight.nonzero=> crate::Error::StructNonZero);
@@ -221,25 +249,11 @@ pub(crate) struct Field<'input> {
 
 impl<'input> Field<'input> {
     fn new(
+        ty: Spanned<ty::Tree>,
         bits: &mut BitBox,
         index: usize,
-        forward: Option<&StructOpt>,
         field: &'input SpannedValue<input::Field>,
     ) -> darling::Result<Self> {
-        let ty = ty::Tree::parse(
-            field.ty.clone(),
-            field
-                .opt
-                .nonzero
-                .or_else(|| forward.and_then(|opt| opt.nonzero))
-                .map(Spanned::from),
-            field
-                .opt
-                .size
-                .or_else(|| forward.and_then(|opt| opt.size))
-                .map(Spanned::from),
-        )?;
-
         let size = *ty.size_expected();
 
         // Special-case ZSTs

@@ -4,6 +4,7 @@ mod node;
 pub(crate) mod tight;
 
 pub(crate) use arbitrary::Arbitrary;
+use darling::usage::IdentSet;
 pub(crate) use loose::Loose;
 pub(crate) use node::Node;
 pub(crate) use tight::Tight;
@@ -25,6 +26,7 @@ pub enum Tree {
 
 impl Tree {
     pub(crate) fn parse(
+        ty_params: &IdentSet,
         ty: syn::Type,
         nonzero: Option<Spanned<bool>>,
         size: Option<Spanned<usize>>,
@@ -40,7 +42,7 @@ impl Tree {
                             bail!(span=> Error::OpaqueSize);
                         };
                         let tight = Tight::from_size(nonzero.unwrap_or_else(|| false.into()), size);
-                        Self::Node(Node::parse(path, tight))
+                        Self::Node(Node::parse(ty_params, path, tight))
                     }
                 };
 

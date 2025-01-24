@@ -80,10 +80,10 @@ impl<V: ToTokens> ToTokens for Loose<V> {
                 ty::Tree::Leaf(_) => quote!(::ribbit::private::pack(#value)).to_tokens(tokens),
                 ty::Tree::Node(node) => {
                     let loose = node.loosen();
-                    quote! {
-                        ::ribbit::private::convert::<_, #loose>(::ribbit::private::pack(#value))
-                    }
-                    .to_tokens(tokens)
+                    let inner = quote!(::ribbit::private::convert::<_, #loose>(
+                        ::ribbit::private::pack(#value)
+                    ));
+                    inner.to_tokens(tokens)
                 }
             },
         }
@@ -268,13 +268,19 @@ impl<V: Loosen> ToTokens for Tight<V> {
         let loose = self.ty.loosen();
 
         let inner = ty::Loose::cast(source, loose, inner);
-        let inner = match *target == loose.into() {
-            true => inner,
-            false => quote!(unsafe {
-                ::ribbit::private::unpack::<#target>(::ribbit::private::convert(#inner))
-            }),
+        if *target == loose.into() {
+            inner.to_tokens(tokens);
+            return;
         };
 
-        inner.to_tokens(tokens)
+        let inner = match target.is_node() {
+            false => inner,
+            true => quote!(::ribbit::private::convert(#inner)),
+        };
+
+        quote!(unsafe {
+            ::ribbit::private::unpack::<#target>(#inner)
+        })
+        .to_tokens(tokens)
     }
 }
