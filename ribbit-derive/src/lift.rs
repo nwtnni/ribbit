@@ -37,7 +37,7 @@ pub(crate) trait Loosen: ToTokens {
     fn is_zero(&self) -> bool;
 }
 
-impl<'a> Loosen for Box<dyn Loosen + 'a> {
+impl Loosen for Box<dyn Loosen + '_> {
     fn loose(&self) -> ty::Loose {
         (**self).loose()
     }
@@ -163,7 +163,7 @@ impl<'a, V: Loosen> Rem<ty::Tree> for Expression<'a, V> {
     }
 }
 
-impl<'a> Rem<ty::Tree> for Box<dyn Loosen + 'a> {
+impl Rem<ty::Tree> for Box<dyn Loosen + '_> {
     type Output = Tight<Self>;
     fn rem(self, tight: ty::Tree) -> Self::Output {
         Tight {

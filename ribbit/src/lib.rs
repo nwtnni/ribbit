@@ -60,6 +60,8 @@ unsafe impl Pack for bool {
     type Loose = u8;
 }
 
+impl seal::Seal for bool {}
+impl Loose for bool {}
 impl Tight for bool {}
 
 impl_impl_number!(impl_u8, u8, $);

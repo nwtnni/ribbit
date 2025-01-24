@@ -24,7 +24,7 @@ pub(crate) fn new<'a>(item: &'a input::Item, parent: Option<&'a Ir>) -> darling:
         bail!(Span::call_site()=> crate::Error::TopLevelSize);
     };
 
-    let tight = Tight::new(
+    let tight = Tight::from_size(
         item.opt
             .nonzero
             .map(Spanned::from)
@@ -168,7 +168,7 @@ impl Enum<'_> {
     }
 
     pub(crate) fn discriminant_mask(&self) -> usize {
-        crate::ty::Tight::new(false.into(), self.discriminant_size().into()).mask()
+        crate::ty::Tight::from_size(false.into(), self.discriminant_size().into()).mask()
     }
 }
 

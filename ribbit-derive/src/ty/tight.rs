@@ -34,35 +34,15 @@ impl From<Loose> for Tight {
 }
 
 impl Tight {
-    pub(crate) fn size(&self) -> Spanned<usize> {
-        self.repr.map_ref(|repr| repr.size())
-    }
-
-    pub(crate) fn mask(&self) -> usize {
-        self.repr.mask()
-    }
-
-    pub(crate) fn new(nonzero: Spanned<bool>, size: Spanned<usize>) -> Self {
+    pub(crate) fn from_size(nonzero: Spanned<bool>, size: Spanned<usize>) -> Self {
         Self {
             nonzero,
             signed: false,
-            repr: size.map_ref(|size| Repr::new(*size)),
+            repr: size.map_ref(|size| Repr::from_size(*size)),
         }
     }
 
-    pub(crate) fn is_loose(&self) -> bool {
-        !*self.nonzero && !self.signed && matches!(&*self.repr, Repr::Loose(_))
-    }
-
-    pub(crate) fn loosen(self) -> Loose {
-        match *self.repr {
-            Repr::Bool => Loose::N8,
-            Repr::Loose(loose) => loose,
-            Repr::Arbitrary(arbitrary) => arbitrary.loosen(),
-        }
-    }
-
-    pub(crate) fn parse(syn::TypePath { path, .. }: &syn::TypePath) -> Option<Self> {
+    pub(crate) fn from_path(syn::TypePath { path, .. }: &syn::TypePath) -> Option<Self> {
         let segment = match path.segments.first()? {
             segment if path.segments.len() > 1 || !segment.arguments.is_none() => return None,
             segment => segment,
@@ -73,7 +53,7 @@ impl Tight {
             return Some(Tight {
                 nonzero: false.into(),
                 signed: false,
-                repr: Spanned::new(Repr::Bool, ident.span()),
+                repr: Spanned::new(Repr::Loose(Loose::Bool), ident.span()),
             });
         }
 
@@ -101,20 +81,48 @@ impl Tight {
         Some(Tight {
             nonzero: nonzero.into(),
             signed,
-            repr: Spanned::new(Repr::new(size), path.span()),
+            repr: Spanned::new(Repr::from_path(size), path.span()),
         })
+    }
+
+    pub(crate) fn size(&self) -> Spanned<usize> {
+        self.repr.map_ref(|repr| repr.size())
+    }
+
+    pub(crate) fn mask(&self) -> usize {
+        self.repr.mask()
+    }
+
+    pub(crate) fn is_loose(&self) -> bool {
+        !*self.nonzero && !self.signed && matches!(&*self.repr, Repr::Loose(_))
+    }
+
+    pub(crate) fn loosen(self) -> Loose {
+        match *self.repr {
+            Repr::Loose(loose) => loose,
+            Repr::Arbitrary(arbitrary) => arbitrary.loosen(),
+        }
     }
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Repr {
-    Bool,
     Loose(Loose),
     Arbitrary(Arbitrary),
 }
 
 impl Repr {
-    fn new(size: usize) -> Self {
+    /// The canonical internal representation for a 1-bit
+    /// type is `bool`, but the user can opt into u1 by
+    /// using the type explicitly.
+    fn from_size(size: usize) -> Self {
+        match size {
+            1 => Repr::Loose(Loose::Bool),
+            _ => Self::from_path(size),
+        }
+    }
+
+    fn from_path(size: usize) -> Self {
         match size {
             0 => Repr::Loose(Loose::Unit),
             8 => Repr::Loose(Loose::N8),
@@ -127,7 +135,6 @@ impl Repr {
 
     pub(crate) fn size(&self) -> usize {
         match self {
-            Repr::Bool => 1,
             Repr::Loose(loose) => loose.size(),
             Repr::Arbitrary(arbitrary) => arbitrary.size(),
         }
@@ -135,7 +142,6 @@ impl Repr {
 
     pub(crate) fn mask(&self) -> usize {
         match self {
-            Repr::Bool => 1,
             Repr::Loose(loose) => loose.mask(),
             Repr::Arbitrary(arbitrary) => arbitrary.mask(),
         }
@@ -146,8 +152,6 @@ impl ToTokens for Tight {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let repr = match (*self.nonzero, self.signed, *self.repr) {
             (_, true, _) => todo!(),
-
-            (_, _, Repr::Bool) => quote!(bool),
 
             (true, _, Repr::Loose(Loose::N8)) => quote!(NonZeroU8),
             (true, _, Repr::Loose(Loose::N16)) => quote!(NonZeroU16),

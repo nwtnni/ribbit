@@ -33,13 +33,13 @@ impl Tree {
             syn::Type::Path(path) => {
                 let span = path.span();
 
-                let ty = match Tight::parse(&path) {
+                let ty = match Tight::from_path(&path) {
                     Some(tight) => Self::Leaf(tight),
                     None => {
                         let Some(size) = size else {
                             bail!(span=> Error::OpaqueSize);
                         };
-                        let tight = Tight::new(nonzero.unwrap_or_else(|| false.into()), size);
+                        let tight = Tight::from_size(nonzero.unwrap_or_else(|| false.into()), size);
                         Self::Node(Node::parse(path, tight))
                     }
                 };
