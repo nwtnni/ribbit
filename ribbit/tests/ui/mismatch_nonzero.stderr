@@ -1,47 +1,7 @@
-error[E0119]: conflicting implementations of trait `Copy` for type `A`
- --> tests/ui/mismatch_nonzero.rs:2:10
-  |
-1 | #[ribbit::pack(size = 16)]
-  | -------------------------- first implementation here
-2 | #[derive(Copy, Clone)]
-  |          ^^^^ conflicting implementation for `A`
-  |
-  = note: this error originates in the derive macro `Copy` (in Nightly builds, run with -Z macro-backtrace for more info)
-
-error[E0119]: conflicting implementations of trait `Copy` for type `B`
- --> tests/ui/mismatch_nonzero.rs:6:10
-  |
-5 | #[ribbit::pack(size = 32)]
-  | -------------------------- first implementation here
-6 | #[derive(Copy, Clone)]
-  |          ^^^^ conflicting implementation for `B`
-  |
-  = note: this error originates in the derive macro `Copy` (in Nightly builds, run with -Z macro-backtrace for more info)
-
-error[E0119]: conflicting implementations of trait `Clone` for type `A`
- --> tests/ui/mismatch_nonzero.rs:2:16
-  |
-1 | #[ribbit::pack(size = 16)]
-  | -------------------------- first implementation here
-2 | #[derive(Copy, Clone)]
-  |                ^^^^^ conflicting implementation for `A`
-  |
-  = note: this error originates in the derive macro `Clone` (in Nightly builds, run with -Z macro-backtrace for more info)
-
-error[E0119]: conflicting implementations of trait `Clone` for type `B`
- --> tests/ui/mismatch_nonzero.rs:6:16
-  |
-5 | #[ribbit::pack(size = 32)]
-  | -------------------------- first implementation here
-6 | #[derive(Copy, Clone)]
-  |                ^^^^^ conflicting implementation for `B`
-  |
-  = note: this error originates in the derive macro `Clone` (in Nightly builds, run with -Z macro-backtrace for more info)
-
 error[E0277]: the trait bound `u16: ribbit::NonZero` is not satisfied
- --> tests/ui/mismatch_nonzero.rs:5:1
+ --> tests/ui/mismatch_nonzero.rs:4:1
   |
-5 | #[ribbit::pack(size = 32)]
+4 | #[ribbit::pack(size = 32)]
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `ribbit::NonZero` is not implemented for `u16`
   |
   = help: the following other types implement trait `ribbit::NonZero`:
@@ -50,70 +10,8 @@ error[E0277]: the trait bound `u16: ribbit::NonZero` is not satisfied
             std::num::NonZero<u64>
             std::num::NonZero<u8>
 note: required by a bound in `assert_impl_all`
- --> tests/ui/mismatch_nonzero.rs:5:1
+ --> tests/ui/mismatch_nonzero.rs:4:1
   |
-5 | #[ribbit::pack(size = 32)]
+4 | #[ribbit::pack(size = 32)]
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^ required by this bound in `assert_impl_all`
-  = note: this error originates in the attribute macro `ribbit::pack` (in Nightly builds, run with -Z macro-backtrace for more info)
-
-error[E0507]: cannot move out of `*self` which is behind a shared reference
- --> tests/ui/mismatch_nonzero.rs:2:16
-  |
-2 | #[derive(Copy, Clone)]
-  |                ^^^^^ move occurs because `*self` has type `A`, which does not implement the `Copy` trait
-  |
-note: if `A` implemented `Clone`, you could clone the value
- --> tests/ui/mismatch_nonzero.rs:1:1
-  |
-1 | #[ribbit::pack(size = 16)]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^ consider implementing `Clone` for this type
-2 | #[derive(Copy, Clone)]
-  |                ----- you could clone this value
-  = note: this error originates in the derive macro `Clone` which comes from the expansion of the attribute macro `ribbit::pack` (in Nightly builds, run with -Z macro-backtrace for more info)
-
-error[E0507]: cannot move out of `*self` which is behind a shared reference
- --> tests/ui/mismatch_nonzero.rs:1:1
-  |
-1 | #[ribbit::pack(size = 16)]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^ move occurs because `*self` has type `A`, which does not implement the `Copy` trait
-  |
-note: if `A` implemented `Clone`, you could clone the value
- --> tests/ui/mismatch_nonzero.rs:1:1
-  |
-1 | #[ribbit::pack(size = 16)]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^
-  | |
-  | consider implementing `Clone` for this type
-  | you could clone this value
-  = note: this error originates in the attribute macro `ribbit::pack` (in Nightly builds, run with -Z macro-backtrace for more info)
-
-error[E0507]: cannot move out of `*self` which is behind a shared reference
- --> tests/ui/mismatch_nonzero.rs:6:16
-  |
-6 | #[derive(Copy, Clone)]
-  |                ^^^^^ move occurs because `*self` has type `B`, which does not implement the `Copy` trait
-  |
-note: if `B` implemented `Clone`, you could clone the value
- --> tests/ui/mismatch_nonzero.rs:5:1
-  |
-5 | #[ribbit::pack(size = 32)]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^ consider implementing `Clone` for this type
-6 | #[derive(Copy, Clone)]
-  |                ----- you could clone this value
-  = note: this error originates in the derive macro `Clone` which comes from the expansion of the attribute macro `ribbit::pack` (in Nightly builds, run with -Z macro-backtrace for more info)
-
-error[E0507]: cannot move out of `*self` which is behind a shared reference
- --> tests/ui/mismatch_nonzero.rs:5:1
-  |
-5 | #[ribbit::pack(size = 32)]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^ move occurs because `*self` has type `B`, which does not implement the `Copy` trait
-  |
-note: if `B` implemented `Clone`, you could clone the value
- --> tests/ui/mismatch_nonzero.rs:5:1
-  |
-5 | #[ribbit::pack(size = 32)]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^
-  | |
-  | consider implementing `Clone` for this type
-  | you could clone this value
   = note: this error originates in the attribute macro `ribbit::pack` (in Nightly builds, run with -Z macro-backtrace for more info)
