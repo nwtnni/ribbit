@@ -123,3 +123,16 @@ fn underflow() {
     let zst = Zst::new();
     assert_eq!(zst.value, 0);
 }
+
+#[test]
+fn type_path() {
+    #[ribbit::pack(size = 32, nonzero)]
+    struct Path {
+        a: ::std::num::NonZeroU8,
+        b: ribbit::u24,
+    }
+
+    let path = Path::new(::std::num::NonZeroU8::new(5).unwrap(), ribbit::u24::new(22));
+    assert_eq!(path.a().get(), 5);
+    assert_eq!(path.b().value(), 22);
+}
