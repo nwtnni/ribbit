@@ -25,30 +25,25 @@ impl StructOpt {
 
 pub(crate) fn new(
     ir @ ir::Ir {
-        ident,
-        opt,
-        tight,
-        vis,
-        data,
-        ..
+        item, tight, data, ..
     }: &ir::Ir,
 ) -> TokenStream {
-    let new = opt.new.name();
-    let vis = opt.new.vis.as_ref().unwrap_or(vis);
+    let new = item.opt.new.name();
+    let vis = item.opt.new.vis.as_ref().unwrap_or(&item.vis);
 
-    let ty_struct = ty::Tree::from(**tight);
+    let ty_struct = ty::Tree::from(tight.clone());
     let ty_struct_loose = tight.loosen();
 
     match data {
         ir::Data::Struct(r#struct) => {
-            let parameters = r#struct.iter().map(|field| {
+            let parameters = r#struct.iter_nonzero().map(|field| {
                 let ident = field.ident.escaped();
                 let ty = &field.ty;
                 quote!(#ident: #ty)
             });
 
             let value = match r#struct.is_newtype() {
-                true => r#struct.iter().fold(quote!(), |_, field| {
+                true => r#struct.iter_nonzero().fold(quote!(), |_, field| {
                     let ident = field.ident.escaped().to_token_stream();
                     match field.ty.is_leaf() {
                         true => ident,
@@ -58,7 +53,7 @@ pub(crate) fn new(
                 }),
                 false => {
                     r#struct
-                        .iter()
+                        .iter_nonzero()
                         .map(
                             |ir::Field {
                                  ident, ty, offset, ..
@@ -96,7 +91,8 @@ pub(crate) fn new(
             }
         }
         ir::Data::Enum(r#enum @ ir::Enum { variants }) => {
-            let unpacked = ir::Enum::unpacked(ident);
+            let unpacked = ir::Enum::unpacked(&item.ident);
+
             let variants = variants
                 .iter()
                 .map(|ir::Variant { ident, ty, .. }| (ident, ty.as_deref()))

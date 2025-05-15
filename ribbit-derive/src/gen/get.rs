@@ -8,10 +8,10 @@ use crate::Or;
 
 pub(crate) fn get<'ir>(
     ir @ ir::Ir {
-        ident, tight, data, ..
+        item, tight, data, ..
     }: &'ir ir::Ir,
 ) -> impl Iterator<Item = TokenStream> + 'ir {
-    let ty_struct = **tight;
+    let ty_struct = tight;
 
     match data {
         ir::Data::Struct(r#struct) => Or::L({
@@ -25,10 +25,10 @@ pub(crate) fn get<'ir>(
                     // Forward underlying type directly
                     true if ty_field.is_leaf() => value.to_token_stream(),
                     // Skip conversion through loose types
-                    true => (value.lift() % ty_struct % ty_field.clone()).to_token_stream(),
+                    true => (value.lift() % ty_struct.clone() % ty_field.clone()).to_token_stream(),
                     #[allow(clippy::precedence)]
                     false => {
-                        ((value.lift() % ty_struct >> field.offset) % ty_field.loosen()
+                        ((value.lift() % ty_struct.clone() >> field.offset) % ty_field.loosen()
                             & ty_field.mask())
                             % ty_field.clone()
                     }
@@ -47,7 +47,7 @@ pub(crate) fn get<'ir>(
             })
         }),
         ir::Data::Enum(r#enum @ ir::Enum { variants }) => {
-            let unpacked = ir::Enum::unpacked(ident);
+            let unpacked = ir::Enum::unpacked(&item.ident);
 
             let variants = variants.iter().enumerate().map(|(index, variant)| {
                 let discriminant = tight.loosen().literal(index);
@@ -56,7 +56,7 @@ pub(crate) fn get<'ir>(
                     None => quote!(#unpacked::#ident),
                     Some(ty_variant) => {
                         #[allow(clippy::precedence)]
-                        let inner = (quote!(self.value).lift() % ty_struct
+                        let inner = (quote!(self.value).lift() % ty_struct.clone()
                             >> r#enum.discriminant_size())
                             % ty_variant;
 
@@ -67,7 +67,8 @@ pub(crate) fn get<'ir>(
                 quote!(#discriminant => #value)
             });
 
-            let discriminant = (quote!(self.value).lift() % ty_struct) & r#enum.discriminant_mask();
+            let discriminant =
+                (quote!(self.value).lift() % ty_struct.clone()) & r#enum.discriminant_mask();
 
             let (_, ty, _) = ir.generics().split_for_impl();
             Or::R(std::iter::once(quote! {

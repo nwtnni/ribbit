@@ -1,3 +1,7 @@
+use std::num::NonZeroU16;
+
+use ribbit::u5;
+
 #[ribbit::pack(size = 16, nonzero)]
 struct Inner(NonZeroU16);
 

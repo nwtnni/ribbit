@@ -1,3 +1,5 @@
+use ribbit::u15;
+
 #[ribbit::pack(size = 16)]
 struct A(u16);
 

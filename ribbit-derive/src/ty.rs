@@ -19,7 +19,7 @@ use crate::Error;
 use crate::Spanned;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Tree {
+pub(crate) enum Tree {
     Node(Node),
     Leaf(Tight),
 }
@@ -37,11 +37,16 @@ impl Tree {
 
                 let ty = match Tight::from_path(&path) {
                     Some(tight) => {
-                        if let Some(expected) = size.filter(|size| **size != *tight.size()) {
+                        let tight = match tight {
+                            Ok(tight) => tight,
+                            Err(error) => bail!(span=> error),
+                        };
+
+                        if let Some(expected) = size.filter(|size| **size != tight.size()) {
                             bail!(span=> Error::WrongSize {
-                                ty: tight,
                                 expected: *expected,
-                                actual: *tight.size(),
+                                actual: tight.size(),
+                                ty: tight,
                             });
                         }
 
@@ -51,7 +56,15 @@ impl Tree {
                         let Some(size) = size else {
                             bail!(span=> Error::OpaqueSize);
                         };
-                        let tight = Tight::from_size(nonzero.unwrap_or_else(|| false.into()), size);
+
+                        let tight =
+                            Tight::from_size(nonzero.as_deref().copied().unwrap_or(false), *size);
+
+                        let tight = match tight {
+                            Ok(tight) => tight,
+                            Err(error) => bail!(span=> error),
+                        };
+
                         Self::Node(Node::parse(ty_params, path, tight))
                     }
                 };
@@ -72,8 +85,8 @@ impl Tree {
 
     pub(crate) fn tighten(&self) -> Tight {
         match self {
-            Tree::Node(node) => **node,
-            Tree::Leaf(leaf) => *leaf,
+            Tree::Node(node) => node.tighten().clone(),
+            Tree::Leaf(leaf) => leaf.clone(),
         }
     }
 
@@ -81,32 +94,28 @@ impl Tree {
         self.tighten().loosen()
     }
 
-    pub(crate) fn size_expected(&self) -> Spanned<usize> {
+    pub(crate) fn size_expected(&self) -> usize {
         match self {
-            Tree::Node(node) => node.size(),
+            Tree::Node(node) => node.tighten().size(),
             Tree::Leaf(leaf) => leaf.size(),
         }
     }
 
     pub(crate) fn size_actual(&self) -> TokenStream {
-        match *self.size_expected() {
-            // Avoid requiring that ZSTs implement `ribbit::Pack`
-            0 => quote!(::core::mem::size_of::<#self>()),
-            _ => quote!(<#self as ::ribbit::Pack>::BITS),
-        }
+        quote!(<#self as ::ribbit::Pack>::BITS)
     }
 
     pub(crate) fn mask(&self) -> usize {
         match self {
-            Tree::Node(node) => node.mask(),
+            Tree::Node(node) => node.tighten().mask(),
             Tree::Leaf(leaf) => leaf.mask(),
         }
     }
 
-    pub(crate) fn nonzero(&self) -> bool {
+    pub(crate) fn is_nonzero(&self) -> bool {
         match self {
-            Tree::Node(node) => *node.nonzero,
-            Tree::Leaf(leaf) => *leaf.nonzero,
+            Tree::Node(node) => node.tighten().is_nonzero(),
+            Tree::Leaf(leaf) => leaf.is_nonzero(),
         }
     }
 }

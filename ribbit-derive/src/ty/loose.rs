@@ -1,3 +1,5 @@
+use core::fmt::Display;
+
 use proc_macro2::Literal;
 use proc_macro2::TokenStream;
 use quote::quote;
@@ -16,6 +18,26 @@ pub(crate) enum Loose {
 }
 
 impl Loose {
+    pub(crate) fn new_internal(size: usize) -> Option<Self> {
+        match size {
+            1 => Some(Self::Bool),
+            _ => Self::new_external(size),
+        }
+    }
+
+    pub(crate) fn new_external(size: usize) -> Option<Self> {
+        let loose = match size {
+            0 => Self::Unit,
+            8 => Self::N8,
+            16 => Self::N16,
+            32 => Self::N32,
+            64 => Self::N64,
+            _ => return None,
+        };
+
+        Some(loose)
+    }
+
     pub(crate) fn cast(from: Self, into: Self, value: TokenStream) -> TokenStream {
         if from == into {
             return value;
@@ -80,5 +102,20 @@ impl ToTokens for Loose {
         };
 
         quote!(::ribbit::private::#ident).to_tokens(tokens)
+    }
+}
+
+impl Display for Loose {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let name = match self {
+            Loose::Unit => "()",
+            Loose::Bool => "bool",
+            Loose::N8 => "u8",
+            Loose::N16 => "u16",
+            Loose::N32 => "u32",
+            Loose::N64 => "u64",
+        };
+
+        write!(f, "{}", name)
     }
 }

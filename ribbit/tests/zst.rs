@@ -3,6 +3,7 @@ use core::num::NonZeroU64;
 
 #[test]
 fn custom_zst() {
+    #[ribbit::pack(size = 0)]
     struct Foo;
 
     #[ribbit::pack(size = 64)]

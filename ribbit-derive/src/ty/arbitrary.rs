@@ -1,3 +1,10 @@
+use core::fmt::Display;
+
+use proc_macro2::TokenStream;
+use quote::format_ident;
+use quote::quote;
+use quote::ToTokens;
+
 use crate::ty::Loose;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -29,5 +36,18 @@ impl Arbitrary {
             33..=63 => Loose::N64,
             _ => unreachable!(),
         }
+    }
+}
+
+impl ToTokens for Arbitrary {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let ident = format_ident!("u{}", self.size());
+        quote!(::ribbit::private::#ident).to_tokens(tokens)
+    }
+}
+
+impl Display for Arbitrary {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "u{}", self.size())
     }
 }

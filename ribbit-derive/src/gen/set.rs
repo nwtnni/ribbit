@@ -18,7 +18,7 @@ pub(crate) fn set<'ir>(
             let newtype = r#struct.is_newtype();
 
             r#struct
-                .iter()
+                .iter_nonzero()
                 .map(
                     |ir::Field {
                          vis,
@@ -29,7 +29,7 @@ pub(crate) fn set<'ir>(
                      }| { (vis, ident, ty.deref().clone(), *offset) },
                 )
                 .map(move |(vis, ident, ty_field, offset)| {
-                    let ty_struct = ty::Tree::from(**tight);
+                    let ty_struct = ty::Tree::from(tight.clone());
                     let ty_struct_loose = tight.loosen();
 
                     let escaped = ident.escaped().to_token_stream();

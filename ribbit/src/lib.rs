@@ -1,8 +1,10 @@
+use core::marker::PhantomData;
 use core::num::NonZeroU16;
 use core::num::NonZeroU32;
 use core::num::NonZeroU64;
 use core::num::NonZeroU8;
 
+pub use arbitrary_int::*;
 pub use ribbit_derive::pack;
 
 /// Marks a type that can be packed into `BITS`.
@@ -21,11 +23,23 @@ pub unsafe trait Pack: Copy + Sized {
     /// The number of bits in the packed representation.
     const BITS: usize;
 
+    type Unpack;
+
     #[allow(private_bounds)]
     type Tight: Tight;
 
     #[allow(private_bounds)]
     type Loose: Loose;
+
+    fn to_loose(&self) -> Self::Loose {
+        convert::packed_to_loose(*self)
+    }
+
+    fn to_tight(&self) -> Self::Tight {
+        convert::packed_to_tight(*self)
+    }
+
+    fn unpack(&self) -> Self::Unpack;
 }
 
 /// Native integer type, or non-native integer type with stronger guarantees
@@ -136,19 +150,28 @@ macro_rules! impl_impl_number {
 
         unsafe impl Pack for $loose {
             const BITS: usize = $loose_bits;
+            type Unpack = $loose;
             type Tight = $loose;
             type Loose = $loose;
+
+            fn unpack(&self) -> Self::Unpack {
+                *self
+            }
         }
 
         macro_rules! $name {
-            ($dollar($ty:ident: $bits:expr),* $dollar(,)?) => {
+            ($dollar($tight:ident: $bits:expr),* $dollar(,)?) => {
                 $dollar(
-                    impl Tight for private::$ty {}
+                    impl Tight for private::$tight {}
 
-                    unsafe impl Pack for private::$ty {
+                    unsafe impl Pack for private::$tight {
                         const BITS: usize = $bits;
-                        type Tight = private::$ty;
+                        type Unpack = private::$tight;
+                        type Tight = private::$tight;
                         type Loose = $loose;
+                        fn unpack(&self) -> Self::Unpack {
+                            *self
+                        }
                     }
                 )*
             };
@@ -158,16 +181,32 @@ macro_rules! impl_impl_number {
 
 unsafe impl Pack for () {
     const BITS: usize = 0;
+    type Unpack = ();
     type Tight = ();
     type Loose = ();
+    fn unpack(&self) -> Self::Unpack {}
 }
 
 unsafe impl Loose for () {}
 
+unsafe impl<T> Pack for PhantomData<T> {
+    const BITS: usize = 0;
+    type Unpack = PhantomData<T>;
+    type Tight = ();
+    type Loose = ();
+    fn unpack(&self) -> Self::Unpack {
+        *self
+    }
+}
+
 unsafe impl Pack for bool {
     const BITS: usize = 1;
+    type Unpack = bool;
     type Tight = bool;
     type Loose = u8;
+    fn unpack(&self) -> Self::Unpack {
+        *self
+    }
 }
 
 unsafe impl Loose for bool {}
@@ -266,8 +305,12 @@ macro_rules! impl_nonzero {
     ($ty:ty, $loose:ty, $bits:expr) => {
         unsafe impl Pack for $ty {
             const BITS: usize = $bits;
+            type Unpack = $ty;
             type Tight = $ty;
             type Loose = $loose;
+            fn unpack(&self) -> Self::Unpack {
+                *self
+            }
         }
 
         impl Tight for $ty {}
@@ -289,8 +332,12 @@ where
     T::Tight: Tight + NonZero,
 {
     const BITS: usize = T::BITS;
+    type Unpack = Option<T::Unpack>;
     type Tight = Option<T::Tight>;
     type Loose = T::Loose;
+    fn unpack(&self) -> Self::Unpack {
+        self.map(|packed| packed.unpack())
+    }
 }
 
 #[doc(hidden)]
@@ -299,69 +346,9 @@ pub mod private {
     pub use ::core::primitive::bool;
     pub type Unit = ();
 
-    pub use ::arbitrary_int::u1;
-    pub use ::arbitrary_int::u2;
-    pub use ::arbitrary_int::u3;
-    pub use ::arbitrary_int::u4;
-    pub use ::arbitrary_int::u5;
-    pub use ::arbitrary_int::u6;
-    pub use ::arbitrary_int::u7;
     pub use ::core::primitive::u8;
-    pub use ::arbitrary_int::u9;
-    pub use ::arbitrary_int::u10;
-    pub use ::arbitrary_int::u11;
-    pub use ::arbitrary_int::u12;
-    pub use ::arbitrary_int::u13;
-    pub use ::arbitrary_int::u14;
-    pub use ::arbitrary_int::u15;
     pub use ::core::primitive::u16;
-    pub use ::arbitrary_int::u17;
-    pub use ::arbitrary_int::u18;
-    pub use ::arbitrary_int::u19;
-    pub use ::arbitrary_int::u20;
-    pub use ::arbitrary_int::u21;
-    pub use ::arbitrary_int::u22;
-    pub use ::arbitrary_int::u23;
-    pub use ::arbitrary_int::u24;
-    pub use ::arbitrary_int::u25;
-    pub use ::arbitrary_int::u26;
-    pub use ::arbitrary_int::u27;
-    pub use ::arbitrary_int::u28;
-    pub use ::arbitrary_int::u29;
-    pub use ::arbitrary_int::u30;
-    pub use ::arbitrary_int::u31;
     pub use ::core::primitive::u32;
-    pub use ::arbitrary_int::u33;
-    pub use ::arbitrary_int::u34;
-    pub use ::arbitrary_int::u35;
-    pub use ::arbitrary_int::u36;
-    pub use ::arbitrary_int::u37;
-    pub use ::arbitrary_int::u38;
-    pub use ::arbitrary_int::u39;
-    pub use ::arbitrary_int::u40;
-    pub use ::arbitrary_int::u41;
-    pub use ::arbitrary_int::u42;
-    pub use ::arbitrary_int::u43;
-    pub use ::arbitrary_int::u44;
-    pub use ::arbitrary_int::u45;
-    pub use ::arbitrary_int::u46;
-    pub use ::arbitrary_int::u47;
-    pub use ::arbitrary_int::u48;
-    pub use ::arbitrary_int::u49;
-    pub use ::arbitrary_int::u50;
-    pub use ::arbitrary_int::u51;
-    pub use ::arbitrary_int::u52;
-    pub use ::arbitrary_int::u53;
-    pub use ::arbitrary_int::u54;
-    pub use ::arbitrary_int::u55;
-    pub use ::arbitrary_int::u56;
-    pub use ::arbitrary_int::u57;
-    pub use ::arbitrary_int::u58;
-    pub use ::arbitrary_int::u59;
-    pub use ::arbitrary_int::u60;
-    pub use ::arbitrary_int::u61;
-    pub use ::arbitrary_int::u62;
-    pub use ::arbitrary_int::u63;
     pub use ::core::primitive::u64;
 
     pub use ::core::num::NonZeroU8;
@@ -369,6 +356,7 @@ pub mod private {
     pub use ::core::num::NonZeroU32;
     pub use ::core::num::NonZeroU64;
 
+    pub use ::arbitrary_int::*;
     pub use ::static_assertions::assert_impl_all;
     pub use ::const_panic::concat_assert;
     pub use ::core::marker::PhantomData;

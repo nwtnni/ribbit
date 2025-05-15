@@ -14,12 +14,8 @@ pub(crate) struct FieldOpt {
     format: Option<syn::LitStr>,
 }
 
-pub(crate) fn debug(
-    ir @ ir::Ir {
-        opt, ident, data, ..
-    }: &ir::Ir,
-) -> TokenStream {
-    if opt.debug.is_none() {
+pub(crate) fn debug(ir @ ir::Ir { item, data, .. }: &ir::Ir) -> TokenStream {
+    if item.opt.debug.is_none() {
         return TokenStream::new();
     }
 
@@ -27,10 +23,11 @@ pub(crate) fn debug(
     // requires stronger bounds
     let generics = ir.generics_bounded(Some(parse_quote!(::core::fmt::Debug)));
     let (r#impl, ty, r#where) = generics.split_for_impl();
+    let ident = &item.ident;
 
     match data {
         ir::Data::Struct(r#struct) => {
-            let fields = r#struct.iter().map(|field| {
+            let fields = r#struct.iter_nonzero().map(|field| {
                 let name = field.ident.escaped();
                 let opt = &field.opt.debug;
 

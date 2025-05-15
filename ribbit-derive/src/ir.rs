@@ -7,8 +7,11 @@ use darling::util::AsShape as _;
 use darling::util::Shape;
 use darling::util::SpannedValue;
 use darling::FromMeta;
+use proc_macro2::Literal;
 use proc_macro2::Span;
+use proc_macro2::TokenStream;
 use quote::format_ident;
+use quote::ToTokens;
 use syn::parse_quote;
 use syn::punctuated::Punctuated;
 
@@ -16,7 +19,6 @@ use crate::error::bail;
 use crate::gen;
 use crate::input;
 use crate::ty;
-use crate::ty::tight;
 use crate::ty::Tight;
 use crate::Spanned;
 
@@ -25,17 +27,12 @@ pub(crate) fn new<'a>(item: &'a input::Item, parent: Option<&'a Ir>) -> darling:
         bail!(Span::call_site()=> crate::Error::TopLevelSize);
     };
 
-    let tight = Tight::from_size(
-        item.opt
-            .nonzero
-            .map(Spanned::from)
-            .unwrap_or_else(|| false.into()),
-        size,
-    );
-
-    if let (true, tight::Repr::Arbitrary(_)) = (*tight.nonzero, *tight.repr) {
-        bail!(tight.nonzero=> crate::Error::ArbitraryNonZero);
-    }
+    let tight = match Tight::from_size(item.opt.nonzero.map(|value| *value).unwrap_or(false), *size)
+    {
+        Ok(tight) => tight,
+        // FIXME: span
+        Err(error) => bail!(item.opt.nonzero.unwrap()=> error),
+    };
 
     let (_, generics_ty, _) = item.generics.split_for_impl();
     let ty_params = item.generics.declared_type_params();
@@ -116,15 +113,15 @@ pub(crate) fn new<'a>(item: &'a input::Item, parent: Option<&'a Ir>) -> darling:
                 })
                 .collect::<Result<Vec<_>, _>>()?;
 
-            if *tight.nonzero && fields.iter().all(|field| !field.ty.nonzero()) {
-                bail!(tight.nonzero=> crate::Error::StructNonZero);
+            if tight.is_nonzero() && fields.iter().all(|field| !field.ty.is_nonzero()) {
+                bail!(item.opt.nonzero.unwrap()=> crate::Error::StructNonZero);
             }
 
             fields
                 .iter()
                 .map(|field| &field.ty)
                 .filter(|ty| ty.is_node())
-                .filter(|ty| *ty.size_expected() != 0)
+                .filter(|ty| ty.size_expected() != 0)
                 .for_each(|ty| bounds.push(parse_quote!(#ty: ::ribbit::Pack)));
 
             Data::Struct(Struct { fields })
@@ -132,12 +129,8 @@ pub(crate) fn new<'a>(item: &'a input::Item, parent: Option<&'a Ir>) -> darling:
     };
 
     Ok(Ir {
-        tight: tight.into(),
-        opt: &item.opt,
-        attrs: &item.attrs,
-        vis: &item.vis,
-        ident: &item.ident,
-        generics: &item.generics,
+        tight,
+        item,
         bounds,
         data,
         parent,
@@ -145,24 +138,20 @@ pub(crate) fn new<'a>(item: &'a input::Item, parent: Option<&'a Ir>) -> darling:
 }
 
 pub(crate) struct Ir<'input> {
-    pub(crate) tight: Spanned<Tight>,
-    pub(crate) attrs: &'input [syn::Attribute],
-    pub(crate) vis: &'input syn::Visibility,
-    pub(crate) ident: &'input syn::Ident,
-    generics: &'input syn::Generics,
+    pub(crate) item: &'input input::Item,
+    pub(crate) tight: Tight,
     pub(crate) data: Data<'input>,
     bounds: Punctuated<syn::WherePredicate, syn::Token![,]>,
-    pub(crate) opt: &'input StructOpt,
     pub(crate) parent: Option<&'input Ir<'input>>,
 }
 
 impl Ir<'_> {
     pub(crate) fn generics(&self) -> &syn::Generics {
-        self.generics
+        &self.item.generics
     }
 
     pub(crate) fn generics_bounded(&self, extra: Option<syn::TypeParamBound>) -> syn::Generics {
-        let mut generics = (*self.generics).clone();
+        let mut generics = self.generics().clone();
         let r#where = generics.make_where_clause();
 
         for mut bound in self.bounds.clone() {
@@ -196,7 +185,9 @@ impl Enum<'_> {
     }
 
     pub(crate) fn discriminant_mask(&self) -> usize {
-        crate::ty::Tight::from_size(false.into(), self.discriminant_size().into()).mask()
+        crate::ty::Tight::from_size(false.into(), self.discriminant_size().into())
+            .unwrap()
+            .mask()
     }
 }
 
@@ -215,13 +206,15 @@ impl Struct<'_> {
     }
 
     pub(crate) fn is_newtype(&self) -> bool {
-        self.iter().count() == 1
+        self.iter_nonzero().count() == 1
+    }
+
+    pub(crate) fn iter_nonzero(&self) -> impl Iterator<Item = &Field> {
+        self.iter().filter(|field| field.ty.size_expected() != 0)
     }
 
     pub(crate) fn iter(&self) -> impl Iterator<Item = &Field> {
-        self.fields
-            .iter()
-            .filter(|field| *field.ty.size_expected() != 0)
+        self.fields.iter()
     }
 }
 
@@ -254,7 +247,7 @@ impl<'input> Field<'input> {
         index: usize,
         field: &'input SpannedValue<input::Field>,
     ) -> darling::Result<Self> {
-        let size = *ty.size_expected();
+        let size = ty.size_expected();
 
         // Special-case ZSTs
         if size == 0 {
@@ -322,7 +315,7 @@ pub(crate) enum FieldIdent<'input> {
 }
 
 impl<'input> FieldIdent<'input> {
-    fn new(index: usize, ident: Option<&'input syn::Ident>) -> Self {
+    pub(crate) fn new(index: usize, ident: Option<&'input syn::Ident>) -> Self {
         ident
             .map(FieldIdent::Named)
             .unwrap_or_else(|| FieldIdent::Unnamed(index))
@@ -332,11 +325,19 @@ impl<'input> FieldIdent<'input> {
         matches!(self, Self::Named(_))
     }
 
-    pub(crate) fn unescaped(&self, prefix: &'static str) -> syn::Ident {
+    pub(crate) fn unescaped(&self, prefix: &'static str) -> TokenStream {
         match self {
+            FieldIdent::Named(named) if prefix.is_empty() => (*named).clone(),
+            FieldIdent::Unnamed(unnamed) if prefix.is_empty() => {
+                return Literal::usize_unsuffixed(*unnamed).to_token_stream()
+            }
+
             FieldIdent::Named(named) => format_ident!("{}_{}", prefix, named),
-            FieldIdent::Unnamed(unnamed) => format_ident!("{}_{}", prefix, unnamed),
+            FieldIdent::Unnamed(unnamed) => {
+                format_ident!("{}_{}", prefix, unnamed)
+            }
         }
+        .to_token_stream()
     }
 
     pub(crate) fn escaped(&self) -> Cow<syn::Ident> {

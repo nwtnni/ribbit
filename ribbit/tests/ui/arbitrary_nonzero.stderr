@@ -1,5 +1,5 @@
 error: Nonzero arbitrary sizes are currently unsupported
- --> tests/ui/arbitrary_nonzero.rs:1:27
+ --> tests/ui/arbitrary_nonzero.rs:5:27
   |
-1 | #[ribbit::pack(size = 15, nonzero)]
+5 | #[ribbit::pack(size = 15, nonzero)]
   |                           ^^^^^^^

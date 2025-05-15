@@ -6,9 +6,7 @@ use crate::ir;
 pub(crate) fn repr(
     ir @ ir::Ir {
         tight: repr,
-        ident,
-        vis,
-        attrs,
+        item,
         data,
         ..
     }: &ir::Ir,
@@ -20,6 +18,8 @@ pub(crate) fn repr(
     // https://github.com/MrGVSV/to_phantom/blob/main/src/lib.rs
     let lifetimes = generics.lifetimes().map(|lifetime| quote!(&#lifetime ()));
     let tys = generics.type_params();
+    let vis = &item.vis;
+    let ident = &item.ident;
 
     let r#struct = quote! {
         #vis struct #ident #generics_ty {
@@ -28,36 +28,41 @@ pub(crate) fn repr(
         }
     };
 
-    let unpacked = match data {
-        ir::Data::Struct(_) => TokenStream::new(),
-        ir::Data::Enum(r#enum) => {
-            let variants = r#enum
-                .variants
-                .iter()
-                .map(|ir::Variant { ident, ty }| match ty {
-                    None => quote!(#ident),
-                    Some(ty) => quote!(#ident(#ty)),
-                });
+    let unpack = match data {
+        ir::Data::Struct(r#struct) => {
+            let fields = r#struct.iter().map(|field| {
+                let name = field.ident.unescaped("");
+                let get = field.ident.escaped();
 
-            let unpacked = ir::Enum::unpacked(ident);
+                quote!(#name: self.#get())
+            });
+
             quote! {
-                #vis enum #unpacked #generics_ty {
-                    #(#variants),*
+                Self::Unpack {
+                    #(
+                        #fields
+                    ),*
                 }
             }
         }
+        ir::Data::Enum(_) => quote!(self.unpack()),
     };
+
+    let attrs = &item.attrs;
+    let unpacked = ir::Enum::unpacked(&item.ident);
 
     quote! {
         #(#attrs)*
         #r#struct
 
-        #unpacked
-
         unsafe impl #generics_impl ::ribbit::Pack for #ident #generics_ty #generics_where {
             const BITS: usize = #size;
+            type Unpack = #unpacked #generics_ty;
             type Tight = #repr;
             type Loose = <#repr as ::ribbit::Pack>::Loose;
+            fn unpack(&self) -> Self::Unpack {
+                #unpack
+            }
         }
     }
 }

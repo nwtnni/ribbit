@@ -14,13 +14,13 @@ pub(crate) fn pre(ir::Ir { data, tight, .. }: &ir::Ir) -> TokenStream {
 
             let nonzero = fields
                 .clone()
-                .filter(|ty| ty.nonzero())
+                .filter(|ty| ty.is_nonzero())
                 .map(|ty| quote!(::ribbit::private::assert_impl_all!(<#ty as ::ribbit::Pack>::Tight: ::ribbit::NonZero)));
 
             let pack = fields.map(|ty| {
                 let expected = ty.size_expected();
                 let actual = ty.size_actual();
-                quote_spanned! {expected.span()=>
+                quote_spanned! {ty.span()=>
                     ::ribbit::private::concat_assert! {
                         #expected >= #actual,
                         "Annotated size ",
@@ -49,18 +49,18 @@ pub(crate) fn pre(ir::Ir { data, tight, .. }: &ir::Ir) -> TokenStream {
 
             let nonzero = variants
                 .clone()
-                .filter(|ty| ty.nonzero())
+                .filter(|ty| ty.is_nonzero())
                 .map(|ty| quote!(::ribbit::private::assert_impl_all!(#ty: ::ribbit::NonZero)));
 
             let size_enum = tight.size();
             let size_discriminant = r#enum.discriminant_size();
-            let size_variant = *size_enum - size_discriminant;
+            let size_variant = size_enum - size_discriminant;
 
             let pack = variants.map(|ty| {
                 let expected = ty.size_expected();
                 let actual = ty.size_actual();
 
-                quote_spanned! {expected.span()=>
+                quote_spanned! {ty.span()=>
                     ::ribbit::private::concat_assert! {
                         #expected >= #actual,
                         "Annotated size ",

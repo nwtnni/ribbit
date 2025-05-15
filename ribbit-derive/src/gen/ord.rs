@@ -7,12 +7,13 @@ use crate::ir;
 #[derive(FromMeta, Clone, Debug)]
 pub(crate) struct StructOpt;
 
-pub(crate) fn ord(ir @ ir::Ir { opt, ident, .. }: &ir::Ir) -> TokenStream {
-    if opt.ord.is_none() {
+pub(crate) fn ord(ir @ ir::Ir { item, .. }: &ir::Ir) -> TokenStream {
+    if item.opt.ord.is_none() {
         return TokenStream::new();
     }
 
     let (r#impl, ty, r#where) = ir.generics().split_for_impl();
+    let ident = &item.ident;
 
     quote! {
         impl #r#impl PartialOrd for #ident #ty #r#where {

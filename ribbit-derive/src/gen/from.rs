@@ -7,12 +7,8 @@ use crate::ir;
 #[derive(FromMeta, Clone, Debug)]
 pub(crate) struct StructOpt;
 
-pub(crate) fn from(
-    ir @ ir::Ir {
-        opt, ident, parent, ..
-    }: &ir::Ir,
-) -> TokenStream {
-    let Some(StructOpt) = &opt.from else {
+pub(crate) fn from(ir @ ir::Ir { item, parent, .. }: &ir::Ir) -> TokenStream {
+    let Some(StructOpt) = &item.opt.from else {
         return TokenStream::new();
     };
 
@@ -25,9 +21,9 @@ pub(crate) fn from(
 
     match parent {
         None => {
-            let packed = ident;
+            let packed = &item.ident;
             let unpacked = ir::Enum::unpacked(packed);
-            let new = opt.new.name();
+            let new = item.opt.new.name();
 
             quote! {
                 impl #r#impl From<#unpacked #ty> for #packed #ty #r#where {
@@ -39,10 +35,10 @@ pub(crate) fn from(
             }
         }
         Some(parent) => {
-            let variant = &ident;
-            let packed = &parent.ident;
+            let variant = &item.ident;
+            let packed = &parent.item.ident;
             let unpacked = ir::Enum::unpacked(packed);
-            let new = parent.opt.new.name();
+            let new = parent.item.opt.new.name();
 
             quote!(
                 impl #r#impl From<#variant #ty> for #unpacked #ty #r#where {

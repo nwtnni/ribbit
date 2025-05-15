@@ -2,6 +2,7 @@ use std::fmt::Display;
 
 use crate::ty;
 
+#[derive(Debug)]
 pub enum Error {
     Overflow {
         /// Which bit the field should start at.
