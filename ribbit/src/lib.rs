@@ -8,6 +8,15 @@ pub use ribbit_derive::pack;
 /// Marks a type that can be packed into `BITS`.
 ///
 /// Currently supports sizes up to 64 bits.
+///
+/// # Safety
+///
+/// This trait should only be implemented by the `pack` macro.
+///
+/// Implementer must ensure:
+/// - Type has size `BITS`
+/// - Type has the same size and alignment as `Tight` and `Loose`
+/// - Every valid bit pattern of type is a valid bit pattern of `Tight`.
 pub unsafe trait Pack: Copy + Sized {
     /// The number of bits in the packed representation.
     const BITS: usize;
@@ -19,25 +28,128 @@ pub unsafe trait Pack: Copy + Sized {
     type Loose: Loose;
 }
 
-trait Loose: Copy {}
+/// Native integer type, or non-native integer type with stronger guarantees
+/// (e.g. `NonZero`, arbitrary-sized integer).
+//
+// Used internally as the backing representation of a packed type,
+// so that the compiler can take advantage of the type's guarantees.
 trait Tight: Copy {}
+
+/// Native integer type.
+///
+/// # Safety
+///
+/// Zero must be a valid bit pattern for this type.
+//
+// Used internally for `const`-compatible conversions between packed
+// and tight types.
+unsafe trait Loose: Copy {}
+
+impl<T: Loose> Tight for T {}
+
+/// Implements `const`-compatible conversions between packed, loose, and tight
+/// representations.
+pub mod convert {
+    use super::Loose;
+    use super::Pack;
+
+    union Transmute<T: Pack> {
+        value: T,
+        loose: T::Loose,
+        tight: T::Tight,
+    }
+
+    /// Convert from a packed struct to a native integer type.
+    #[inline]
+    pub const fn packed_to_loose<T: Pack>(value: T) -> T::Loose {
+        const { assert_layout::<T>() }
+        unsafe { Transmute { value }.loose }
+    }
+
+    /// Convert from a packed struct to an integer type.
+    #[inline]
+    pub const fn packed_to_tight<T: Pack>(value: T) -> T::Tight {
+        const { assert_layout::<T>() }
+        unsafe { Transmute { value }.tight }
+    }
+
+    /// Convert from a native integer type to a packed struct.
+    ///
+    /// # Safety
+    ///
+    /// Caller must guarantee that `loose` is a valid bit pattern for type `T`.
+    #[inline]
+    pub const unsafe fn loose_to_packed<T: Pack>(loose: T::Loose) -> T {
+        const { assert_layout::<T>() }
+        Transmute { loose }.value
+    }
+
+    /// Convert from an integer type to a packed struct.
+    ///
+    /// # Safety
+    ///
+    /// Caller must guarantee that `loose` is a valid bit pattern for type `T`.
+    #[inline]
+    pub const unsafe fn tight_to_packed<T: Pack>(tight: T::Tight) -> T {
+        const { assert_layout::<T>() }
+        Transmute { tight }.value
+    }
+
+    union Convert<F: Loose, I: Loose> {
+        from: F,
+        into: I,
+    }
+
+    /// Convert between two generic native integer types.
+    #[inline]
+    #[allow(private_bounds)]
+    pub const fn loose_to_loose<F: Loose, I: Loose>(from: F) -> I {
+        // SAFETY: `Loose` is only implemented for native integer types.
+        unsafe {
+            // Required to avoid reading uninitialized memory
+            let mut zeroed = core::mem::zeroed::<Convert<F, I>>();
+            zeroed.from = from;
+            zeroed.into
+        }
+    }
+
+    // Sanity check for size and alignment at compile time.
+    const fn assert_layout<T: Pack>() {
+        const {
+            assert!(
+                core::mem::size_of::<T>() == core::mem::size_of::<T::Tight>()
+                    && core::mem::size_of::<T>() == core::mem::size_of::<T::Loose>()
+            );
+
+            assert!(
+                core::mem::align_of::<T>() == core::mem::align_of::<T::Tight>()
+                    && core::mem::align_of::<T>() == core::mem::align_of::<T::Loose>()
+            );
+        }
+    }
+}
 
 #[rustfmt::skip]
 macro_rules! impl_impl_number {
-    ($name:ident, $loose:ty, $dollar:tt) => {
-        impl seal::Seal for $loose {}
-        impl Loose for $loose {}
+    ($name:ident, $loose:ty, $loose_bits:expr, $dollar:tt) => {
+        unsafe impl Loose for $loose {}
+
+        unsafe impl Pack for $loose {
+            const BITS: usize = $loose_bits;
+            type Tight = $loose;
+            type Loose = $loose;
+        }
 
         macro_rules! $name {
             ($dollar($ty:ident: $bits:expr),* $dollar(,)?) => {
                 $dollar(
+                    impl Tight for private::$ty {}
+
                     unsafe impl Pack for private::$ty {
                         const BITS: usize = $bits;
                         type Tight = private::$ty;
                         type Loose = $loose;
                     }
-
-                    impl Tight for private::$ty {}
                 )*
             };
         }
@@ -50,9 +162,7 @@ unsafe impl Pack for () {
     type Loose = ();
 }
 
-impl seal::Seal for () {}
-impl Loose for () {}
-impl Tight for () {}
+unsafe impl Loose for () {}
 
 unsafe impl Pack for bool {
     const BITS: usize = 1;
@@ -60,11 +170,9 @@ unsafe impl Pack for bool {
     type Loose = u8;
 }
 
-impl seal::Seal for bool {}
-impl Loose for bool {}
-impl Tight for bool {}
+unsafe impl Loose for bool {}
 
-impl_impl_number!(impl_u8, u8, $);
+impl_impl_number!(impl_u8, u8, 8, $);
 impl_u8!(
     u1: 1,
     u2: 2,
@@ -73,10 +181,9 @@ impl_u8!(
     u5: 5,
     u6: 6,
     u7: 7,
-    u8: 8,
 );
 
-impl_impl_number!(impl_u16, u16, $);
+impl_impl_number!(impl_u16, u16, 16, $);
 impl_u16!(
     u9: 9,
     u10: 10,
@@ -85,10 +192,9 @@ impl_u16!(
     u13: 13,
     u14: 14,
     u15: 15,
-    u16: 16,
 );
 
-impl_impl_number!(impl_u32, u32, $);
+impl_impl_number!(impl_u32, u32, 32, $);
 impl_u32!(
     u17: 17,
     u18: 18,
@@ -105,10 +211,9 @@ impl_u32!(
     u29: 29,
     u30: 30,
     u31: 31,
-    u32: 32,
 );
 
-impl_impl_number!(impl_u64, u64, $);
+impl_impl_number!(impl_u64, u64, 64, $);
 impl_u64!(
     u33: 33,
     u34: 34,
@@ -141,11 +246,17 @@ impl_u64!(
     u61: 61,
     u62: 62,
     u63: 63,
-    u64: 64,
 );
 
+/// Marker trait asserting that values of this type cannot be zero.
+///
+/// # Safety
+///
+/// Sealed trait cannot be implemented outside of this crate.
+///
+/// Implementer must guarantee that zero is not a valid bit pattern for this type.
 #[allow(private_bounds)]
-pub trait NonZero: seal::Seal {}
+pub unsafe trait NonZero: seal::Seal {}
 
 mod seal {
     pub(super) trait Seal {}
@@ -161,7 +272,7 @@ macro_rules! impl_nonzero {
 
         impl Tight for $ty {}
         impl seal::Seal for $ty {}
-        impl NonZero for $ty {}
+        unsafe impl NonZero for $ty {}
     };
 }
 
@@ -261,54 +372,4 @@ pub mod private {
     pub use ::static_assertions::assert_impl_all;
     pub use ::const_panic::concat_assert;
     pub use ::core::marker::PhantomData;
-
-    use crate::Loose;
-    use crate::Pack;
-
-    union Transmute<T: Pack> {
-        value: T,
-        loose: T::Loose,
-    }
-
-    const fn assert_layout<T: Pack>() {
-        const {
-            assert!(
-                core::mem::size_of::<T>() == core::mem::size_of::<T::Tight>()
-                && core::mem::size_of::<T>() == core::mem::size_of::<T::Loose>()
-            );
-
-            assert!(
-                core::mem::align_of::<T>() == core::mem::align_of::<T::Tight>()
-                && core::mem::align_of::<T>() == core::mem::align_of::<T::Loose>()
-            );
-        }
-    }
-
-    #[inline]
-    pub const fn pack<T: Pack>(value: T) -> T::Loose {
-        const { assert_layout::<T>() }
-        unsafe { Transmute { value }.loose }
-    }
-
-    #[inline]
-    pub const unsafe fn unpack<T: Pack>(loose: T::Loose) -> T {
-        const { assert_layout::<T>() }
-        Transmute { loose }.value
-    }
-
-    union Convert<F: Loose, I: Loose> {
-        from: F,
-        into: I,
-    }
-
-    #[inline]
-    #[allow(private_bounds)]
-    pub const fn convert<F: Loose, I: Loose>(from: F) -> I {
-        unsafe {
-            // Required to avoid reading uninitialized memory
-            let mut zeroed = core::mem::zeroed::<Convert<F, I>>();
-            zeroed.from = from;
-            zeroed.into
-        }
-    }
 }

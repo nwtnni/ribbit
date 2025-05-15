@@ -77,11 +77,13 @@ impl<V: ToTokens> ToTokens for Loose<V> {
             Value::Compile(value) => self.ty.loosen().literal(*value).to_tokens(tokens),
             Value::Run(value) => match &self.ty {
                 ty::Tree::Leaf(leaf) if leaf.is_loose() => value.to_tokens(tokens),
-                ty::Tree::Leaf(_) => quote!(::ribbit::private::pack(#value)).to_tokens(tokens),
+                ty::Tree::Leaf(_) => {
+                    quote!(::ribbit::convert::packed_to_loose(#value)).to_tokens(tokens)
+                }
                 ty::Tree::Node(node) => {
                     let loose = node.loosen();
-                    let inner = quote!(::ribbit::private::convert::<_, #loose>(
-                        ::ribbit::private::pack(#value)
+                    let inner = quote!(::ribbit::convert::loose_to_loose::<_, #loose>(
+                        ::ribbit::convert::packed_to_loose(#value)
                     ));
                     inner.to_tokens(tokens)
                 }
@@ -269,10 +271,10 @@ impl<V: Loosen> ToTokens for Tight<V> {
         match &self.ty {
             ty::Tree::Leaf(leaf) if leaf.is_loose() => inner,
             ty::Tree::Leaf(leaf) => quote!(unsafe {
-                ::ribbit::private::unpack::<#leaf>(#inner)
+                ::ribbit::convert::loose_to_packed::<#leaf>(#inner)
             }),
             ty::Tree::Node(node) => quote! {
-                unsafe { ::ribbit::private::unpack::<#node>(::ribbit::private::convert(#inner)) }
+                unsafe { ::ribbit::convert::loose_to_packed::<#node>(::ribbit::convert::loose_to_loose(#inner)) }
             },
         }
         .to_tokens(tokens)

@@ -53,10 +53,10 @@ fn pack_zst() {
     let zst = Foo::new();
 
     #[allow(clippy::let_unit_value)]
-    let packed = ribbit::private::pack(zst);
-    let unpacked = unsafe { ribbit::private::unpack::<Foo>(packed) };
+    let loose = ribbit::convert::packed_to_loose(zst);
+    let packed = unsafe { ribbit::convert::loose_to_packed::<Foo>(loose) };
 
-    assert_eq!(zst, unpacked);
+    assert_eq!(zst, packed);
 }
 
 #[test]
