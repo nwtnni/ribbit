@@ -185,7 +185,7 @@ impl Enum<'_> {
     }
 
     pub(crate) fn discriminant_mask(&self) -> usize {
-        crate::ty::Tight::from_size(false.into(), self.discriminant_size().into())
+        crate::ty::Tight::from_size(false, self.discriminant_size())
             .unwrap()
             .mask()
     }
