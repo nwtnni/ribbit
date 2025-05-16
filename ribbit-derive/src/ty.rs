@@ -105,7 +105,7 @@ impl Tree {
         quote!(<#self as ::ribbit::Pack>::BITS)
     }
 
-    pub(crate) fn mask(&self) -> usize {
+    pub(crate) fn mask(&self) -> u128 {
         match self {
             Tree::Node(node) => node.tighten().mask(),
             Tree::Leaf(leaf) => leaf.mask(),

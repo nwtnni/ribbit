@@ -50,7 +50,7 @@ pub(crate) fn get<'ir>(
             let unpacked = ir::Enum::unpacked(&item.ident);
 
             let variants = variants.iter().enumerate().map(|(index, variant)| {
-                let discriminant = tight.loosen().literal(index);
+                let discriminant = tight.loosen().literal(index as u128);
                 let ident = &variant.ident;
                 let value = match variant.ty.as_deref().cloned() {
                     None => quote!(#unpacked::#ident),

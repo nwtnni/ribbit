@@ -140,6 +140,12 @@ fn type_path() {
 
 #[test]
 fn u128() {
+    #[ribbit::pack(size = 128)]
+    struct Tuple(u32, u32, u64);
+
     #[ribbit::pack(size = 128, nonzero)]
-    struct Large(NonZeroU128);
+    struct NonZero(NonZeroU128);
+
+    #[ribbit::pack(size = 99)]
+    struct Arbitrary(u99);
 }

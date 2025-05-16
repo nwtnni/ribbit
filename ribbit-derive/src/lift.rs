@@ -74,7 +74,7 @@ impl<V: ToTokens> Loosen for Loose<V> {
 impl<V: ToTokens> ToTokens for Loose<V> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match &self.value {
-            Value::Compile(value) => self.ty.loosen().literal(*value).to_tokens(tokens),
+            Value::Compile(value) => self.ty.loosen().literal(*value as u128).to_tokens(tokens),
             Value::Run(value) => match &self.ty {
                 ty::Tree::Leaf(leaf) if leaf.is_loose() => value.to_tokens(tokens),
                 ty::Tree::Leaf(_) => {
@@ -105,9 +105,9 @@ impl<V: ToTokens, T: Into<ty::Tree>> Rem<T> for Value<V> {
     }
 }
 
-impl<'a, V: Loosen> BitAnd<usize> for Expression<'a, V> {
+impl<'a, V: Loosen> BitAnd<u128> for Expression<'a, V> {
     type Output = Expression<'static, Expression<'a, V>>;
-    fn bitand(self, mask: usize) -> Self::Output {
+    fn bitand(self, mask: u128) -> Self::Output {
         Expression {
             inner: self,
             op: Op::And(mask),
@@ -183,7 +183,7 @@ pub struct Expression<'ir, V> {
 pub(crate) enum Op<'ir> {
     Pass,
     Shift { dir: Dir, shift: usize },
-    And(usize),
+    And(u128),
     Or(Box<dyn Loosen + 'ir>),
     Cast(ty::Loose),
 }
@@ -231,7 +231,7 @@ impl<V: Loosen> ToTokens for Expression<'_, V> {
 
             Op::Shift { dir: _, shift: 0 } => inner,
             Op::Shift { dir, shift } => {
-                let shift = self.loose().literal(*shift);
+                let shift = self.loose().literal(*shift as u128);
                 quote!((#inner #dir #shift))
             }
 

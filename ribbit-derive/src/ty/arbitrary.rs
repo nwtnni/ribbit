@@ -21,11 +21,11 @@ impl Arbitrary {
         self.size
     }
 
-    pub(crate) fn mask(&self) -> usize {
-        1usize
+    pub(crate) fn mask(&self) -> u128 {
+        1u128
             .checked_shl(self.size as u32)
             .and_then(|mask| mask.checked_sub(1))
-            .unwrap_or(usize::MAX)
+            .unwrap_or(u128::MAX)
     }
 
     pub(crate) fn loosen(&self) -> Loose {

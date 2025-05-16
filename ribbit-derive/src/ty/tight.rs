@@ -149,7 +149,7 @@ impl Tight {
         }
     }
 
-    pub(crate) fn mask(&self) -> usize {
+    pub(crate) fn mask(&self) -> u128 {
         match self {
             Tight::Loose { signed: _, loose } => loose.mask(),
             Tight::Arbitrary { inner, path: _ } => inner.mask(),

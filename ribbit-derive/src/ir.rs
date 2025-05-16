@@ -184,7 +184,7 @@ impl Enum<'_> {
         self.variants.len().next_power_of_two().trailing_zeros() as usize
     }
 
-    pub(crate) fn discriminant_mask(&self) -> usize {
+    pub(crate) fn discriminant_mask(&self) -> u128 {
         crate::ty::Tight::from_size(false, self.discriminant_size())
             .unwrap()
             .mask()
