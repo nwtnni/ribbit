@@ -106,3 +106,17 @@ atomic!(A8, AtomicU8, u8, 8);
 atomic!(A16, AtomicU16, u16, 16);
 atomic!(A32, AtomicU32, u32, 32);
 atomic!(A64, AtomicU64, u64, 64);
+
+#[cfg(feature = "atomic-u128")]
+portable_atomic::cfg_has_atomic_128! {
+    atomic!(A128, ::portable_atomic::AtomicU128, u128, 128);
+}
+
+#[cfg(feature = "atomic-u128")]
+portable_atomic::cfg_no_atomic_128! {
+    compile_error!(
+        "atomic-u128 feature enabled, \
+        but not supported by target: \
+        maybe missing target feature? \
+        (https://github.com/taiki-e/portable-atomic/blob/8bd3b5d267a69d37ab31b74ceb845a8345c1eaf5/src/imp/atomic128/README.md)");
+}
