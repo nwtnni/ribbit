@@ -108,3 +108,18 @@ fn from() {
 
     assert_eq!(a, c);
 }
+
+#[test]
+fn unpack_macro() {
+    #[ribbit::pack(size = 8, debug, from, eq)]
+    enum Outer {
+        #[ribbit(size = 8, debug, from, eq)]
+        Inner { value: u8 },
+    }
+
+    let a = Outer::from(Inner::new(0u8));
+    let b = <ribbit::unpack![Outer]>::from(Inner::new(0u8));
+    let c = Outer::from(b);
+
+    assert_eq!(a, c);
+}

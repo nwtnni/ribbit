@@ -7,6 +7,13 @@ use core::num::NonZeroU8;
 pub use arbitrary_int::*;
 pub use ribbit_derive::pack;
 
+#[macro_export]
+macro_rules! unpack {
+    ($packed:ty) => {
+        <$packed as $crate::Pack>::Unpack
+    };
+}
+
 /// Marks a type that can be packed into `BITS`.
 ///
 /// Currently supports sizes up to 64 bits.
