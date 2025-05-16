@@ -7,6 +7,8 @@ use core::num::NonZeroU8;
 pub use arbitrary_int::*;
 pub use ribbit_derive::pack;
 
+pub mod atomic;
+
 #[macro_export]
 macro_rules! unpack {
     ($packed:ty) => {
