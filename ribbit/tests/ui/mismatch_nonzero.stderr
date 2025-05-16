@@ -5,6 +5,7 @@ error[E0277]: the trait bound `u16: ribbit::NonZero` is not satisfied
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `ribbit::NonZero` is not implemented for `u16`
   |
   = help: the following other types implement trait `ribbit::NonZero`:
+            std::num::NonZero<u128>
             std::num::NonZero<u16>
             std::num::NonZero<u32>
             std::num::NonZero<u64>

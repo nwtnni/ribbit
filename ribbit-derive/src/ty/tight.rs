@@ -213,6 +213,10 @@ impl ToTokens for Tight {
                 path: None,
             } => quote!(NonZeroU64),
             Tight::NonZero {
+                inner: Loose::N128,
+                path: None,
+            } => quote!(NonZeroU128),
+            Tight::NonZero {
                 inner: _,
                 path: None,
             } => unreachable!(),
@@ -262,6 +266,10 @@ impl Display for Tight {
                 inner: Loose::N64,
                 path: None,
             } => "NonZeroU64".fmt(f),
+            Tight::NonZero {
+                inner: Loose::N128,
+                path: None,
+            } => "NonZeroU128".fmt(f),
             Tight::NonZero {
                 inner: _,
                 path: None,

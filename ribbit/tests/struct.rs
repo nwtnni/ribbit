@@ -1,4 +1,5 @@
 use arbitrary_int::*;
+use core::num::NonZeroU128;
 use core::num::NonZeroU16;
 
 #[test]
@@ -135,4 +136,10 @@ fn type_path() {
     let path = Path::new(::std::num::NonZeroU8::new(5).unwrap(), ribbit::u24::new(22));
     assert_eq!(path.a().get(), 5);
     assert_eq!(path.b().value(), 22);
+}
+
+#[test]
+fn u128() {
+    #[ribbit::pack(size = 128, nonzero)]
+    struct Large(NonZeroU128);
 }

@@ -1,4 +1,5 @@
 use core::marker::PhantomData;
+use core::num::NonZeroU128;
 use core::num::NonZeroU16;
 use core::num::NonZeroU32;
 use core::num::NonZeroU64;
@@ -18,7 +19,7 @@ macro_rules! unpack {
 
 /// Marks a type that can be packed into `BITS`.
 ///
-/// Currently supports sizes up to 64 bits.
+/// Currently supports sizes up to 128 bits.
 ///
 /// # Safety
 ///
@@ -296,6 +297,73 @@ impl_u64!(
     u63: 63,
 );
 
+impl_impl_number!(impl_u128, u128, 128, $);
+impl_u128!(
+    u65: 65,
+    u66: 66,
+    u67: 67,
+    u68: 68,
+    u69: 69,
+    u70: 70,
+    u71: 71,
+    u72: 72,
+    u73: 73,
+    u74: 74,
+    u75: 75,
+    u76: 76,
+    u77: 77,
+    u78: 78,
+    u79: 79,
+    u80: 80,
+    u81: 81,
+    u82: 82,
+    u83: 83,
+    u84: 84,
+    u85: 85,
+    u86: 86,
+    u87: 87,
+    u88: 88,
+    u89: 89,
+    u90: 90,
+    u91: 91,
+    u92: 92,
+    u93: 93,
+    u94: 94,
+    u95: 95,
+    u96: 96,
+    u97: 97,
+    u98: 98,
+    u99: 99,
+    u100: 100,
+    u101: 101,
+    u102: 102,
+    u103: 103,
+    u104: 104,
+    u105: 105,
+    u106: 106,
+    u107: 107,
+    u108: 108,
+    u109: 109,
+    u110: 110,
+    u111: 111,
+    u112: 112,
+    u113: 113,
+    u114: 114,
+    u115: 115,
+    u116: 116,
+    u117: 117,
+    u118: 118,
+    u119: 119,
+    u120: 120,
+    u121: 121,
+    u122: 122,
+    u123: 123,
+    u124: 124,
+    u125: 125,
+    u126: 126,
+    u127: 127,
+);
+
 /// Marker trait asserting that values of this type cannot be zero.
 ///
 /// # Safety
@@ -332,6 +400,7 @@ impl_nonzero!(NonZeroU8, u8, 8);
 impl_nonzero!(NonZeroU16, u16, 16);
 impl_nonzero!(NonZeroU32, u32, 32);
 impl_nonzero!(NonZeroU64, u64, 64);
+impl_nonzero!(NonZeroU128, u128, 128);
 
 impl<T> Tight for Option<T> where T: Tight + NonZero {}
 
@@ -359,11 +428,13 @@ pub mod private {
     pub use ::core::primitive::u16;
     pub use ::core::primitive::u32;
     pub use ::core::primitive::u64;
+    pub use ::core::primitive::u128;
 
     pub use ::core::num::NonZeroU8;
     pub use ::core::num::NonZeroU16;
     pub use ::core::num::NonZeroU32;
     pub use ::core::num::NonZeroU64;
+    pub use ::core::num::NonZeroU128;
 
     pub use ::arbitrary_int::*;
     pub use ::static_assertions::assert_impl_all;

@@ -34,6 +34,7 @@ impl Arbitrary {
             9..=15 => Loose::N16,
             17..=31 => Loose::N32,
             33..=63 => Loose::N64,
+            65..=127 => Loose::N128,
             _ => unreachable!(),
         }
     }

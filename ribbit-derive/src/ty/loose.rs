@@ -15,6 +15,7 @@ pub(crate) enum Loose {
     N16,
     N32,
     N64,
+    N128,
 }
 
 impl Loose {
@@ -32,6 +33,7 @@ impl Loose {
             16 => Self::N16,
             32 => Self::N32,
             64 => Self::N64,
+            128 => Self::N128,
             _ => return None,
         };
 
@@ -63,6 +65,7 @@ impl Loose {
             Self::N16 => 16,
             Self::N32 => 32,
             Self::N64 => 64,
+            Self::N128 => 128,
         }
     }
 
@@ -85,6 +88,7 @@ impl Loose {
             Self::N16 => Literal::u16_suffixed(value.try_into().unwrap()),
             Self::N32 => Literal::u32_suffixed(value.try_into().unwrap()),
             Self::N64 => Literal::u64_suffixed(value.try_into().unwrap()),
+            Self::N128 => Literal::u128_suffixed(value.try_into().unwrap()),
         }
         .to_token_stream()
     }
@@ -99,6 +103,7 @@ impl ToTokens for Loose {
             Self::N16 => quote!(u16),
             Self::N32 => quote!(u32),
             Self::N64 => quote!(u64),
+            Self::N128 => quote!(u128),
         };
 
         quote!(::ribbit::private::#ident).to_tokens(tokens)
@@ -114,6 +119,7 @@ impl Display for Loose {
             Loose::N16 => "u16",
             Loose::N32 => "u32",
             Loose::N64 => "u64",
+            Loose::N128 => "u128",
         };
 
         write!(f, "{}", name)
