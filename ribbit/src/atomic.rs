@@ -57,6 +57,14 @@ macro_rules! atomic {
                 self.value.store(Self::loosen(value), ordering)
             }
 
+            pub fn get(&mut self) -> T {
+                Self::pack(*self.value.get_mut())
+            }
+
+            pub fn set(&mut self, value: T) {
+                *self.value.get_mut() = Self::loosen(value);
+            }
+
             pub fn compare_exchange(
                 &self,
                 old: T,

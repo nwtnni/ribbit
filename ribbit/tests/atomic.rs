@@ -87,3 +87,21 @@ fn undersized() {
         Foo::new(6u8.into(), 11u8.into())
     );
 }
+
+#[test]
+fn unique() {
+    use ribbit::atomic::A64;
+
+    #[ribbit::pack(size = 64, debug, eq)]
+    struct Foo {
+        lo: u9,
+        hi: u26,
+    }
+
+    #[allow(clippy::disallowed_names)]
+    let mut foo = A64::new(Foo::new(5u8.into(), 10u8.into()));
+
+    foo.set(Foo::new(9u8.into(), 3u8.into()));
+
+    assert_eq!(foo.get(), Foo::new(9u8.into(), 3u8.into()),);
+}
