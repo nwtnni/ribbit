@@ -65,9 +65,15 @@ pub(crate) fn debug(ir @ ir::Ir { item, data, .. }: &ir::Ir) -> TokenStream {
 
             let variants = variants.iter().map(|variant| {
                 let name = variant.ident;
+                let full = quote!(concat!(stringify!(#ident), "::", stringify!(#name)));
+
                 match variant.ty.is_some() {
-                    true => quote!(Self::#name(variant) => ::core::fmt::Debug::fmt(variant, f)),
-                    false => quote!(Self::#name => write!(f, stringify!(#name))),
+                    true => quote!(Self::#name(variant) => {
+                        f.debug_tuple(#full)
+                            .field(&variant)
+                            .finish()
+                    }),
+                    false => quote!(Self::#name => write!(f, #full)),
                 }
             });
 
