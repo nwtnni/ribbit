@@ -110,14 +110,14 @@ macro_rules! atomic {
     };
 }
 
-atomic!(A8, AtomicU8, u8, 8);
-atomic!(A16, AtomicU16, u16, 16);
-atomic!(A32, AtomicU32, u32, 32);
-atomic!(A64, AtomicU64, u64, 64);
+atomic!(Atomic8, AtomicU8, u8, 8);
+atomic!(Atomic16, AtomicU16, u16, 16);
+atomic!(Atomic32, AtomicU32, u32, 32);
+atomic!(Atomic64, AtomicU64, u64, 64);
 
 #[cfg(feature = "atomic-u128")]
 portable_atomic::cfg_has_atomic_128! {
-    atomic!(A128, ::portable_atomic::AtomicU128, u128, 128);
+    atomic!(Atomic128, ::portable_atomic::AtomicU128, u128, 128);
 }
 
 #[cfg(feature = "atomic-u128")]

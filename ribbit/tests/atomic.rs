@@ -6,7 +6,7 @@ use ribbit::u9;
 
 #[test]
 fn aligned() {
-    use ribbit::atomic::A32;
+    use ribbit::atomic::Atomic32;
 
     #[ribbit::pack(size = 32, debug, eq)]
     struct Foo {
@@ -15,7 +15,7 @@ fn aligned() {
     }
 
     #[allow(clippy::disallowed_names)]
-    let foo = A32::new(Foo::new(5, 10));
+    let foo = Atomic32::new(Foo::new(5, 10));
 
     assert_eq!(
         foo.compare_exchange(
@@ -32,7 +32,7 @@ fn aligned() {
 
 #[test]
 fn unaligned() {
-    use ribbit::atomic::A32;
+    use ribbit::atomic::Atomic32;
 
     #[ribbit::pack(size = 32, debug, eq)]
     struct Foo {
@@ -41,7 +41,7 @@ fn unaligned() {
     }
 
     #[allow(clippy::disallowed_names)]
-    let foo = A32::new(Foo::new(5u8.into(), 10u8.into()));
+    let foo = Atomic32::new(Foo::new(5u8.into(), 10u8.into()));
 
     assert_eq!(
         foo.compare_exchange(
@@ -61,7 +61,7 @@ fn unaligned() {
 
 #[test]
 fn undersized() {
-    use ribbit::atomic::A64;
+    use ribbit::atomic::Atomic64;
 
     #[ribbit::pack(size = 64, debug, eq)]
     struct Foo {
@@ -70,7 +70,7 @@ fn undersized() {
     }
 
     #[allow(clippy::disallowed_names)]
-    let foo = A64::new(Foo::new(5u8.into(), 10u8.into()));
+    let foo = Atomic64::new(Foo::new(5u8.into(), 10u8.into()));
 
     assert_eq!(
         foo.compare_exchange(
@@ -90,7 +90,7 @@ fn undersized() {
 
 #[test]
 fn unique() {
-    use ribbit::atomic::A64;
+    use ribbit::atomic::Atomic64;
 
     #[ribbit::pack(size = 64, debug, eq)]
     struct Foo {
@@ -99,7 +99,7 @@ fn unique() {
     }
 
     #[allow(clippy::disallowed_names)]
-    let mut foo = A64::new(Foo::new(5u8.into(), 10u8.into()));
+    let mut foo = Atomic64::new(Foo::new(5u8.into(), 10u8.into()));
 
     foo.set(Foo::new(9u8.into(), 3u8.into()));
 
