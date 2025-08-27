@@ -45,15 +45,16 @@ impl Loose {
             return value;
         }
 
-        match into {
-            Loose::Unit => quote!(()),
-            Loose::Bool => {
+        match (from, into) {
+            (_, Loose::Unit) => quote!(()),
+            (Loose::Unit, _) => into.literal(0),
+            (Loose::Bool, _) => {
                 // Serves as a truncating cast
                 let zero = from.literal(0);
                 let one = from.literal(1);
                 quote!(((#value & #one) > #zero))
             }
-            _ => quote!((#value as #into)),
+            (_, _) => quote!((#value as #into)),
         }
     }
 
