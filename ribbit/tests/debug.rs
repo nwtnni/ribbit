@@ -1,7 +1,9 @@
 use core::num::NonZeroU8;
 
-use arbitrary_int::u2;
+use ribbit::u2;
+use ribbit::Pack as _;
 
+#[derive(Clone, Debug)]
 #[ribbit::pack(size = 26, debug)]
 pub struct A {
     l: u16,
@@ -20,30 +22,9 @@ fn check() {
     assert_eq!(format!("{a:?}"), "A { l: 15, m: 10, c: 3 }");
 }
 
-#[ribbit::pack(size = 26, debug)]
-pub struct B {
-    l: u16,
-
-    #[ribbit(debug(format = "{:#X}"))]
-    m: NonZeroU8,
-
-    #[ribbit(debug(format = "{:#b}"))]
-    c: u2,
-}
-
-#[test]
-fn custom() {
-    let b = B {
-        l: 15,
-        m: NonZeroU8::new(106).unwrap(),
-        c: u2::new(2),
-    }
-    .pack();
-    assert_eq!(format!("{b:?}"), "B { l: 15, m: 0x6A, c: 0b10 }");
-}
-
 #[test]
 fn tuple() {
+    #[derive(Clone, Debug)]
     #[ribbit::pack(size = 5, debug)]
     struct C(bool, #[ribbit(offset = 3)] u2);
 

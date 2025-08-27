@@ -1,6 +1,8 @@
-use arbitrary_int::u3;
-use arbitrary_int::u7;
+use ribbit::u3;
+use ribbit::u7;
+use ribbit::Pack as _;
 
+#[derive(Clone)]
 #[ribbit::pack(size = 48)]
 struct Versioned<T> {
     version: u16,
@@ -8,9 +10,11 @@ struct Versioned<T> {
     inner: T,
 }
 
+#[derive(Clone)]
 #[ribbit::pack(size = 32)]
 struct A(u32);
 
+#[derive(Clone)]
 #[ribbit::pack(size = 32)]
 struct B {
     hi: u16,
@@ -125,9 +129,11 @@ fn compose() {
 
 #[test]
 fn relax() {
+    #[derive(Clone, Debug)]
     #[ribbit::pack(size = 3, debug, eq)]
     struct Small(u3);
 
+    #[derive(Clone)]
     #[ribbit::pack(size = 24, debug)]
     struct Large<T> {
         #[ribbit(size = 16)]
@@ -136,8 +142,8 @@ fn relax() {
     }
 
     let a = Small(u3::new(3));
-    let b = Large { a, b: 7 }.pack();
+    let b = Large { a: a.clone(), b: 7 }.pack();
 
-    assert_eq!(b.a().unpack(), a);
-    assert_eq!(b.b().unpack(), 7);
+    assert_eq!(b.a(), a.pack());
+    assert_eq!(b.b(), 7);
 }

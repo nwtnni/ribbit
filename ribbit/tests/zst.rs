@@ -84,7 +84,7 @@ fn phantom_nonzero() {
 
 #[test]
 fn pack_zst() {
-    #[derive(Clone)]
+    #[derive(Clone, Debug)]
     #[ribbit::pack(size = 0, debug, eq)]
     struct Foo;
 

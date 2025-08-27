@@ -1,7 +1,10 @@
 use core::num::NonZeroU64;
 
+use ribbit::Pack as _;
+
 #[test]
 fn one_native() {
+    #[derive(Clone)]
     #[ribbit::pack(size = 32)]
     pub struct OneNative(u32);
 
@@ -13,6 +16,7 @@ fn one_native() {
 
 #[test]
 fn one_non_zero() {
+    #[derive(Clone)]
     #[ribbit::pack(size = 64, nonzero)]
     pub struct OneNonZero(NonZeroU64);
 
