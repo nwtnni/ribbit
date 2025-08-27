@@ -1,7 +1,6 @@
 use darling::FromMeta;
 use proc_macro2::TokenStream;
 use quote::quote;
-use quote::ToTokens as _;
 use syn::parse_quote;
 
 use crate::ir;
@@ -14,8 +13,8 @@ pub(crate) struct FieldOpt {
     format: Option<syn::LitStr>,
 }
 
-pub(crate) fn debug(ir @ ir::Ir { opt, data, .. }: &ir::Ir) -> TokenStream {
-    if opt.debug.is_none() {
+pub(crate) fn debug(ir: &ir::Ir) -> TokenStream {
+    if ir.opt().debug.is_none() {
         return TokenStream::new();
     }
 

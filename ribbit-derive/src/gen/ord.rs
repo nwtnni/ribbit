@@ -8,7 +8,7 @@ use crate::ir;
 pub(crate) struct StructOpt;
 
 pub(crate) fn ord(ir: &ir::Ir) -> TokenStream {
-    if ir.opt.ord.is_none() {
+    if ir.opt().ord.is_none() {
         return TokenStream::new();
     }
 

@@ -7,12 +7,10 @@ use crate::lift::Lift as _;
 use crate::ty;
 use crate::Or;
 
-pub(crate) fn get<'ir>(
-    ir::Ir { tight, data, .. }: &'ir ir::Ir,
-) -> impl Iterator<Item = TokenStream> + 'ir {
-    let ty_struct = tight;
+pub(crate) fn get<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 'ir {
+    let ty_struct = ir.tight();
 
-    match data {
+    match &ir.data {
         ir::Data::Struct(r#struct) => Or::L({
             let newtype = r#struct.is_newtype();
             r#struct.iter().map(move |field| {

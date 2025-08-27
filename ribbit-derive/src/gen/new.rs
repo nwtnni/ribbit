@@ -23,11 +23,11 @@ impl StructOpt {
     }
 }
 
-pub(crate) fn new(ir @ ir::Ir { tight, data, .. }: &ir::Ir) -> TokenStream {
-    let ty_struct = ty::Tree::from(tight.clone());
-    let ty_struct_loose = tight.loosen();
+pub(crate) fn new(ir: &ir::Ir) -> TokenStream {
+    let ty_struct = ty::Tree::from(ir.tight().clone());
+    let ty_struct_loose = ir.tight().loosen();
 
-    match data {
+    match &ir.data {
         ir::Data::Struct(r#struct) => {
             let parameters = r#struct.iter_nonzero().map(|field| {
                 let ident = field.ident.escaped();
@@ -83,46 +83,52 @@ pub(crate) fn new(ir @ ir::Ir { tight, data, .. }: &ir::Ir) -> TokenStream {
                 }
             }
         }
-        ir::Data::Enum(r#enum @ ir::Enum { variants }) => {
-            let unpacked = ir.ident_unpacked();
-
-            let variants = variants
-                .iter()
-                .map(|ir::Variant { ident, ty, .. }| (ident, ty.as_deref()))
-                .enumerate()
-                .map(|(discriminant, (ident, ty))| {
-                    #[allow(clippy::precedence)]
-                    let packed = (discriminant.lift() % ty_struct_loose)
-                        | match ty.cloned() {
-                            None => Box::new(0.lift() % ty_struct_loose) as Box<dyn lift::Loosen>,
-                            Some(ty_variant) => Box::new(
-                                (quote!(inner).lift() % ty_variant << r#enum.discriminant_size())
-                                    % ty_struct_loose,
-                            ),
-                        };
-
-                    match ty {
-                        None => quote!(#unpacked::#ident => #packed),
-                        Some(_) => quote!(#unpacked::#ident(inner) => #packed),
-                    }
-                });
-
-            let value =
-                quote!(match unpacked { #(#variants),* }).lift() % ty_struct_loose % ty_struct;
-
-            let (_, ty, _) = ir.generics().split_for_impl();
-            quote! {
-                #[inline]
-                pub const fn new(
-                    unpacked: #unpacked #ty,
-                ) -> Self {
-                    let _: () = Self::_RIBBIT_ASSERT_LAYOUT;
-                    Self {
-                        value: #value,
-                        r#type: ::ribbit::private::PhantomData,
-                    }
-                }
-            }
+        ir::Data::Enum(r#enum @ ir::Enum { variants, .. }) => {
+            todo!()
+            //     let unpacked = ir.ident_unpacked();
+            //
+            //     let variants = variants
+            //         .iter()
+            //         .map(
+            //             |ir::Variant {
+            //                  extract,
+            //                  r#struct: ir::Struct { ident, ty, .. },
+            //              }| (ident, ty.as_deref()),
+            //         )
+            //         .enumerate()
+            //         .map(|(discriminant, (ident, ty))| {
+            //             #[allow(clippy::precedence)]
+            //             let packed = (discriminant.lift() % ty_struct_loose)
+            //                 | match ty.cloned() {
+            //                     None => Box::new(0.lift() % ty_struct_loose) as Box<dyn lift::Loosen>,
+            //                     Some(ty_variant) => Box::new(
+            //                         (quote!(inner).lift() % ty_variant << r#enum.discriminant_size())
+            //                             % ty_struct_loose,
+            //                     ),
+            //                 };
+            //
+            //             match ty {
+            //                 None => quote!(#unpacked::#ident => #packed),
+            //                 Some(_) => quote!(#unpacked::#ident(inner) => #packed),
+            //             }
+            //         });
+            //
+            //     let value =
+            //         quote!(match unpacked { #(#variants),* }).lift() % ty_struct_loose % ty_struct;
+            //
+            //     let (_, ty, _) = ir.generics().split_for_impl();
+            //     quote! {
+            //         #[inline]
+            //         pub const fn new(
+            //             unpacked: #unpacked #ty,
+            //         ) -> Self {
+            //             let _: () = Self::_RIBBIT_ASSERT_LAYOUT;
+            //             Self {
+            //                 value: #value,
+            //                 r#type: ::ribbit::private::PhantomData,
+            //             }
+            //         }
+            //     }
         }
     }
 }

@@ -8,7 +8,7 @@ use crate::ir;
 pub(crate) struct StructOpt;
 
 pub(crate) fn hash(ir: &ir::Ir) -> TokenStream {
-    if ir.opt.hash.is_none() {
+    if ir.opt().hash.is_none() {
         return TokenStream::new();
     }
 

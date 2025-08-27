@@ -3,7 +3,10 @@ use quote::quote;
 
 use crate::ir;
 
-pub(crate) fn packed(ir @ ir::Ir { vis, tight, .. }: &ir::Ir) -> TokenStream {
+pub(crate) fn packed(ir: &ir::Ir) -> TokenStream {
+    let vis = &ir.vis;
+    let tight = ir.tight();
+
     let generics = ir.generics();
     let (generics_impl, generics_ty, generics_where) = generics.split_for_impl();
 

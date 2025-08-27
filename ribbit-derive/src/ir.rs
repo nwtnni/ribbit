@@ -4,7 +4,6 @@ use bitvec::bitbox;
 use bitvec::boxed::BitBox;
 use darling::usage::GenericsExt;
 use darling::util::AsShape as _;
-use darling::util::Shape;
 use darling::util::SpannedValue;
 use darling::FromMeta;
 use proc_macro2::Literal;
@@ -22,137 +21,75 @@ use crate::ty;
 use crate::ty::Tight;
 use crate::Spanned;
 
-pub(crate) fn new<'a>(item: &'a input::Item, parent: Option<&'a Ir>) -> darling::Result<Ir<'a>> {
-    let Some(size) = item.opt.size.map(Spanned::from) else {
-        bail!(Span::call_site()=> crate::Error::TopLevelSize);
-    };
-
-    let tight = match Tight::from_size(item.opt.nonzero.map(|value| *value).unwrap_or(false), *size)
-    {
-        Ok(tight) => tight,
-        // FIXME: span
-        Err(error) => bail!(item.opt.nonzero.unwrap()=> error),
-    };
-
-    let (_, generics_ty, _) = item.generics.split_for_impl();
+pub(crate) fn new<'input>(item: &'input input::Item) -> darling::Result<Ir<'input>> {
     let ty_params = item.generics.declared_type_params();
-
-    let mut bounds: Punctuated<syn::WherePredicate, syn::Token![,]> = parse_quote!();
+    let mut bounds = Punctuated::new();
 
     let data = match &item.data {
         darling::ast::Data::Enum(variants) => {
+            let Some(size) = item.opt.size.map(Spanned::from) else {
+                bail!(Span::call_site()=> crate::Error::TopLevelSize);
+            };
+
+            let tight = match Tight::from_size(
+                item.opt.nonzero.map(|value| *value).unwrap_or(false),
+                *size,
+            ) {
+                Ok(tight) => tight,
+                // FIXME: span
+                Err(error) => bail!(item.opt.nonzero.unwrap()=> error),
+            };
+
             let variants = variants
                 .iter()
                 .map(|variant| {
-                    let ty = match variant.fields.as_shape() {
-                        Shape::Unit => None,
-                        Shape::Newtype => ty::Tree::parse(
-                            &ty_params,
-                            variant.fields.fields[0].ty.clone(),
-                            variant.opt.nonzero.map(Spanned::from),
-                            variant.opt.size.map(Spanned::from),
-                        )
-                        .map(Some)?,
-                        Shape::Named | Shape::Tuple => {
-                            let ident = &variant.ident;
-                            ty::Tree::parse(
-                                &ty_params,
-                                parse_quote!(#ident #generics_ty),
-                                variant.opt.nonzero.map(Spanned::from),
-                                variant.opt.size.map(Spanned::from),
-                            )
-                            .map(Some)?
-                        }
-                    };
-
-                    if let Some(ty) = ty.as_ref().filter(|ty| ty.is_node()) {
-                        bounds.push(parse_quote!(#ty: ::ribbit::Pack));
-                    }
-
                     Ok(Variant {
-                        ident: &variant.ident,
-                        ty: ty.map(Spanned::from),
+                        extract: variant.extract,
+                        r#struct: Struct::new(
+                            &ty_params,
+                            &mut bounds,
+                            &variant.opt,
+                            &variant.attrs,
+                            &variant.ident,
+                            &variant.fields,
+                        )?,
                     })
                 })
-                .collect::<darling::Result<_>>()?;
+                .collect::<darling::Result<Vec<_>>>()?;
 
-            Data::Enum(Enum { variants })
+            Data::Enum(Enum {
+                opt: &item.opt,
+                attrs: &item.attrs,
+                packed: format_ident!("_{}Packed", item.ident),
+                unpacked: &item.ident,
+                tight,
+                variants,
+            })
         }
-        darling::ast::Data::Struct(r#struct) => {
-            let mut bits = bitbox![0; *size];
-            let newtype = r#struct.fields.len() == 1;
-
-            let fields = r#struct
-                .fields
-                .iter()
-                .map(|field| -> darling::Result<_> {
-                    // For convenience, forward nonzero and size annotations
-                    // for newtype structs.
-                    let nonzero = match (newtype, field.opt.nonzero) {
-                        (false, nonzero) | (true, nonzero @ Some(_)) => nonzero,
-                        (true, None) => item.opt.nonzero,
-                    };
-                    let size = match (newtype, field.opt.size) {
-                        (false, size) | (true, size @ Some(_)) => size,
-                        (true, None) => item.opt.size,
-                    };
-
-                    let ty = ty::Tree::parse(
-                        &ty_params,
-                        field.ty.clone(),
-                        nonzero.map(Spanned::from),
-                        size.map(Spanned::from),
-                    )?;
-
-                    Ok((field, ty))
-                })
-                .enumerate()
-                .map(|(index, field)| {
-                    let (field, ty) = field?;
-                    Field::new(ty, &mut bits, index, field)
-                })
-                .collect::<Result<Vec<_>, _>>()?;
-
-            if tight.is_nonzero() && fields.iter().all(|field| !field.ty.is_nonzero()) {
-                bail!(item.opt.nonzero.unwrap()=> crate::Error::StructNonZero);
-            }
-
-            fields
-                .iter()
-                .map(|field| &field.ty)
-                .filter(|ty| ty.is_node())
-                .filter(|ty| ty.size_expected() != 0)
-                .for_each(|ty| bounds.push(parse_quote!(#ty: ::ribbit::Pack)));
-
-            Data::Struct(Struct { fields })
-        }
+        darling::ast::Data::Struct(r#struct) => Struct::new(
+            &ty_params,
+            &mut bounds,
+            &item.opt,
+            &item.attrs,
+            &item.ident,
+            &r#struct,
+        )
+        .map(Data::Struct)?,
     };
 
     Ok(Ir {
-        opt: &item.opt,
-        attrs: &item.attrs,
         vis: &item.vis,
-        unpacked: &item.ident,
-        packed: format_ident!("{}Packed", item.ident),
         generics: &item.generics,
-        tight,
-        data,
         bounds,
-        parent,
+        data,
     })
 }
 
 pub(crate) struct Ir<'input> {
-    pub(crate) opt: &'input StructOpt,
-    pub(crate) attrs: &'input [syn::Attribute],
     pub(crate) vis: &'input syn::Visibility,
-    unpacked: &'input syn::Ident,
-    packed: syn::Ident,
     generics: &'input syn::Generics,
-    pub(crate) tight: Tight,
-    pub(crate) data: Data<'input>,
     bounds: Punctuated<syn::WherePredicate, syn::Token![,]>,
-    pub(crate) parent: Option<&'input Ir<'input>>,
+    pub(crate) data: Data<'input>,
 }
 
 impl Ir<'_> {
@@ -161,11 +98,38 @@ impl Ir<'_> {
     }
 
     pub(crate) fn ident_packed(&self) -> &syn::Ident {
-        &self.packed
+        match &self.data {
+            Data::Enum(r#enum) => &r#enum.packed,
+            Data::Struct(r#struct) => &r#struct.packed,
+        }
     }
 
     pub(crate) fn ident_unpacked(&self) -> &syn::Ident {
-        self.unpacked
+        match &self.data {
+            Data::Enum(r#enum) => &r#enum.unpacked,
+            Data::Struct(r#struct) => &r#struct.unpacked,
+        }
+    }
+
+    pub(crate) fn attrs(&self) -> &[syn::Attribute] {
+        match &self.data {
+            Data::Enum(r#enum) => r#enum.attrs,
+            Data::Struct(r#struct) => r#struct.attrs,
+        }
+    }
+
+    pub(crate) fn opt(&self) -> &StructOpt {
+        match &self.data {
+            Data::Enum(r#enum) => r#enum.opt,
+            Data::Struct(r#struct) => r#struct.opt,
+        }
+    }
+
+    pub(crate) fn tight(&self) -> &Tight {
+        match &self.data {
+            Data::Enum(r#enum) => &r#enum.tight,
+            Data::Struct(r#struct) => &r#struct.tight,
+        }
     }
 
     pub(crate) fn generics_bounded(&self, extra: Option<syn::TypeParamBound>) -> syn::Generics {
@@ -190,6 +154,11 @@ pub(crate) enum Data<'input> {
 }
 
 pub(crate) struct Enum<'input> {
+    pub(crate) opt: &'input StructOpt,
+    pub(crate) attrs: &'input [syn::Attribute],
+    pub(crate) unpacked: &'input syn::Ident,
+    pub(crate) packed: syn::Ident,
+    pub(crate) tight: Tight,
     pub(crate) variants: Vec<Variant<'input>>,
 }
 
@@ -206,15 +175,75 @@ impl Enum<'_> {
 }
 
 pub(crate) struct Variant<'input> {
-    pub(crate) ident: &'input syn::Ident,
-    pub(crate) ty: Option<Spanned<ty::Tree>>,
+    pub(crate) extract: bool,
+    pub(crate) r#struct: Struct<'input>,
 }
 
 pub(crate) struct Struct<'input> {
+    pub(crate) attrs: &'input [syn::Attribute],
+    pub(crate) unpacked: &'input syn::Ident,
+    pub(crate) packed: syn::Ident,
+    pub(crate) tight: Tight,
+    pub(crate) opt: &'input StructOpt,
+
+    pub(crate) shape: darling::util::Shape,
     pub(crate) fields: Vec<Field<'input>>,
 }
 
 impl Struct<'_> {
+    fn new<'input>(
+        ty_params: &darling::usage::IdentSet,
+        bounds: &mut Punctuated<syn::WherePredicate, syn::Token![,]>,
+        opt: &'input StructOpt,
+        attrs: &'input [syn::Attribute],
+        ident: &'input syn::Ident,
+        fields: &'input darling::ast::Fields<SpannedValue<input::Field>>,
+    ) -> darling::Result<Struct<'input>> {
+        let Some(size) = opt.size.map(Spanned::from) else {
+            bail!(Span::call_site()=> crate::Error::TopLevelSize);
+        };
+
+        let tight = match Tight::from_size(opt.nonzero.map(|value| *value).unwrap_or(false), *size)
+        {
+            Ok(tight) => tight,
+            // FIXME: span
+            Err(error) => bail!(opt.nonzero.unwrap()=> error),
+        };
+
+        let mut bits = bitbox![0; *size];
+        let newtype = fields.len() == 1;
+
+        let shape = fields.as_shape();
+        let fields = fields
+            .iter()
+            .enumerate()
+            .map(|(index, field)| Field::new(opt, ty_params, &mut bits, newtype, index, field))
+            .collect::<Result<Vec<_>, _>>()?;
+
+        if tight.is_nonzero() && fields.iter().all(|field| !field.ty.is_nonzero()) {
+            bail!(opt.nonzero.unwrap()=> crate::Error::StructNonZero);
+        }
+
+        bounds.extend(
+            fields
+                .iter()
+                .map(|field| &field.ty)
+                .filter(|ty| ty.is_node())
+                .filter(|ty| ty.size_expected() != 0)
+                .map(|ty| -> syn::WherePredicate { parse_quote!(#ty: ::ribbit::Pack) }),
+        );
+
+        Ok(Struct {
+            attrs,
+            packed: format_ident!("_{}Packed", ident),
+            unpacked: ident,
+            tight,
+            opt,
+            shape,
+            fields,
+        })
+    }
+
     pub(crate) fn is_named(&self) -> bool {
         self.iter().any(|field| field.ident.is_named())
     }
@@ -257,11 +286,31 @@ pub(crate) struct Field<'input> {
 
 impl<'input> Field<'input> {
     fn new(
-        ty: Spanned<ty::Tree>,
+        opt: &StructOpt,
+        ty_params: &darling::usage::IdentSet,
         bits: &mut BitBox,
+        newtype: bool,
         index: usize,
         field: &'input SpannedValue<input::Field>,
     ) -> darling::Result<Self> {
+        // For convenience, forward nonzero and size annotations
+        // for newtype structs.
+        let nonzero = match (newtype, field.opt.nonzero) {
+            (false, nonzero) | (true, nonzero @ Some(_)) => nonzero,
+            (true, None) => opt.nonzero,
+        };
+        let size = match (newtype, field.opt.size) {
+            (false, size) | (true, size @ Some(_)) => size,
+            (true, None) => opt.size,
+        };
+
+        let ty = ty::Tree::parse(
+            ty_params,
+            field.ty.clone(),
+            nonzero.map(Spanned::from),
+            size.map(Spanned::from),
+        )?;
+
         let size = ty.size_expected();
 
         // Special-case ZSTs

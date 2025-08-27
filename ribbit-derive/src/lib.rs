@@ -49,54 +49,9 @@ fn pack_impl(
     // Integrate with darling's attribute filter (namespace `ribbit` instead of `ribbit::pack`).
     input.attrs.push(parse_quote!(#[ribbit(#attr)]));
 
-    let mut input = input::Item::from_derive_input(&input)?;
-
-    let r#enum = match &mut input.data {
-        // Fast path: simple struct
-        darling::ast::Data::Struct(_) => {
-            let input = ir::new(&input, None)?;
-            return pack_item(&input, output);
-        }
-        darling::ast::Data::Enum(r#enum) => r#enum,
-    };
-
-    r#enum
-        .iter_mut()
-        .filter(|variant| variant.extract)
-        .filter(|variant| matches!(variant.fields.as_shape(), Shape::Named | Shape::Tuple))
-        .try_for_each(|variant| {
-            // Extract and generate
-            let child = input::Item {
-                opt: variant.opt.clone(),
-                attrs: variant.attrs.clone(),
-                vis: input.vis.clone(),
-                ident: variant.ident.clone(),
-                generics: input.generics.clone(),
-                data: darling::ast::Data::Struct(variant.fields.clone()),
-            };
-
-            let child_ir = ir::new(&child, None)?;
-            pack_item(&child_ir, output)
-
-            // let ident = &variant.ident;
-            // let (_, generics_ty, _) = input.generics.split_for_impl();
-            //
-            // // Mutate
-            // variant.fields = darling::ast::Fields::new(
-            //     darling::ast::Style::Tuple,
-            //     core::iter::once(input::Field {
-            //         opt: ir::FieldOpt::default(),
-            //         vis: syn::Visibility::Inherited,
-            //         ident: None,
-            //         ty: parse_quote!(#ident #generics_ty),
-            //     })
-            //     .map(|field| SpannedValue::new(field, variant.span()))
-            //     .collect(),
-            // );
-        })?;
-
-    let parent_ir = ir::new(&input, None)?;
-    pack_item(&parent_ir, output)
+    let input = input::Item::from_derive_input(&input)?;
+    let ir = ir::new(&input)?;
+    pack_item(&ir, output)
 }
 
 // Generate code for a single item.
@@ -117,11 +72,10 @@ fn pack_item(ir: &Ir, output: &mut TokenStream) -> Result<(), darling::Error> {
 
     let generics = ir.generics_bounded(None);
     let (generics_impl, generics_ty, generics_where) = generics.split_for_impl();
-    let unpacked_ident = ir.ident_unpacked();
     let packed_ident = ir.ident_packed();
 
     output.append_all(quote! {
-        #unpacked
+        #(#unpacked)*
 
         #pack
 
@@ -139,7 +93,7 @@ fn pack_item(ir: &Ir, output: &mut TokenStream) -> Result<(), darling::Error> {
             #(#set)*
         }
 
-        // #from
+        #from
         #debug
 
         #hash
