@@ -29,6 +29,15 @@ impl Node {
     pub(crate) fn loosen(&self) -> Loose {
         self.tight.loosen()
     }
+
+    pub(crate) fn is_option(&self) -> bool {
+        self.path
+            .path
+            .segments
+            .iter()
+            .last()
+            .is_some_and(|segment| segment.ident == "Option")
+    }
 }
 
 impl ToTokens for Node {

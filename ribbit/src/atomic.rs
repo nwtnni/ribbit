@@ -19,7 +19,8 @@ macro_rules! atomic {
 
         impl<T> Debug for $name<T>
         where
-            T: Debug + Pack,
+            T: Pack,
+            T::Packed: Debug,
         {
             fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
                 self.load(Ordering::Relaxed).fmt(f)
@@ -28,7 +29,8 @@ macro_rules! atomic {
 
         impl<T> Display for $name<T>
         where
-            T: Display + Pack,
+            T: Pack,
+            T::Packed: Display,
         {
             fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
                 self.load(Ordering::Relaxed).fmt(f)
@@ -41,7 +43,7 @@ macro_rules! atomic {
         {
             const INVARIANT: () = assert!(T::BITS <= $size);
 
-            pub const fn new(value: T) -> Self {
+            pub const fn new(value: T::Packed) -> Self {
                 const { Self::INVARIANT }
                 Self {
                     value: <$atomic>::new(Self::loosen(value)),
@@ -49,29 +51,29 @@ macro_rules! atomic {
                 }
             }
 
-            pub fn load(&self, ordering: Ordering) -> T {
+            pub fn load(&self, ordering: Ordering) -> T::Packed {
                 Self::pack(self.value.load(ordering))
             }
 
-            pub fn store(&self, value: T, ordering: Ordering) {
+            pub fn store(&self, value: T::Packed, ordering: Ordering) {
                 self.value.store(Self::loosen(value), ordering)
             }
 
-            pub fn get(&mut self) -> T {
+            pub fn get(&mut self) -> T::Packed {
                 Self::pack(*self.value.get_mut())
             }
 
-            pub fn set(&mut self, value: T) {
+            pub fn set(&mut self, value: T::Packed) {
                 *self.value.get_mut() = Self::loosen(value);
             }
 
             pub fn compare_exchange(
                 &self,
-                old: T,
-                new: T,
+                old: T::Packed,
+                new: T::Packed,
                 success: Ordering,
                 failure: Ordering,
-            ) -> Result<T, T> {
+            ) -> Result<T::Packed, T::Packed> {
                 self.value
                     .compare_exchange(Self::loosen(old), Self::loosen(new), success, failure)
                     .map(Self::pack)
@@ -80,31 +82,31 @@ macro_rules! atomic {
 
             pub fn compare_exchange_weak(
                 &self,
-                old: T,
-                new: T,
+                old: T::Packed,
+                new: T::Packed,
                 success: Ordering,
                 failure: Ordering,
-            ) -> Result<T, T> {
+            ) -> Result<T::Packed, T::Packed> {
                 self.value
                     .compare_exchange_weak(Self::loosen(old), Self::loosen(new), success, failure)
                     .map(Self::pack)
                     .map_err(Self::pack)
             }
 
-            pub fn swap(&self, value: T, ordering: Ordering) -> T {
+            pub fn swap(&self, value: T::Packed, ordering: Ordering) -> T::Packed {
                 Self::pack(self.value.swap(Self::loosen(value), ordering))
             }
 
-            const fn loosen(value: T) -> $loose {
+            const fn loosen(value: T::Packed) -> $loose {
                 const { Self::INVARIANT }
-                let loose = crate::convert::packed_to_loose(value);
+                let loose = crate::convert::packed_to_loose::<T>(value);
                 crate::convert::loose_to_loose(loose)
             }
 
-            const fn pack(loose: $loose) -> T {
+            const fn pack(loose: $loose) -> T::Packed {
                 const { Self::INVARIANT }
                 let loose = crate::convert::loose_to_loose(loose);
-                unsafe { crate::convert::loose_to_packed(loose) }
+                unsafe { crate::convert::loose_to_packed::<T>(loose) }
             }
         }
     };

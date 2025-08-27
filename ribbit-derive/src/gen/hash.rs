@@ -7,13 +7,13 @@ use crate::ir;
 #[derive(FromMeta, Clone, Debug)]
 pub(crate) struct StructOpt;
 
-pub(crate) fn hash(ir @ ir::Ir { item, .. }: &ir::Ir) -> TokenStream {
-    if item.opt.hash.is_none() {
+pub(crate) fn hash(ir: &ir::Ir) -> TokenStream {
+    if ir.opt.hash.is_none() {
         return TokenStream::new();
     }
 
     let (r#impl, ty, r#where) = ir.generics().split_for_impl();
-    let ident = &item.ident;
+    let ident = ir.ident_packed();
 
     quote!(
         impl #r#impl ::core::hash::Hash for #ident #ty #r#where {

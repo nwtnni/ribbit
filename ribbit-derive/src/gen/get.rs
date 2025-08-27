@@ -4,12 +4,11 @@ use quote::ToTokens;
 
 use crate::ir;
 use crate::lift::Lift as _;
+use crate::ty;
 use crate::Or;
 
 pub(crate) fn get<'ir>(
-    ir @ ir::Ir {
-        item, tight, data, ..
-    }: &'ir ir::Ir,
+    ir::Ir { tight, data, .. }: &'ir ir::Ir,
 ) -> impl Iterator<Item = TokenStream> + 'ir {
     let ty_struct = tight;
 
@@ -37,6 +36,12 @@ pub(crate) fn get<'ir>(
 
                 let vis = field.vis;
                 let get = field.ident.escaped();
+
+                let ty_field = match ty_field {
+                    ty::Tree::Node(node) => quote!(<#node as ::ribbit::Pack>::Packed),
+                    ty::Tree::Leaf(leaf) => leaf.to_token_stream(),
+                };
+
                 quote! {
                     #[inline]
                     #vis const fn #get(&self) -> #ty_field {
@@ -46,42 +51,6 @@ pub(crate) fn get<'ir>(
                 }
             })
         }),
-        ir::Data::Enum(r#enum @ ir::Enum { variants }) => {
-            let unpacked = ir::Enum::unpacked(&item.ident);
-
-            let variants = variants.iter().enumerate().map(|(index, variant)| {
-                let discriminant = tight.loosen().literal(index as u128);
-                let ident = &variant.ident;
-                let value = match variant.ty.as_deref().cloned() {
-                    None => quote!(#unpacked::#ident),
-                    Some(ty_variant) => {
-                        #[allow(clippy::precedence)]
-                        let inner = (quote!(self.value).lift() % ty_struct.clone()
-                            >> r#enum.discriminant_size())
-                            % ty_variant;
-
-                        quote!(#unpacked::#ident(#inner))
-                    }
-                };
-
-                quote!(#discriminant => #value)
-            });
-
-            let discriminant =
-                (quote!(self.value).lift() % ty_struct.clone()) & r#enum.discriminant_mask();
-
-            let (_, ty, _) = ir.generics().split_for_impl();
-            Or::R(std::iter::once(quote! {
-                #[inline]
-                pub fn unpack(&self) -> #unpacked #ty {
-                    match #discriminant {
-                        #(#variants,)*
-                        _ => unsafe {
-                            ::core::hint::unreachable_unchecked()
-                        }
-                    }
-                }
-            }))
-        }
+        ir::Data::Enum(_) => Or::R(core::iter::empty()),
     }
 }

@@ -129,16 +129,26 @@ pub(crate) fn new<'a>(item: &'a input::Item, parent: Option<&'a Ir>) -> darling:
     };
 
     Ok(Ir {
+        opt: &item.opt,
+        attrs: &item.attrs,
+        vis: &item.vis,
+        unpacked: &item.ident,
+        packed: format_ident!("{}Packed", item.ident),
+        generics: &item.generics,
         tight,
-        item,
-        bounds,
         data,
+        bounds,
         parent,
     })
 }
 
 pub(crate) struct Ir<'input> {
-    pub(crate) item: &'input input::Item,
+    pub(crate) opt: &'input StructOpt,
+    pub(crate) attrs: &'input [syn::Attribute],
+    pub(crate) vis: &'input syn::Visibility,
+    unpacked: &'input syn::Ident,
+    packed: syn::Ident,
+    generics: &'input syn::Generics,
     pub(crate) tight: Tight,
     pub(crate) data: Data<'input>,
     bounds: Punctuated<syn::WherePredicate, syn::Token![,]>,
@@ -147,7 +157,15 @@ pub(crate) struct Ir<'input> {
 
 impl Ir<'_> {
     pub(crate) fn generics(&self) -> &syn::Generics {
-        &self.item.generics
+        self.generics
+    }
+
+    pub(crate) fn ident_packed(&self) -> &syn::Ident {
+        &self.packed
+    }
+
+    pub(crate) fn ident_unpacked(&self) -> &syn::Ident {
+        self.unpacked
     }
 
     pub(crate) fn generics_bounded(&self, extra: Option<syn::TypeParamBound>) -> syn::Generics {
@@ -176,10 +194,6 @@ pub(crate) struct Enum<'input> {
 }
 
 impl Enum<'_> {
-    pub(crate) fn unpacked(ident: &syn::Ident) -> syn::Ident {
-        format_ident!("{}Unpacked", ident)
-    }
-
     pub(crate) fn discriminant_size(&self) -> usize {
         self.variants.len().next_power_of_two().trailing_zeros() as usize
     }
@@ -224,7 +238,7 @@ pub(crate) struct StructOpt {
     pub(crate) nonzero: Option<SpannedValue<bool>>,
 
     #[darling(default)]
-    pub(crate) new: gen::new::StructOpt,
+    pub(crate) pack: gen::pack::StructOpt,
     pub(crate) debug: Option<gen::debug::StructOpt>,
     pub(crate) eq: Option<gen::eq::StructOpt>,
     pub(crate) ord: Option<gen::ord::StructOpt>,
@@ -233,11 +247,12 @@ pub(crate) struct StructOpt {
 }
 
 pub(crate) struct Field<'input> {
+    pub(crate) opt: &'input FieldOpt,
+    pub(crate) attrs: &'input [syn::Attribute],
     pub(crate) vis: &'input syn::Visibility,
     pub(crate) ident: FieldIdent<'input>,
     pub(crate) ty: Spanned<ty::Tree>,
     pub(crate) offset: usize,
-    pub(crate) opt: &'input FieldOpt,
 }
 
 impl<'input> Field<'input> {
@@ -252,11 +267,12 @@ impl<'input> Field<'input> {
         // Special-case ZSTs
         if size == 0 {
             return Ok(Self {
+                opt: &field.opt,
+                attrs: &field.attrs,
                 vis: &field.vis,
                 ident: FieldIdent::new(index, field.ident.as_ref()),
                 ty,
                 offset: bits.len(),
-                opt: &field.opt,
             });
         }
 
@@ -290,16 +306,17 @@ impl<'input> Field<'input> {
         }
 
         Ok(Self {
+            opt: &field.opt,
+            attrs: &field.attrs,
             vis: &field.vis,
             ident: FieldIdent::new(index, field.ident.as_ref()),
             ty,
             offset: *offset,
-            opt: &field.opt,
         })
     }
 }
 
-#[derive(FromMeta, Clone, Debug)]
+#[derive(FromMeta, Clone, Debug, Default)]
 pub(crate) struct FieldOpt {
     pub(crate) nonzero: Option<SpannedValue<bool>>,
     pub(crate) size: Option<SpannedValue<usize>>,
@@ -345,5 +362,11 @@ impl<'input> FieldIdent<'input> {
             FieldIdent::Named(named) => Cow::Borrowed(*named),
             FieldIdent::Unnamed(unnamed) => Cow::Owned(format_ident!("_{}", unnamed)),
         }
+    }
+}
+
+impl ToTokens for FieldIdent<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        self.unescaped("").to_tokens(tokens)
     }
 }

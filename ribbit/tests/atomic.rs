@@ -3,11 +3,13 @@ use core::sync::atomic::Ordering;
 use ribbit::u22;
 use ribbit::u26;
 use ribbit::u9;
+use ribbit::Pack as _;
 
 #[test]
 fn aligned() {
     use ribbit::atomic::Atomic32;
 
+    #[derive(Clone, Debug)]
     #[ribbit::pack(size = 32, debug, eq)]
     struct Foo {
         lo: u16,
@@ -15,25 +17,26 @@ fn aligned() {
     }
 
     #[allow(clippy::disallowed_names)]
-    let foo = Atomic32::new(Foo::new(5, 10));
+    let foo = Atomic32::<Foo>::new(Foo { lo: 5, hi: 10 }.pack());
 
     assert_eq!(
         foo.compare_exchange(
-            Foo::new(5, 10),
-            Foo::new(6, 11),
+            Foo { lo: 5, hi: 10 }.pack(),
+            Foo { lo: 6, hi: 11 }.pack(),
             Ordering::Relaxed,
             Ordering::Relaxed,
         ),
-        Ok(Foo::new(5, 10))
+        Ok(Foo { lo: 5, hi: 10 }.pack())
     );
 
-    assert_eq!(foo.load(Ordering::Relaxed), Foo::new(6, 11));
+    assert_eq!(foo.load(Ordering::Relaxed), Foo { lo: 6, hi: 11 }.pack());
 }
 
 #[test]
 fn unaligned() {
     use ribbit::atomic::Atomic32;
 
+    #[derive(Clone, Debug)]
     #[ribbit::pack(size = 32, debug, eq)]
     struct Foo {
         lo: u9,
@@ -41,21 +44,43 @@ fn unaligned() {
     }
 
     #[allow(clippy::disallowed_names)]
-    let foo = Atomic32::new(Foo::new(5u8.into(), 10u8.into()));
+    let foo = Atomic32::<Foo>::new(
+        Foo {
+            lo: 5u8.into(),
+            hi: 10u8.into(),
+        }
+        .pack(),
+    );
 
     assert_eq!(
         foo.compare_exchange(
-            Foo::new(5u8.into(), 10u8.into()),
-            Foo::new(6u8.into(), 11u8.into()),
+            Foo {
+                lo: 5u8.into(),
+                hi: 10u8.into()
+            }
+            .pack(),
+            Foo {
+                lo: 6u8.into(),
+                hi: 11u8.into()
+            }
+            .pack(),
             Ordering::Relaxed,
             Ordering::Relaxed,
         ),
-        Ok(Foo::new(5u8.into(), 10u8.into()))
+        Ok(Foo {
+            lo: 5u8.into(),
+            hi: 10u8.into()
+        }
+        .pack())
     );
 
     assert_eq!(
         foo.load(Ordering::Relaxed),
-        Foo::new(6u8.into(), 11u8.into())
+        Foo {
+            lo: 6u8.into(),
+            hi: 11u8.into()
+        }
+        .pack(),
     );
 }
 
@@ -63,6 +88,7 @@ fn unaligned() {
 fn undersized() {
     use ribbit::atomic::Atomic64;
 
+    #[derive(Clone, Debug)]
     #[ribbit::pack(size = 64, debug, eq)]
     struct Foo {
         lo: u9,
@@ -70,21 +96,43 @@ fn undersized() {
     }
 
     #[allow(clippy::disallowed_names)]
-    let foo = Atomic64::new(Foo::new(5u8.into(), 10u8.into()));
+    let foo = Atomic64::<Foo>::new(
+        Foo {
+            lo: 5u8.into(),
+            hi: 10u8.into(),
+        }
+        .pack(),
+    );
 
     assert_eq!(
         foo.compare_exchange(
-            Foo::new(5u8.into(), 10u8.into()),
-            Foo::new(6u8.into(), 11u8.into()),
+            Foo {
+                lo: 5u8.into(),
+                hi: 10u8.into()
+            }
+            .pack(),
+            Foo {
+                lo: 6u8.into(),
+                hi: 11u8.into()
+            }
+            .pack(),
             Ordering::Relaxed,
             Ordering::Relaxed,
         ),
-        Ok(Foo::new(5u8.into(), 10u8.into()))
+        Ok(Foo {
+            lo: 5u8.into(),
+            hi: 10u8.into()
+        }
+        .pack())
     );
 
     assert_eq!(
         foo.load(Ordering::Relaxed),
-        Foo::new(6u8.into(), 11u8.into())
+        Foo {
+            lo: 6u8.into(),
+            hi: 11u8.into()
+        }
+        .pack()
     );
 }
 
@@ -92,6 +140,7 @@ fn undersized() {
 fn unique() {
     use ribbit::atomic::Atomic64;
 
+    #[derive(Clone, Debug)]
     #[ribbit::pack(size = 64, debug, eq)]
     struct Foo {
         lo: u9,
@@ -99,9 +148,28 @@ fn unique() {
     }
 
     #[allow(clippy::disallowed_names)]
-    let mut foo = Atomic64::new(Foo::new(5u8.into(), 10u8.into()));
+    let mut foo = Atomic64::<Foo>::new(
+        Foo {
+            lo: 5u8.into(),
+            hi: 10u8.into(),
+        }
+        .pack(),
+    );
 
-    foo.set(Foo::new(9u8.into(), 3u8.into()));
+    foo.set(
+        Foo {
+            lo: 9u8.into(),
+            hi: 3u8.into(),
+        }
+        .pack(),
+    );
 
-    assert_eq!(foo.get(), Foo::new(9u8.into(), 3u8.into()),);
+    assert_eq!(
+        foo.get(),
+        Foo {
+            lo: 9u8.into(),
+            hi: 3u8.into()
+        }
+        .pack(),
+    );
 }

@@ -11,9 +11,9 @@ pub use ribbit_derive::pack;
 pub mod atomic;
 
 #[macro_export]
-macro_rules! unpack {
-    ($packed:ty) => {
-        <$packed as $crate::Pack>::Unpack
+macro_rules! Pack {
+    [$unpacked:ty] => {
+        <$unpacked as $crate::Pack>::Packed
     };
 }
 
@@ -29,11 +29,11 @@ macro_rules! unpack {
 /// - Type has size `BITS`
 /// - Type has the same size and alignment as `Tight` and `Loose`
 /// - Every valid bit pattern of type is a valid bit pattern of `Tight`.
-pub unsafe trait Pack: Copy + Sized {
+pub unsafe trait Pack: Clone {
     /// The number of bits in the packed representation.
     const BITS: usize;
 
-    type Unpack;
+    type Packed: Unpack<Unpacked = Self>;
 
     #[allow(private_bounds)]
     type Tight: Tight;
@@ -41,15 +41,13 @@ pub unsafe trait Pack: Copy + Sized {
     #[allow(private_bounds)]
     type Loose: Loose;
 
-    fn to_loose(&self) -> Self::Loose {
-        convert::packed_to_loose(*self)
-    }
+    fn pack(self) -> Self::Packed;
+}
 
-    fn to_tight(&self) -> Self::Tight {
-        convert::packed_to_tight(*self)
-    }
+pub trait Unpack: Copy {
+    type Unpacked: Pack<Packed = Self>;
 
-    fn unpack(&self) -> Self::Unpack;
+    fn unpack(self) -> Self::Unpacked;
 }
 
 /// Native integer type, or non-native integer type with stronger guarantees
@@ -78,23 +76,23 @@ pub mod convert {
     use super::Pack;
 
     union Transmute<T: Pack> {
-        value: T,
+        packed: T::Packed,
         loose: T::Loose,
         tight: T::Tight,
     }
 
     /// Convert from a packed struct to a native integer type.
     #[inline]
-    pub const fn packed_to_loose<T: Pack>(value: T) -> T::Loose {
+    pub const fn packed_to_loose<T: Pack>(packed: T::Packed) -> T::Loose {
         const { assert_layout::<T>() }
-        unsafe { Transmute { value }.loose }
+        unsafe { Transmute::<T> { packed }.loose }
     }
 
     /// Convert from a packed struct to an integer type.
     #[inline]
-    pub const fn packed_to_tight<T: Pack>(value: T) -> T::Tight {
+    pub const fn packed_to_tight<T: Pack>(packed: T::Packed) -> T::Tight {
         const { assert_layout::<T>() }
-        unsafe { Transmute { value }.tight }
+        unsafe { Transmute::<T> { packed }.tight }
     }
 
     /// Convert from a native integer type to a packed struct.
@@ -103,9 +101,9 @@ pub mod convert {
     ///
     /// Caller must guarantee that `loose` is a valid bit pattern for type `T`.
     #[inline]
-    pub const unsafe fn loose_to_packed<T: Pack>(loose: T::Loose) -> T {
+    pub const unsafe fn loose_to_packed<T: Pack>(loose: T::Loose) -> T::Packed {
         const { assert_layout::<T>() }
-        Transmute { loose }.value
+        Transmute::<T> { loose }.packed
     }
 
     /// Convert from an integer type to a packed struct.
@@ -114,9 +112,9 @@ pub mod convert {
     ///
     /// Caller must guarantee that `loose` is a valid bit pattern for type `T`.
     #[inline]
-    pub const unsafe fn tight_to_packed<T: Pack>(tight: T::Tight) -> T {
+    pub const unsafe fn tight_to_packed<T: Pack>(tight: T::Tight) -> T::Packed {
         const { assert_layout::<T>() }
-        Transmute { tight }.value
+        Transmute::<T> { tight }.packed
     }
 
     union Convert<F: Loose, I: Loose> {
@@ -141,16 +139,27 @@ pub mod convert {
     const fn assert_layout<T: Pack>() {
         const {
             assert!(
-                core::mem::size_of::<T>() == core::mem::size_of::<T::Tight>()
-                    && core::mem::size_of::<T>() == core::mem::size_of::<T::Loose>()
+                core::mem::size_of::<T::Packed>() == core::mem::size_of::<T::Tight>()
+                    && core::mem::align_of::<T::Packed>() == core::mem::align_of::<T::Tight>()
             );
 
             assert!(
-                core::mem::align_of::<T>() == core::mem::align_of::<T::Tight>()
-                    && core::mem::align_of::<T>() == core::mem::align_of::<T::Loose>()
+                core::mem::size_of::<T::Packed>() == core::mem::size_of::<T::Loose>()
+                    && core::mem::align_of::<T::Packed>() == core::mem::align_of::<T::Loose>()
             );
         }
     }
+}
+
+macro_rules! impl_unpack {
+    ($tight:ty) => {
+        impl Unpack for $tight {
+            type Unpacked = Self;
+            fn unpack(self) -> Self::Unpacked {
+                self
+            }
+        }
+    };
 }
 
 #[rustfmt::skip]
@@ -160,14 +169,16 @@ macro_rules! impl_impl_number {
 
         unsafe impl Pack for $loose {
             const BITS: usize = $loose_bits;
-            type Unpack = $loose;
+            type Packed = $loose;
             type Tight = $loose;
             type Loose = $loose;
 
-            fn unpack(&self) -> Self::Unpack {
-                *self
+            fn pack(self) -> Self::Packed {
+                self
             }
         }
+
+        impl_unpack!($loose);
 
         macro_rules! $name {
             ($dollar($tight:ident: $bits:expr),* $dollar(,)?) => {
@@ -176,50 +187,63 @@ macro_rules! impl_impl_number {
 
                     unsafe impl Pack for private::$tight {
                         const BITS: usize = $bits;
-                        type Unpack = private::$tight;
-                        type Tight = private::$tight;
+                        type Packed = Self;
+                        type Tight = Self;
                         type Loose = $loose;
-                        fn unpack(&self) -> Self::Unpack {
-                            *self
+                        fn pack(self) -> Self::Packed {
+                            self
                         }
                     }
+
+                    impl_unpack!($tight);
                 )*
             };
         }
     };
 }
 
+unsafe impl Loose for () {}
+
 unsafe impl Pack for () {
     const BITS: usize = 0;
-    type Unpack = ();
-    type Tight = ();
-    type Loose = ();
-    fn unpack(&self) -> Self::Unpack {}
+    type Packed = Self;
+    type Tight = Self;
+    type Loose = Self;
+    fn pack(self) -> Self::Packed {}
 }
 
-unsafe impl Loose for () {}
+impl_unpack!(());
 
 unsafe impl<T> Pack for PhantomData<T> {
     const BITS: usize = 0;
-    type Unpack = PhantomData<T>;
+    type Packed = PhantomData<T>;
     type Tight = ();
     type Loose = ();
-    fn unpack(&self) -> Self::Unpack {
-        *self
+    fn pack(self) -> Self::Packed {
+        self
     }
 }
 
-unsafe impl Pack for bool {
-    const BITS: usize = 1;
-    type Unpack = bool;
-    type Tight = bool;
-    type Loose = u8;
-    fn unpack(&self) -> Self::Unpack {
-        *self
+impl<T> Unpack for PhantomData<T> {
+    type Unpacked = Self;
+    fn unpack(self) -> Self::Unpacked {
+        self
     }
 }
 
 unsafe impl Loose for bool {}
+
+unsafe impl Pack for bool {
+    const BITS: usize = 1;
+    type Packed = bool;
+    type Tight = bool;
+    type Loose = u8;
+    fn pack(self) -> Self::Packed {
+        self
+    }
+}
+
+impl_unpack!(bool);
 
 impl_impl_number!(impl_u8, u8, 8, $);
 impl_u8!(
@@ -382,17 +406,18 @@ macro_rules! impl_nonzero {
     ($ty:ty, $loose:ty, $bits:expr) => {
         unsafe impl Pack for $ty {
             const BITS: usize = $bits;
-            type Unpack = $ty;
+            type Packed = $ty;
             type Tight = $ty;
             type Loose = $loose;
-            fn unpack(&self) -> Self::Unpack {
-                *self
+            fn pack(self) -> Self::Packed {
+                self
             }
         }
 
         impl Tight for $ty {}
         impl seal::Seal for $ty {}
         unsafe impl NonZero for $ty {}
+        impl_unpack!($ty);
     };
 }
 
@@ -407,13 +432,24 @@ impl<T> Tight for Option<T> where T: Tight + NonZero {}
 unsafe impl<T> Pack for Option<T>
 where
     T: Pack,
-    T::Tight: Tight + NonZero,
+    T::Tight: NonZero,
 {
     const BITS: usize = T::BITS;
-    type Unpack = Option<T::Unpack>;
+    type Packed = Option<T::Packed>;
     type Tight = Option<T::Tight>;
     type Loose = T::Loose;
-    fn unpack(&self) -> Self::Unpack {
+    fn pack(self) -> Self::Packed {
+        self.map(|unpacked| unpacked.pack())
+    }
+}
+
+impl<T> Unpack for Option<T>
+where
+    T: Unpack,
+    <<T as Unpack>::Unpacked as Pack>::Tight: NonZero,
+{
+    type Unpacked = Option<T::Unpacked>;
+    fn unpack(self) -> Self::Unpacked {
         self.map(|packed| packed.unpack())
     }
 }

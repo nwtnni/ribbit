@@ -23,14 +23,7 @@ impl StructOpt {
     }
 }
 
-pub(crate) fn new(
-    ir @ ir::Ir {
-        item, tight, data, ..
-    }: &ir::Ir,
-) -> TokenStream {
-    let new = item.opt.new.name();
-    let vis = item.opt.new.vis.as_ref().unwrap_or(&item.vis);
-
+pub(crate) fn new(ir @ ir::Ir { tight, data, .. }: &ir::Ir) -> TokenStream {
     let ty_struct = ty::Tree::from(tight.clone());
     let ty_struct_loose = tight.loosen();
 
@@ -38,7 +31,7 @@ pub(crate) fn new(
         ir::Data::Struct(r#struct) => {
             let parameters = r#struct.iter_nonzero().map(|field| {
                 let ident = field.ident.escaped();
-                let ty = &field.ty;
+                let ty = field.ty.packed();
                 quote!(#ident: #ty)
             });
 
@@ -79,7 +72,7 @@ pub(crate) fn new(
 
             quote! {
                 #[inline]
-                #vis const fn #new(
+                pub const fn new(
                     #(#parameters),*
                 ) -> Self {
                     let _: () = Self::_RIBBIT_ASSERT_LAYOUT;
@@ -91,7 +84,7 @@ pub(crate) fn new(
             }
         }
         ir::Data::Enum(r#enum @ ir::Enum { variants }) => {
-            let unpacked = ir::Enum::unpacked(&item.ident);
+            let unpacked = ir.ident_unpacked();
 
             let variants = variants
                 .iter()
@@ -120,7 +113,7 @@ pub(crate) fn new(
             let (_, ty, _) = ir.generics().split_for_impl();
             quote! {
                 #[inline]
-                #vis const fn #new(
+                pub const fn new(
                     unpacked: #unpacked #ty,
                 ) -> Self {
                     let _: () = Self::_RIBBIT_ASSERT_LAYOUT;

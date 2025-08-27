@@ -31,79 +31,105 @@ pub fn pack(
     item: proc_macro::TokenStream,
 ) -> proc_macro::TokenStream {
     let input = parse_macro_input!(item as syn::DeriveInput);
-    let mut stream = TokenStream::new();
-    stream.append_all(unpack_inner(&input).unwrap_or_else(|error| error.write_errors()));
-    stream.append_all(pack_inner(attr.into(), input).unwrap_or_else(|error| error.write_errors()));
-    stream.into()
+    let mut output = TokenStream::new();
+    match pack_impl(attr.into(), input, &mut output) {
+        Ok(()) => output,
+        Err(error) => error.write_errors(),
+    }
+    .into()
 }
 
-fn pack_inner(
+// Outer function (1) converts between proc_macro::TokenStream and proc_macro2::TokenStream and
+// (2) handles errors by writing them out.
+fn pack_impl(
     attr: TokenStream,
     mut input: syn::DeriveInput,
-) -> Result<TokenStream, darling::Error> {
+    output: &mut TokenStream,
+) -> Result<(), darling::Error> {
+    // Integrate with darling's attribute filter (namespace `ribbit` instead of `ribbit::pack`).
     input.attrs.push(parse_quote!(#[ribbit(#attr)]));
 
-    let mut stream = TokenStream::new();
-    let parent = input::Item::from_derive_input(&input)?;
-    let parent_ir = ir::new(&parent, None)?;
+    let mut input = input::Item::from_derive_input(&input)?;
 
-    stream.append_all(pack_item(&parent_ir)?);
-
-    match &parent.data {
-        darling::ast::Data::Struct(_) => (),
-        darling::ast::Data::Enum(r#enum) => {
-            for variant in r#enum {
-                match variant.fields.as_shape() {
-                    // Assume wrapped type implements `ribbit::Pack`
-                    Shape::Newtype => (),
-
-                    // No generation needed
-                    Shape::Unit => (),
-
-                    // Generate struct for variant
-                    Shape::Named | Shape::Tuple => {
-                        let child = input::Item {
-                            opt: variant.opt.clone(),
-                            attrs: variant.attrs.clone(),
-                            vis: parent.vis.clone(),
-                            ident: variant.ident.clone(),
-                            generics: parent.generics.clone(),
-                            data: darling::ast::Data::Struct(variant.fields.clone()),
-                        };
-
-                        let child_ir = ir::new(&child, Some(&parent_ir))?;
-
-                        stream.append_all(pack_item(&child_ir)?);
-                    }
-                }
-            }
+    let r#enum = match &mut input.data {
+        // Fast path: simple struct
+        darling::ast::Data::Struct(_) => {
+            let input = ir::new(&input, None)?;
+            return pack_item(&input, output);
         }
-    }
+        darling::ast::Data::Enum(r#enum) => r#enum,
+    };
 
-    Ok(stream)
+    r#enum
+        .iter_mut()
+        .filter(|variant| variant.extract)
+        .filter(|variant| matches!(variant.fields.as_shape(), Shape::Named | Shape::Tuple))
+        .try_for_each(|variant| {
+            // Extract and generate
+            let child = input::Item {
+                opt: variant.opt.clone(),
+                attrs: variant.attrs.clone(),
+                vis: input.vis.clone(),
+                ident: variant.ident.clone(),
+                generics: input.generics.clone(),
+                data: darling::ast::Data::Struct(variant.fields.clone()),
+            };
+
+            let child_ir = ir::new(&child, None)?;
+            pack_item(&child_ir, output)
+
+            // let ident = &variant.ident;
+            // let (_, generics_ty, _) = input.generics.split_for_impl();
+            //
+            // // Mutate
+            // variant.fields = darling::ast::Fields::new(
+            //     darling::ast::Style::Tuple,
+            //     core::iter::once(input::Field {
+            //         opt: ir::FieldOpt::default(),
+            //         vis: syn::Visibility::Inherited,
+            //         ident: None,
+            //         ty: parse_quote!(#ident #generics_ty),
+            //     })
+            //     .map(|field| SpannedValue::new(field, variant.span()))
+            //     .collect(),
+            // );
+        })?;
+
+    let parent_ir = ir::new(&input, None)?;
+    pack_item(&parent_ir, output)
 }
 
-fn pack_item(ir: &Ir) -> Result<TokenStream, darling::Error> {
+// Generate code for a single item.
+fn pack_item(ir: &Ir, output: &mut TokenStream) -> Result<(), darling::Error> {
     let pre = gen::pre(ir);
-    let repr = gen::repr(ir);
     let new = gen::new(ir);
+    let unpacked = gen::unpacked(ir);
+    let pack = gen::pack(ir);
+    let packed = gen::packed(ir);
+    let unpack = gen::unpack(ir);
     let get = gen::get(ir);
     let set = gen::set(ir);
     let from = gen::from(ir);
     let debug = gen::debug(ir);
-    let copy = gen::copy(ir);
     let hash = gen::hash(ir);
     let eq = gen::eq(ir);
     let ord = gen::ord(ir);
 
     let generics = ir.generics_bounded(None);
-    let (r#impl, ty, r#where) = generics.split_for_impl();
-    let ident = &ir.item.ident;
+    let (generics_impl, generics_ty, generics_where) = generics.split_for_impl();
+    let unpacked_ident = ir.ident_unpacked();
+    let packed_ident = ir.ident_packed();
 
-    Ok(quote! {
-        #repr
+    output.append_all(quote! {
+        #unpacked
 
-        impl #r#impl #ident #ty #r#where {
+        #pack
+
+        #packed
+
+        #unpack
+
+        impl #generics_impl #packed_ident #generics_ty #generics_where {
             #pre
 
             #new
@@ -113,15 +139,15 @@ fn pack_item(ir: &Ir) -> Result<TokenStream, darling::Error> {
             #(#set)*
         }
 
-        #from
+        // #from
         #debug
 
-        #copy
         #hash
         #eq
         #ord
-    }
-    .to_token_stream())
+    });
+
+    Ok(())
 }
 
 fn unpack_inner(input: &syn::DeriveInput) -> darling::Result<TokenStream> {
@@ -166,14 +192,12 @@ fn unpack_inner(input: &syn::DeriveInput) -> darling::Result<TokenStream> {
 }
 
 fn unpack_item(mut input: syn::DeriveInput) -> TokenStream {
-    input.ident = ir::Enum::unpacked(&input.ident);
+    strip(&mut input.attrs);
 
     // It's possible to interact with packed structs only via
     // getters and setters, without eagerly unpacking the
     // entire type.
     input.attrs.push(parse_quote!(#[allow(dead_code)]));
-
-    strip(&mut input.attrs);
 
     let (_, ty, _) = input.generics.split_for_impl();
 

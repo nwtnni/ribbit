@@ -83,6 +83,39 @@ impl Tree {
         matches!(self, Tree::Leaf(_))
     }
 
+    pub(crate) fn packed(&self) -> TokenStream {
+        match self {
+            Tree::Leaf(_) => quote!(#self),
+            Tree::Node(node) => quote!(<#node as ::ribbit::Pack>::Packed),
+        }
+    }
+
+    pub(crate) fn pack(&self, expression: TokenStream) -> TokenStream {
+        match self {
+            Tree::Leaf(_) => expression,
+            // Tree::Node(node) if node.is_option() => quote! {
+            //     match #expression {
+            //         None => None,
+            //         Some(unpacked) => Some(unpacked.pack()),
+            //     }
+            // },
+            Tree::Node(_) => quote!(#expression.pack()),
+        }
+    }
+
+    pub(crate) fn unpack(&self, expression: TokenStream) -> TokenStream {
+        match self {
+            Tree::Leaf(_) => expression,
+            // Tree::Node(node) if node.is_option() => quote! {
+            //     match #expression {
+            //         None => None,
+            //         Some(packed) => Some(packed.unpack()),
+            //     }
+            // },
+            Tree::Node(_) => quote!(#expression.unpack()),
+        }
+    }
+
     pub(crate) fn tighten(&self) -> Tight {
         match self {
             Tree::Node(node) => node.tighten().clone(),

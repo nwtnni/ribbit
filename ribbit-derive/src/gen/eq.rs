@@ -7,13 +7,13 @@ use crate::ir;
 #[derive(FromMeta, Clone, Debug)]
 pub(crate) struct StructOpt;
 
-pub(crate) fn eq(ir @ ir::Ir { item, .. }: &ir::Ir) -> TokenStream {
-    if item.opt.eq.is_none() {
+pub(crate) fn eq(ir: &ir::Ir) -> TokenStream {
+    if ir.opt.eq.is_none() {
         return TokenStream::new();
     }
 
     let (r#impl, ty, r#where) = ir.generics().split_for_impl();
-    let ident = &item.ident;
+    let ident = ir.ident_packed();
 
     quote!(
         impl #r#impl Eq for #ident #ty #r#where {}

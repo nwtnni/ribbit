@@ -1,6 +1,9 @@
 use std::collections::BTreeSet;
 use std::collections::HashSet;
 
+use ribbit::Pack as _;
+
+#[derive(Clone, Debug)]
 #[ribbit::pack(size = 32, hash, debug, eq, ord)]
 struct Wrap<T> {
     #[ribbit(size = 32)]
@@ -10,7 +13,7 @@ struct Wrap<T> {
 #[test]
 fn hash() {
     let mut set = HashSet::new();
-    let a = Wrap::new(5u32);
+    let a = Wrap { inner: 5u32 }.pack();
     set.insert(a);
     assert!(set.contains(&a));
 }
@@ -19,8 +22,8 @@ fn hash() {
 fn ord() {
     // `Wrap<Inner>: Hash + Eq even though Inner: !Hash + !Eq
     let mut set = BTreeSet::new();
-    let a = Wrap::new(1u32);
-    let b = Wrap::new(2u32);
+    let a = Wrap { inner: 1u32 }.pack();
+    let b = Wrap { inner: 2u32 }.pack();
     set.insert(a);
     set.insert(b);
     assert!(set.contains(&a));
@@ -31,6 +34,7 @@ fn ord() {
 
 #[test]
 fn loose_derive() {
+    #[derive(Clone)]
     #[ribbit::pack(size = 32)]
     struct Inner {
         lo: u16,
@@ -39,7 +43,10 @@ fn loose_derive() {
 
     // `Wrap<Inner>: Hash + Eq even though Inner: !Hash + !Eq
     let mut set = HashSet::new();
-    let a = Wrap::new(Inner::new(5, 7));
+    let a = Wrap {
+        inner: Inner { lo: 5, hi: 7 },
+    }
+    .pack();
     set.insert(a);
     assert!(set.contains(&a));
 }

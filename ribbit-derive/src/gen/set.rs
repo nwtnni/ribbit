@@ -56,6 +56,12 @@ pub(crate) fn set<'ir>(
                     };
 
                     let with = ident.unescaped("with");
+
+                    let ty_field = match ty_field {
+                        ty::Tree::Node(node) => quote!(<#node as ::ribbit::Pack>::Packed),
+                        ty::Tree::Leaf(leaf) => leaf.to_token_stream(),
+                    };
+
                     quote! {
                         #[inline]
                         #vis const fn #with(&self, #escaped: #ty_field) -> Self {

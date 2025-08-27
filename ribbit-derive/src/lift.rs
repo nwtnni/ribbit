@@ -77,13 +77,13 @@ impl<V: ToTokens> ToTokens for Loose<V> {
             Value::Compile(value) => self.ty.loosen().literal(*value as u128).to_tokens(tokens),
             Value::Run(value) => match &self.ty {
                 ty::Tree::Leaf(leaf) if leaf.is_loose() => value.to_tokens(tokens),
-                ty::Tree::Leaf(_) => {
-                    quote!(::ribbit::convert::packed_to_loose(#value)).to_tokens(tokens)
+                ty::Tree::Leaf(leaf) => {
+                    quote!(::ribbit::convert::packed_to_loose::<#leaf>(#value)).to_tokens(tokens)
                 }
                 ty::Tree::Node(node) => {
                     let loose = node.loosen();
                     let inner = quote!(::ribbit::convert::loose_to_loose::<_, #loose>(
-                        ::ribbit::convert::packed_to_loose(#value)
+                        ::ribbit::convert::packed_to_loose::<#node>(#value)
                     ));
                     inner.to_tokens(tokens)
                 }

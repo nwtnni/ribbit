@@ -7,8 +7,8 @@ use crate::ir;
 #[derive(FromMeta, Clone, Debug)]
 pub(crate) struct StructOpt;
 
-pub(crate) fn from(ir @ ir::Ir { item, parent, .. }: &ir::Ir) -> TokenStream {
-    let Some(StructOpt) = &item.opt.from else {
+pub(crate) fn from(ir @ ir::Ir { opt, parent, .. }: &ir::Ir) -> TokenStream {
+    let Some(StructOpt) = &opt.from else {
         return TokenStream::new();
     };
 
@@ -17,44 +17,50 @@ pub(crate) fn from(ir @ ir::Ir { item, parent, .. }: &ir::Ir) -> TokenStream {
         Some(parent) => parent.generics_bounded(None),
     };
 
-    let (r#impl, ty, r#where) = generics.split_for_impl();
+    let (generics_impl, generics_ty, generics_where) = generics.split_for_impl();
+    let packed = ir.ident_packed();
+    let unpacked = ir.ident_unpacked();
 
     match parent {
         None => {
-            let packed = &item.ident;
-            let unpacked = ir::Enum::unpacked(packed);
-            let new = item.opt.new.name();
-
             quote! {
-                impl #r#impl From<#unpacked #ty> for #packed #ty #r#where {
+                impl #generics_impl From<#unpacked #generics_ty> for #packed #generics_ty #generics_where {
                     #[inline]
-                    fn from(unpacked: #unpacked #ty) -> Self {
-                        Self::#new(unpacked)
+                    fn from(unpacked: #unpacked #generics_ty) -> Self {
+                        unpacked.pack()
+                    }
+                }
+
+                impl #generics_impl From<#packed #generics_ty> for #unpacked #generics_ty #generics_where {
+                    #[inline]
+                    fn from(packed: #packed #generics_ty) -> Self {
+                        packed.unpack()
                     }
                 }
             }
         }
         Some(parent) => {
-            let variant = &item.ident;
-            let packed = &parent.item.ident;
-            let unpacked = ir::Enum::unpacked(packed);
-            let new = parent.item.opt.new.name();
-
-            quote!(
-                impl #r#impl From<#variant #ty> for #unpacked #ty #r#where {
-                    #[inline]
-                    fn from(variant: #variant #ty) -> Self {
-                        #unpacked::#variant(variant)
-                    }
-                }
-
-                impl #r#impl From<#variant #ty> for #packed #ty #r#where {
-                    #[inline]
-                    fn from(variant: #variant #ty) -> Self {
-                        #packed::#new(#unpacked::#variant(variant))
-                    }
-                }
-            )
+            todo!()
+            // let variant = ir.ident_unpacked();
+            // let packed = parent.ident_packed();
+            // let unpacked = parent.ident_unpacked();
+            // let new = parent.opt.new.name();
+            //
+            // quote!(
+            //     impl #generics_impl From<#variant #generics_ty> for #unpacked #generics_ty #generics_where {
+            //         #[inline]
+            //         fn from(variant: #variant #generics_ty) -> Self {
+            //             #unpacked::#variant(variant)
+            //         }
+            //     }
+            //
+            //     impl #generics_impl From<#variant #generics_ty> for #packed #generics_ty #generics_where {
+            //         #[inline]
+            //         fn from(variant: #variant #generics_ty) -> Self {
+            //             #packed::#new(#unpacked::#variant(variant))
+            //         }
+            //     }
+            // )
         }
     }
 }
