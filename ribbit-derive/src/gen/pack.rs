@@ -64,7 +64,6 @@ pub(crate) fn pack(ir: &ir::Ir) -> TokenStream {
         unsafe impl #generics_impl ::ribbit::Pack for #unpacked #generics_ty #generics_where {
             const BITS: usize = #size;
             type Packed = #packed #generics_ty;
-            type Tight = #tight;
             type Loose = <#tight as ::ribbit::Pack>::Loose;
 
             #[inline]

@@ -36,9 +36,6 @@ pub unsafe trait Pack: Clone {
     type Packed: Unpack<Unpacked = Self>;
 
     #[allow(private_bounds)]
-    type Tight: Tight;
-
-    #[allow(private_bounds)]
     type Loose: Loose;
 
     fn pack(self) -> Self::Packed;
@@ -50,13 +47,6 @@ pub trait Unpack: Copy {
     fn unpack(self) -> Self::Unpacked;
 }
 
-/// Native integer type, or non-native integer type with stronger guarantees
-/// (e.g. `NonZero`, arbitrary-sized integer).
-//
-// Used internally as the backing representation of a packed type,
-// so that the compiler can take advantage of the type's guarantees.
-trait Tight: Copy {}
-
 /// Native integer type.
 ///
 /// # Safety
@@ -66,8 +56,6 @@ trait Tight: Copy {}
 // Used internally for `const`-compatible conversions between packed
 // and tight types.
 unsafe trait Loose: Copy {}
-
-impl<T: Loose> Tight for T {}
 
 /// Implements `const`-compatible conversions between packed and loose representations.
 pub mod convert {
@@ -141,7 +129,6 @@ macro_rules! impl_impl_number {
         unsafe impl Pack for $loose {
             const BITS: usize = $loose_bits;
             type Packed = $loose;
-            type Tight = $loose;
             type Loose = $loose;
 
             fn pack(self) -> Self::Packed {
@@ -154,12 +141,9 @@ macro_rules! impl_impl_number {
         macro_rules! $name {
             ($dollar($tight:ident: $bits:expr),* $dollar(,)?) => {
                 $dollar(
-                    impl Tight for private::$tight {}
-
                     unsafe impl Pack for private::$tight {
                         const BITS: usize = $bits;
                         type Packed = Self;
-                        type Tight = Self;
                         type Loose = $loose;
                         fn pack(self) -> Self::Packed {
                             self
@@ -173,12 +157,9 @@ macro_rules! impl_impl_number {
     };
 }
 
-impl Tight for () {}
-
 unsafe impl Pack for () {
     const BITS: usize = 0;
     type Packed = Self;
-    type Tight = Self;
     type Loose = u8;
     fn pack(self) -> Self::Packed {}
 }
@@ -188,7 +169,6 @@ impl_unpack!(());
 unsafe impl<T> Pack for PhantomData<T> {
     const BITS: usize = 0;
     type Packed = PhantomData<T>;
-    type Tight = ();
     type Loose = u8;
     fn pack(self) -> Self::Packed {
         self
@@ -202,12 +182,9 @@ impl<T> Unpack for PhantomData<T> {
     }
 }
 
-impl Tight for bool {}
-
 unsafe impl Pack for bool {
     const BITS: usize = 1;
     type Packed = bool;
-    type Tight = bool;
     type Loose = u8;
     fn pack(self) -> Self::Packed {
         self
@@ -378,14 +355,12 @@ macro_rules! impl_nonzero {
         unsafe impl Pack for $ty {
             const BITS: usize = $bits;
             type Packed = $ty;
-            type Tight = $ty;
             type Loose = $loose;
             fn pack(self) -> Self::Packed {
                 self
             }
         }
 
-        impl Tight for $ty {}
         impl seal::Seal for $ty {}
         unsafe impl NonZero for $ty {}
         impl_unpack!($ty);
@@ -398,16 +373,12 @@ impl_nonzero!(NonZeroU32, u32, 32);
 impl_nonzero!(NonZeroU64, u64, 64);
 impl_nonzero!(NonZeroU128, u128, 128);
 
-impl<T> Tight for Option<T> where T: Tight + NonZero {}
-
 unsafe impl<T> Pack for Option<T>
 where
-    T: Pack,
-    T::Tight: NonZero,
+    T: Pack + NonZero,
 {
     const BITS: usize = T::BITS;
     type Packed = Option<T::Packed>;
-    type Tight = Option<T::Tight>;
     type Loose = T::Loose;
     fn pack(self) -> Self::Packed {
         self.map(|unpacked| unpacked.pack())
@@ -417,7 +388,7 @@ where
 impl<T> Unpack for Option<T>
 where
     T: Unpack,
-    <<T as Unpack>::Unpacked as Pack>::Tight: NonZero,
+    <T as Unpack>::Unpacked: NonZero,
 {
     type Unpacked = Option<T::Unpacked>;
     fn unpack(self) -> Self::Unpacked {
