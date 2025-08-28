@@ -3,96 +3,57 @@ use quote::quote;
 use quote::quote_spanned;
 
 use crate::ir;
+use crate::Or;
 
 pub(crate) fn pre(ir: &ir::Ir) -> TokenStream {
-    match &ir.data {
-        ir::Data::Struct(ir::Struct { fields, .. }) => {
-            let fields = fields
+    let assertions = match &ir.data {
+        ir::Data::Struct(r#struct) => Or::L(extract_assertions(r#struct)),
+        ir::Data::Enum(r#enum) => Or::R(
+            r#enum
+                .variants
                 .iter()
-                .map(|field| &field.ty)
-                .filter(|ty| ty.is_node());
+                .filter(|variant| !variant.extract)
+                .flat_map(|variant| extract_assertions(&variant.r#struct)),
+        ),
+    };
 
-            let nonzero = fields
-                .clone()
-                .filter(|ty| ty.is_nonzero())
-                .map(|ty| quote!(::ribbit::private::assert_impl_all!(<#ty as ::ribbit::Pack>::Tight: ::ribbit::NonZero)));
-
-            let pack = fields.map(|ty| {
-                let expected = ty.size_expected();
-                let actual = ty.size_actual();
-                quote_spanned! {ty.span()=>
-                    ::ribbit::private::concat_assert! {
-                        #expected >= #actual,
-                        "Annotated size ",
-                        #expected,
-                        " is too small to fit type ",
-                        stringify!(#ty),
-                        " of size ",
-                        #actual,
-                    };
-                }
-            });
-
-            quote! {
-                #[doc(hidden)]
-                const _RIBBIT_ASSERT_LAYOUT: () = {
-                    #(#nonzero;)*
-                    #(#pack)*
-                };
-            }
-        }
-        ir::Data::Enum(r#enum @ ir::Enum { variants, .. }) => {
-            todo!()
-            //     let variants = variants
-            //         .iter()
-            //         .filter_map(|variant| variant.ty.as_ref())
-            //         .filter(|ty| ty.is_node());
-            //
-            //     let nonzero = variants
-            //         .clone()
-            //         .filter(|ty| ty.is_nonzero())
-            //         .map(|ty| quote!(::ribbit::private::assert_impl_all!(#ty: ::ribbit::NonZero)));
-            //
-            //     let size_enum = tight.size();
-            //     let size_discriminant = r#enum.discriminant_size();
-            //     let size_variant = size_enum - size_discriminant;
-            //
-            //     let pack = variants.map(|ty| {
-            //         let expected = ty.size_expected();
-            //         let actual = ty.size_actual();
-            //
-            //         quote_spanned! {ty.span()=>
-            //             ::ribbit::private::concat_assert! {
-            //                 #expected >= #actual,
-            //                 "Annotated size ",
-            //                 #expected,
-            //                 " is too small to fit type ",
-            //                 stringify!(#ty),
-            //                 " of size ",
-            //                 #actual,
-            //             };
-            //
-            //             ::ribbit::private::concat_assert! {
-            //                 #size_variant >= #expected,
-            //                 "Variant of type ",
-            //                 stringify!(#ty),
-            //                 " and annotated size ",
-            //                 #expected,
-            //                 " does not fit in enum of size ",
-            //                 #size_enum,
-            //                 " with discriminant size ",
-            //                 #size_discriminant,
-            //             };
-            //         }
-            //     });
-            //
-            //     quote! {
-            //         #[doc(hidden)]
-            //         const _RIBBIT_ASSERT_LAYOUT: () = {
-            //             #(#nonzero;)*
-            //             #(#pack)*
-            //         };
-            //     }
-        }
+    quote! {
+        #[doc(hidden)]
+        const _RIBBIT_ASSERT_LAYOUT: () = {
+            #(#assertions ;)*
+        };
     }
+}
+
+fn extract_assertions<'ir>(r#struct: &'ir ir::Struct) -> impl Iterator<Item = TokenStream> + 'ir {
+    let fields = r#struct
+        .fields
+        .iter()
+        .map(|field| &field.ty)
+        // Only need to check user-defined types
+        .filter(|ty| ty.is_node());
+
+    let nonzero = fields.clone().filter(|ty| ty.is_nonzero()).map(|ty| {
+        quote!(
+            ::ribbit::private::assert_impl_all!(<#ty as ::ribbit::Pack>::Tight: ::ribbit::NonZero)
+        )
+    });
+
+    let pack = fields.map(|ty| {
+        let expected = ty.size_expected();
+        let actual = ty.size_actual();
+        quote_spanned! {ty.span()=>
+            ::ribbit::private::concat_assert!(
+                #expected >= #actual,
+                "Annotated size ",
+                #expected,
+                " is too small to fit type ",
+                stringify!(#ty),
+                " of size ",
+                #actual,
+            )
+        }
+    });
+
+    nonzero.chain(pack)
 }

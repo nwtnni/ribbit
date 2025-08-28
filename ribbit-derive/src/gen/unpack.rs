@@ -28,37 +28,41 @@ pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
                 }
             }
         }
-        ir::Data::Enum(r#enum @ ir::Enum { variants, .. }) => {
-            todo!()
-            //     let variants = variants.iter().enumerate().map(|(index, variant)| {
-            //         let discriminant = tight.loosen().literal(index as u128);
-            //         let ident = &variant.ident;
-            //         let value = match variant.ty.as_deref().cloned() {
-            //             None => quote!(#unpacked::#ident),
-            //             Some(ty_variant) => {
-            //                 #[allow(clippy::precedence)]
-            //                 let inner = (quote!(self.value).lift() % ty_struct.clone()
-            //                     >> r#enum.discriminant_size())
-            //                     % ty_variant;
-            //
-            //                 quote!(#unpacked::#ident(#inner))
-            //             }
-            //         };
-            //
-            //         quote!(#discriminant => #value)
-            //     });
-            //
-            //     let discriminant =
-            //         (quote!(self.value).lift() % ty_struct.clone()) & r#enum.discriminant_mask();
-            //
-            //     quote! {
-            //         match #discriminant {
-            //             #(#variants,)*
-            //             _ => unsafe {
-            //                 ::core::hint::unreachable_unchecked()
-            //             }
-            //         }
-            //     }
+        ir::Data::Enum(r#enum) => {
+            let size_discriminant = r#enum.discriminant_size();
+            let variants = r#enum.variants.iter().enumerate().map(|(index, variant)| {
+                let discriminant = ty_struct.loosen().literal(index as u128);
+
+                let ident = &variant.r#struct.unpacked;
+
+                assert!(!variant.extract, "TODO");
+
+                let fields = variant.r#struct.fields.iter().map(|field| {
+                    let name = &field.ident;
+                    let value = field.ty.unpack(crate::gen::get::get_field(
+                        variant.r#struct.is_newtype(),
+                        size_discriminant,
+                        ty_struct,
+                        field,
+                    ));
+
+                    quote!(#name: #value)
+                });
+
+                quote!(#discriminant => #unpacked::#ident { #(#fields ,)* })
+            });
+
+            let discriminant =
+                (quote!(self.value).lift() % ty_struct.clone()) & r#enum.discriminant_mask();
+
+            quote! {
+                match #discriminant {
+                    #(#variants, )*
+                    _ => unsafe {
+                        ::core::hint::unreachable_unchecked()
+                    }
+                }
+            }
         }
     };
 

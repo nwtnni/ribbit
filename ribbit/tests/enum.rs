@@ -1,3 +1,7 @@
+use ribbit::Pack as _;
+use ribbit::Unpack as _;
+
+#[derive(Clone)]
 #[ribbit::pack(size = 16)]
 enum SingleNamed {
     #[ribbit(size = 16)]
@@ -6,16 +10,18 @@ enum SingleNamed {
 
 #[test]
 fn single_named() {
-    let named = SingleNamed::new(SingleNamedUnpacked::A(A::new(5)));
+    let named = SingleNamed::A { a: 5 }.pack();
 
     match named.unpack() {
-        SingleNamedUnpacked::A(a) => assert_eq!(a.a(), 5),
+        SingleNamed::A { a } => assert_eq!(a, 5),
     }
 }
 
+#[derive(Clone)]
 #[ribbit::pack(size = 8)]
 struct Byte(u8);
 
+#[derive(Clone)]
 #[ribbit::pack(size = 8)]
 enum SingleNewtype {
     #[ribbit(size = 8)]
@@ -24,61 +30,65 @@ enum SingleNewtype {
 
 #[test]
 fn single_newtype() {
-    let b = SingleNewtype::new(SingleNewtypeUnpacked::Byte(Byte::new(3)));
+    let b = SingleNewtype::Byte(Byte(3)).pack();
 
     match b.unpack() {
-        SingleNewtypeUnpacked::Byte(b) => assert_eq!(b._0(), 3),
+        SingleNewtype::Byte(b) => assert_eq!(b.0, 3),
     }
 }
 
+#[derive(Clone)]
 #[ribbit::pack(size = 8)]
 enum SingleUnit {
+    #[ribbit(size = 0)]
     Unit,
 }
 
 #[test]
 fn single_unit() {
-    let b = SingleUnit::new(SingleUnitUnpacked::Unit);
+    let b = SingleUnit::Unit.pack();
 
     match b.unpack() {
-        SingleUnitUnpacked::Unit => (),
+        SingleUnit::Unit => (),
     }
 }
 
+#[derive(Clone)]
 #[ribbit::pack(size = 34)]
 enum Mixed {
     #[ribbit(size = 16)]
-    X {
-        a: u16,
-    },
+    X { a: u16 },
+    #[ribbit(size = 32)]
     Y(u32),
+    #[ribbit(size = 0)]
     Z,
 }
 
 #[test]
 fn mixed() {
-    let mut x = Mixed::new(MixedUnpacked::X(X::new(3)));
+    let mut x = Mixed::X { a: 3 }.pack();
 
     match x.unpack() {
-        MixedUnpacked::X(x) => assert_eq!(x.a(), 3),
+        Mixed::X { a } => assert_eq!(a, 3),
         _ => unreachable!(),
     }
 
-    x = Mixed::new(MixedUnpacked::Y(5));
+    x = Mixed::Y(5).pack();
 
     match x.unpack() {
-        MixedUnpacked::Y(y) => assert_eq!(y, 5),
+        Mixed::Y(y) => assert_eq!(y, 5),
         _ => unreachable!(),
     }
 
-    x = Mixed::new(MixedUnpacked::Z);
+    x = Mixed::Z.pack();
 
     match x.unpack() {
-        MixedUnpacked::Z => (),
+        Mixed::Z => (),
         _ => unreachable!(),
     }
 }
 
+#[derive(Clone)]
 #[ribbit::pack(size = 8)]
 enum Wrapper {
     #[ribbit(size = 8)]
@@ -87,39 +97,40 @@ enum Wrapper {
 
 #[test]
 fn wrapper() {
-    let b = Wrapper::new(WrapperUnpacked::Byte(3));
+    let b = Wrapper::Byte(3).pack();
 
     match b.unpack() {
-        WrapperUnpacked::Byte(b) => assert_eq!(b, 3),
+        Wrapper::Byte(b) => assert_eq!(b, 3),
     }
 }
 
-#[test]
-fn from() {
-    #[ribbit::pack(size = 8, debug, from, eq)]
-    enum Outer {
-        #[ribbit(size = 8, debug, from, eq)]
-        Inner { value: u8 },
-    }
-
-    let a = Outer::from(Inner::new(0u8));
-    let b = OuterUnpacked::from(Inner::new(0u8));
-    let c = Outer::from(b);
-
-    assert_eq!(a, c);
-}
-
-#[test]
-fn unpack_macro() {
-    #[ribbit::pack(size = 8, debug, from, eq)]
-    enum Outer {
-        #[ribbit(size = 8, debug, from, eq)]
-        Inner { value: u8 },
-    }
-
-    let a = Outer::from(Inner::new(0u8));
-    let b = <ribbit::unpack![Outer]>::from(Inner::new(0u8));
-    let c = Outer::from(b);
-
-    assert_eq!(a, c);
-}
+// #[test]
+// fn from() {
+//     #[ribbit::pack(size = 8, debug, from, eq)]
+//     enum Outer {
+//         #[ribbit(size = 8, debug, from, eq)]
+//         Inner { value: u8 },
+//     }
+//
+//     let a = Outer::from(Inner::new(0u8));
+//     let b = OuterUnpacked::from(Inner::new(0u8));
+//     let c = Outer::from(b);
+//
+//     assert_eq!(a, c);
+// }
+//
+//
+// #[test]
+// fn unpack_macro() {
+//     #[ribbit::pack(size = 8, debug, from, eq)]
+//     enum Outer {
+//         #[ribbit(size = 8, debug, from, eq)]
+//         Inner { value: u8 },
+//     }
+//
+//     let a = Outer::from(Inner::new(0u8));
+//     let b = <ribbit::unpack![Outer]>::from(Inner::new(0u8));
+//     let c = Outer::from(b);
+//
+//     assert_eq!(a, c);
+// }

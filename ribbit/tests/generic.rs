@@ -1,6 +1,7 @@
 use ribbit::u3;
 use ribbit::u7;
 use ribbit::Pack as _;
+use ribbit::Unpack as _;
 
 #[derive(Clone)]
 #[ribbit::pack(size = 48)]
@@ -68,64 +69,65 @@ fn compose() {
     assert_eq!(b.inner().lo(), 2);
 }
 
-// #[test]
-// fn r#enum_newtype() {
-//     #[ribbit::pack(size = 8, debug, eq)]
-//     enum Either<T> {
-//         #[ribbit(size = 7)]
-//         Left(T),
-//         #[ribbit(size = 7)]
-//         Right(T),
-//     }
-//
-//     let a = Either::new(EitherUnpacked::Left(u7::new(1)));
-//     let b = Either::new(EitherUnpacked::Right(u7::new(1)));
-//
-//     assert_ne!(a, b);
-//
-//     match a.unpack() {
-//         EitherUnpacked::Left(l) => assert_eq!(l.value(), 1),
-//         EitherUnpacked::Right(_) => unreachable!(),
-//     }
-//
-//     match b.unpack() {
-//         EitherUnpacked::Left(_) => unreachable!(),
-//         EitherUnpacked::Right(r) => assert_eq!(r.value(), 1),
-//     }
-// }
-//
-// #[test]
-// fn r#enum_named() {
-//     #[ribbit::pack(size = 8, debug, eq)]
-//     enum Either<T> {
-//         #[ribbit(size = 7, debug, from)]
-//         Left {
-//             #[ribbit(size = 7)]
-//             l: T,
-//         },
-//         #[ribbit(size = 7, debug, from)]
-//         Right {
-//             #[ribbit(size = 7)]
-//             r: T,
-//         },
-//     }
-//
-//     let a = Either::new(EitherUnpacked::Left(Left::new(u7::new(1))));
-//     let b = Either::new(EitherUnpacked::Right(Right::new(u7::new(1))));
-//
-//     assert_eq!(a, Left::new(u7::new(1)).into());
-//     assert_eq!(b, Right::new(u7::new(1)).into());
-//
-//     match a.unpack() {
-//         EitherUnpacked::Left(l) => assert_eq!(l.l().value(), 1),
-//         EitherUnpacked::Right(_) => unreachable!(),
-//     }
-//
-//     match b.unpack() {
-//         EitherUnpacked::Left(_) => unreachable!(),
-//         EitherUnpacked::Right(r) => assert_eq!(r.r().value(), 1),
-//     }
-// }
+#[test]
+fn r#enum_newtype() {
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    #[ribbit::pack(size = 8, debug, eq)]
+    enum Either<T> {
+        #[ribbit(size = 7)]
+        Left(T),
+        #[ribbit(size = 7)]
+        Right(T),
+    }
+
+    let a = Either::Left(u7::new(1)).pack();
+    let b = Either::Right(u7::new(1)).pack();
+
+    assert_ne!(a, b);
+
+    match a.unpack() {
+        Either::Left(l) => assert_eq!(l.value(), 1),
+        Either::Right(_) => unreachable!(),
+    }
+
+    match b.unpack() {
+        Either::Left(_) => unreachable!(),
+        Either::Right(r) => assert_eq!(r.value(), 1),
+    }
+}
+
+#[test]
+fn r#enum_named() {
+    #[derive(Clone, Debug, PartialEq, Eq)]
+    #[ribbit::pack(size = 8, debug, eq)]
+    enum Either<T> {
+        #[ribbit(size = 7, debug, from)]
+        Left {
+            #[ribbit(size = 7)]
+            l: T,
+        },
+        #[ribbit(size = 7, debug, from)]
+        Right {
+            #[ribbit(size = 7)]
+            r: T,
+        },
+    }
+
+    let a = Either::Left { l: u7::new(1) }.pack();
+    let b = Either::Right { r: u7::new(1) }.pack();
+
+    assert_ne!(a, b);
+
+    match a.unpack() {
+        Either::Left { l } => assert_eq!(l.value(), 1),
+        Either::Right { .. } => unreachable!(),
+    }
+
+    match b.unpack() {
+        Either::Left { .. } => unreachable!(),
+        Either::Right { r } => assert_eq!(r.value(), 1),
+    }
+}
 
 #[test]
 fn relax() {

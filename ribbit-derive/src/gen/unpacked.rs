@@ -1,58 +1,94 @@
+use darling::util::Shape;
 use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::ir;
 use crate::Or;
 
-pub(crate) fn unpacked<'ir>(
-    ir @ ir::Ir { vis, data, .. }: &'ir ir::Ir,
-) -> impl Iterator<Item = TokenStream> + 'ir {
-    let unpacked_ident = ir.ident_unpacked();
+pub(crate) fn unpacked<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 'ir {
     let attrs = ir.attrs();
-
+    let vis = &ir.vis;
+    let ident = &ir.ident_unpacked();
     let generics = ir.generics();
+
+    match &ir.data {
+        ir::Data::Struct(r#struct) => Or::L(core::iter::once(unpacked_struct(
+            attrs, vis, ident, generics, r#struct,
+        ))),
+        ir::Data::Enum(r#enum) => {
+            let variants = r#enum.variants.iter().map(|variant| {
+                assert!(!variant.extract, "TODO");
+
+                let attrs = &variant.r#struct.attrs;
+                let ident = &variant.r#struct.unpacked;
+                let fields = unpacked_fields(&variant.r#struct);
+
+                quote! {
+                    #(#attrs)*
+                    #ident #fields
+                }
+            });
+
+            let (_, generics_ty, generics_where) = generics.split_for_impl();
+
+            Or::R(core::iter::once(quote! {
+                #(#attrs)*
+                #vis enum #ident #generics_ty #generics_where {
+                    #(#variants,)*
+                }
+            }))
+        }
+    }
+}
+
+fn unpacked_struct(
+    attrs: &[syn::Attribute],
+    vis: &syn::Visibility,
+    ident: &syn::Ident,
+    generics: &syn::Generics,
+    r#struct: &ir::Struct,
+) -> TokenStream {
+    let fields = unpacked_fields(r#struct);
+
     let (_, generics_ty, generics_where) = generics.split_for_impl();
 
-    // Generate unpacked type
-    match data {
-        ir::Data::Struct(r#struct) => {
-            let fields = r#struct.fields.iter().map(
-                |ir::Field {
-                     attrs,
-                     ident,
-                     ty,
-                     vis,
-                     ..
-                 }| {
-                    let ident = ident.is_named().then(|| ident.unescaped("")).into_iter();
+    let fields = match r#struct.shape {
+        Shape::Unit => quote! { #generics_where ; },
+        Shape::Named => quote! { #generics_where #fields },
+        Shape::Tuple | Shape::Newtype => quote! { #fields #generics_where; },
+    };
 
-                    quote! {
-                        #(#attrs)*
-                        #vis #( #ident: )* #ty
-                    }
-                },
-            );
+    quote! {
+        #(#attrs)*
+        #vis struct #ident #generics_ty #fields
+    }
+}
 
-            let fields = if r#struct.fields.is_empty() {
-                quote! { #generics_where ; }
-            } else if r#struct.is_named() {
-                quote! { #generics_where { #(#fields ,)* } }
-            } else {
-                quote! { ( #(#fields ,)* ) #generics_where; }
-            };
+fn unpacked_fields(r#struct: &ir::Struct) -> TokenStream {
+    let fields = r#struct.fields.iter().map(
+        |ir::Field {
+             attrs,
+             ident,
+             ty,
+             vis,
+             ..
+         }| {
+            let ident = ident.is_named().then(|| ident.unescaped("")).into_iter();
 
-            core::iter::once(quote! {
+            quote! {
                 #(#attrs)*
-                #vis struct #unpacked_ident #generics_ty #fields
-            })
-        }
-        ir::Data::Enum(r#enum) => {
-            todo!()
+                #vis #( #ident: )* #ty
+            }
+        },
+    );
 
-            // let variants = r#enum.variants.iter().map(|variant| {
-            //     if variant.extract
-            //
-            // })
-        }
+    match r#struct.shape {
+        Shape::Unit => TokenStream::new(),
+        Shape::Tuple | Shape::Newtype => quote! {
+            ( #(#fields ,)* )
+        },
+        Shape::Named => quote! {
+            { #(#fields ,)* }
+        },
     }
 }

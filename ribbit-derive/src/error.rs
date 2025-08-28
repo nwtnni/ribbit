@@ -25,6 +25,11 @@ pub enum Error {
     },
     ArbitraryNonZero,
     UnsupportedType,
+    VariantSize {
+        variant: usize,
+        r#enum: usize,
+        discriminant: usize,
+    },
 }
 
 macro_rules! bail {
@@ -78,6 +83,17 @@ impl Display for Error {
             }
             Error::TopLevelSize => {
                 write!(f, "#[ribbit(size = ...)] is required at the top level")
+            }
+            Error::VariantSize {
+                variant,
+                r#enum,
+                discriminant,
+            } => {
+                write!(
+                    f,
+                    "Variant of size {} does not fit in enum of size {} with discriminant of size {}",
+                    variant, r#enum, discriminant,
+                )
             }
         }
     }

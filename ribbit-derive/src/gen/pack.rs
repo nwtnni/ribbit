@@ -1,13 +1,9 @@
-use darling::FromMeta;
+use heck::ToSnakeCase as _;
 use proc_macro2::TokenStream;
+use quote::format_ident;
 use quote::quote;
 
 use crate::ir;
-
-#[derive(FromMeta, Clone, Debug, Default)]
-pub(crate) struct StructOpt {}
-
-impl StructOpt {}
 
 pub(crate) fn pack(ir: &ir::Ir) -> TokenStream {
     let unpacked = ir.ident_unpacked();
@@ -18,10 +14,43 @@ pub(crate) fn pack(ir: &ir::Ir) -> TokenStream {
             let arguments = r#struct
                 .iter_nonzero()
                 .map(|ir::Field { ident, ty, .. }| ty.pack(quote!(self.#ident)));
+
             quote!(#packed::new(#(#arguments),*))
         }
-        ir::Data::Enum(_) => {
-            quote!(#packed::new(self))
+        ir::Data::Enum(r#enum) => {
+            let variants = r#enum.variants.iter().map(|variant| {
+                assert!(!variant.extract, "TODO");
+
+                let patterns = variant.r#struct.fields.iter().map(|field| {
+                    let name = field.ident.unescaped("");
+                    let value = field.ident.escaped();
+                    quote!(#name: #value)
+                });
+
+                let new = format_ident!(
+                    "{}_{}",
+                    ir.opt().new.name(),
+                    variant.r#struct.unpacked.to_string().to_snake_case(),
+                );
+
+                let arguments = variant.r#struct.fields.iter().map(|field| {
+                    let name = field.ident.escaped();
+                    field.ty.pack(quote!(#name))
+                });
+
+                let ident = &variant.r#struct.unpacked;
+                // FIXME: support shorthand
+                quote! {
+                    #[allow(non_shorthand_field_patterns)]
+                    Self::#ident { #(#patterns ,)* } => #packed::#new( #(#arguments ,)* )
+                }
+            });
+
+            quote! {
+                match self {
+                    #(#variants ,)*
+                }
+            }
         }
     };
 

@@ -5,7 +5,7 @@ pub(crate) mod get;
 pub(crate) mod hash;
 pub(crate) mod new;
 pub(crate) mod ord;
-pub(crate) mod pack;
+mod pack;
 mod packed;
 pub(crate) mod pre;
 pub(crate) mod set;

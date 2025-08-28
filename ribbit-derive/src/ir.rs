@@ -40,31 +40,49 @@ pub(crate) fn new<'input>(item: &'input input::Item) -> darling::Result<Ir<'inpu
                 Err(error) => bail!(item.opt.nonzero.unwrap()=> error),
             };
 
+            // FIXME: support arbitrary discriminant
+            let size_discriminant = variants.len().next_power_of_two().trailing_zeros() as usize;
+
             let variants = variants
                 .iter()
-                .map(|variant| {
+                // FIXME: support arbitrary discriminant
+                .enumerate()
+                .map(|(discriminant, variant)| {
+                    let r#struct = Struct::new(
+                        &ty_params,
+                        &mut bounds,
+                        &variant.opt,
+                        &variant.attrs,
+                        &variant.ident,
+                        &variant.fields,
+                    )?;
+
+                    if r#struct.tight.size() > (*size - size_discriminant) {
+                        bail!(variant=> crate::Error::VariantSize {
+                            variant: r#struct.tight.size(),
+                            r#enum: *size,
+                            discriminant: size_discriminant,
+                        });
+                    }
+
                     Ok(Variant {
                         extract: variant.extract,
-                        r#struct: Struct::new(
-                            &ty_params,
-                            &mut bounds,
-                            &variant.opt,
-                            &variant.attrs,
-                            &variant.ident,
-                            &variant.fields,
-                        )?,
+                        discriminant,
+                        r#struct,
                     })
                 })
                 .collect::<darling::Result<Vec<_>>>()?;
 
-            Data::Enum(Enum {
+            let r#enum = Enum {
                 opt: &item.opt,
                 attrs: &item.attrs,
                 packed: format_ident!("_{}Packed", item.ident),
                 unpacked: &item.ident,
                 tight,
                 variants,
-            })
+            };
+
+            Data::Enum(r#enum)
         }
         darling::ast::Data::Struct(r#struct) => Struct::new(
             &ty_params,
@@ -176,6 +194,7 @@ impl Enum<'_> {
 
 pub(crate) struct Variant<'input> {
     pub(crate) extract: bool,
+    pub(crate) discriminant: usize,
     pub(crate) r#struct: Struct<'input>,
 }
 
@@ -267,7 +286,7 @@ pub(crate) struct StructOpt {
     pub(crate) nonzero: Option<SpannedValue<bool>>,
 
     #[darling(default)]
-    pub(crate) pack: gen::pack::StructOpt,
+    pub(crate) new: gen::new::StructOpt,
     pub(crate) debug: Option<gen::debug::StructOpt>,
     pub(crate) eq: Option<gen::eq::StructOpt>,
     pub(crate) ord: Option<gen::ord::StructOpt>,

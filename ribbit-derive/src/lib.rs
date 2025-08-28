@@ -86,7 +86,7 @@ fn pack_item(ir: &Ir, output: &mut TokenStream) -> Result<(), darling::Error> {
         impl #generics_impl #packed_ident #generics_ty #generics_where {
             #pre
 
-            #new
+            #(#new)*
 
             #(#get)*
 
