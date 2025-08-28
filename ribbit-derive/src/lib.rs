@@ -248,6 +248,7 @@ impl<T> From<SpannedValue<T>> for Spanned<T> {
     }
 }
 
+#[derive(Debug)]
 pub(crate) enum Or<L, R> {
     L(L),
     R(R),

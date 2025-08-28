@@ -26,7 +26,7 @@ impl Node {
         &self.tight
     }
 
-    pub(crate) fn loosen(&self) -> Loose {
+    pub(crate) fn loosen(&self) -> &Loose {
         self.tight.loosen()
     }
 

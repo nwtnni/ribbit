@@ -2,7 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 
 use crate::ir;
-use crate::lift::Lift as _;
+use crate::lift;
 
 pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
     let ty_struct = ir.tight();
@@ -40,7 +40,6 @@ pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
                 let fields = variant.r#struct.fields.iter().map(|field| {
                     let name = &field.ident;
                     let value = field.ty.unpack(crate::gen::get::get_field(
-                        variant.r#struct.is_newtype(),
                         size_discriminant,
                         ty_struct,
                         field,
@@ -52,8 +51,9 @@ pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
                 quote!(#discriminant => #unpacked::#ident { #(#fields ,)* })
             });
 
-            let discriminant =
-                (quote!(self.value).lift() % ty_struct.clone()) & r#enum.discriminant_mask();
+            let discriminant = lift::Expr::new(quote!(self.value), ty_struct)
+                .mask(0, (1 << size_discriminant) - 1)
+                .canonicalize();
 
             quote! {
                 match #discriminant {

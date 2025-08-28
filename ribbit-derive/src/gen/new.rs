@@ -10,7 +10,6 @@ use syn::parse_quote;
 
 use crate::ir;
 use crate::lift;
-use crate::lift::Lift as _;
 use crate::ty;
 use crate::Or;
 
@@ -33,8 +32,7 @@ pub(crate) fn new<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
         ))),
         ir::Data::Enum(r#enum @ ir::Enum { variants, .. }) => {
             let discriminant_size = r#enum.discriminant_size();
-            let ty_struct_loose = ir.tight().loosen();
-            let ty_struct = ty::Tree::from(ir.tight().clone());
+            let ty_struct = ir.tight();
 
             Or::R(variants.iter().map(move |variant| {
                 assert!(!variant.extract, "TODO");
@@ -46,28 +44,26 @@ pub(crate) fn new<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
                 );
 
                 new_struct(&vis, &new, &variant.r#struct, |value| {
-                    let ty_variant = variant.r#struct.tight.clone();
-
-                    (((variant.discriminant.lift() % ty_struct_loose)
-                        | Box::new(
-                            (value.lift() % ty_variant % ty_struct_loose) << discriminant_size,
-                        ))
-                        % ty_struct.clone())
-                    .to_token_stream()
+                    lift::Expr::or(
+                        ty_struct,
+                        [
+                            (0, lift::Expr::constant(variant.discriminant as u128)),
+                            (discriminant_size as u8, value),
+                        ],
+                    )
                 })
             }))
         }
     }
 }
 
-fn new_struct<F: FnOnce(TokenStream) -> TokenStream>(
+fn new_struct<'ir, F: FnOnce(lift::Expr<'ir>) -> lift::Expr<'ir>>(
     vis: &syn::Visibility,
     new: &syn::Ident,
-    r#struct: &ir::Struct,
+    r#struct: &'ir ir::Struct,
     map: F,
 ) -> TokenStream {
-    let ty_struct = ty::Tree::from(r#struct.tight.clone());
-    let ty_struct_loose = r#struct.tight.loosen();
+    let ty_struct = &r#struct.tight;
 
     let parameters = r#struct.iter_nonzero().map(|field| {
         let ident = field.ident.escaped();
@@ -75,41 +71,16 @@ fn new_struct<F: FnOnce(TokenStream) -> TokenStream>(
         quote!(#ident: #ty)
     });
 
-    let value = match r#struct.is_newtype() {
-        true => r#struct.iter_nonzero().fold(quote!(), |_, field| {
-            let ident = field.ident.escaped().to_token_stream();
-            match field.ty.is_leaf() {
-                true => ident,
-                false => (ident.lift() % (*field.ty).clone() % ty_struct.clone()).to_token_stream(),
-            }
-        }),
-        false => {
-            r#struct
-                .iter_nonzero()
-                .map(
-                    |ir::Field {
-                         ident, ty, offset, ..
-                     }| {
-                        (
-                            ident.escaped().to_token_stream().lift(),
-                            ty.deref().clone(),
-                            *offset,
-                        )
-                    },
-                )
-                .fold(
-                    Box::new(0usize.lift() % ty_struct_loose) as Box<dyn lift::Loosen>,
-                    |state, (ident, ty_field, offset)| {
-                        #[allow(clippy::precedence)]
-                        Box::new((ident % ty_field % ty_struct_loose << offset) | state)
-                    },
-                )
-                % ty_struct
-        }
-        .to_token_stream(),
-    };
+    let value = lift::Expr::or(
+        ty_struct,
+        r#struct.iter_nonzero().map(
+            |ir::Field {
+                 ident, ty, offset, ..
+             }| { (*offset as u8, lift::Expr::new(ident.escaped(), ty.deref())) },
+        ),
+    );
 
-    let value = map(value);
+    let value = map(value).canonicalize();
 
     quote! {
         #[inline]

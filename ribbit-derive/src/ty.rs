@@ -93,12 +93,6 @@ impl Tree {
     pub(crate) fn pack(&self, expression: TokenStream) -> TokenStream {
         match self {
             Tree::Leaf(_) => expression,
-            // Tree::Node(node) if node.is_option() => quote! {
-            //     match #expression {
-            //         None => None,
-            //         Some(unpacked) => Some(unpacked.pack()),
-            //     }
-            // },
             Tree::Node(_) => quote!(#expression.pack()),
         }
     }
@@ -106,12 +100,6 @@ impl Tree {
     pub(crate) fn unpack(&self, expression: TokenStream) -> TokenStream {
         match self {
             Tree::Leaf(_) => expression,
-            // Tree::Node(node) if node.is_option() => quote! {
-            //     match #expression {
-            //         None => None,
-            //         Some(packed) => Some(packed.unpack()),
-            //     }
-            // },
             Tree::Node(_) => quote!(#expression.unpack()),
         }
     }
@@ -123,8 +111,11 @@ impl Tree {
         }
     }
 
-    pub(crate) fn loosen(&self) -> Loose {
-        self.tighten().loosen()
+    pub(crate) fn loosen(&self) -> &Loose {
+        match self {
+            Tree::Node(node) => node.loosen(),
+            Tree::Leaf(leaf) => leaf.loosen(),
+        }
     }
 
     pub(crate) fn size_expected(&self) -> usize {

@@ -5,7 +5,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use quote::ToTokens;
 
-use crate::ty::Arbitrary;
+use crate::ty::Tight;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Loose {
@@ -50,6 +50,31 @@ impl Loose {
 
     pub(crate) fn mask(&self) -> u128 {
         super::mask(self.size())
+    }
+
+    pub(crate) fn tighten(&self) -> &'static Tight {
+        match self {
+            Loose::N8 => &Tight::Loose {
+                signed: false,
+                loose: Loose::N8,
+            },
+            Loose::N16 => &Tight::Loose {
+                signed: false,
+                loose: Loose::N16,
+            },
+            Loose::N32 => &Tight::Loose {
+                signed: false,
+                loose: Loose::N32,
+            },
+            Loose::N64 => &Tight::Loose {
+                signed: false,
+                loose: Loose::N64,
+            },
+            Loose::N128 => &Tight::Loose {
+                signed: false,
+                loose: Loose::N128,
+            },
+        }
     }
 
     #[track_caller]

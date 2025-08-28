@@ -1,282 +1,291 @@
-use core::ops::BitAnd;
-use core::ops::BitOr;
-use core::ops::Rem;
-use core::ops::Shl;
-use core::ops::Shr;
-
 use proc_macro2::TokenStream;
 use quote::quote;
 use quote::ToTokens;
 
 use crate::ty;
+use crate::Or;
 
-pub(crate) trait Lift: Sized {
-    fn lift(self) -> Value<Self>;
+#[derive(Debug)]
+pub(crate) enum Expr<'ir> {
+    Constant {
+        value: u128,
+    },
+    Value {
+        value: TokenStream,
+        r#type: Ty<'ir>,
+    },
+    Hole {
+        expr: Box<Self>,
+        offset: u8,
+        r#type: Ty<'ir>,
+    },
+    Extract {
+        expr: Box<Self>,
+        offset: u8,
+        r#type: Or<Ty<'ir>, u128>,
+    },
+    Combine {
+        exprs: Vec<(u8, Self)>,
+        r#type: Ty<'ir>,
+    },
 }
 
-impl Lift for usize {
-    fn lift(self) -> Value<Self> {
-        Value::Compile(self)
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub(crate) enum Ty<'ir> {
+    Node(&'ir ty::Node),
+    Leaf(&'ir ty::Tight),
+}
+
+impl<'ir> From<&'ir ty::Node> for Ty<'ir> {
+    fn from(node: &'ir ty::Node) -> Self {
+        Self::Node(node)
     }
 }
 
-impl Lift for TokenStream {
-    fn lift(self) -> Value<Self> {
-        Value::Run(self)
+impl<'ir> From<&'ir ty::Tight> for Ty<'ir> {
+    fn from(leaf: &'ir ty::Tight) -> Self {
+        Self::Leaf(leaf)
     }
 }
 
-impl Lift for syn::Ident {
-    fn lift(self) -> Value<Self> {
-        Value::Run(self)
-    }
-}
-
-pub(crate) trait Loosen: ToTokens {
-    fn loose(&self) -> ty::Loose;
-    fn is_zero(&self) -> bool;
-}
-
-impl Loosen for Box<dyn Loosen + '_> {
-    fn loose(&self) -> ty::Loose {
-        (**self).loose()
-    }
-
-    fn is_zero(&self) -> bool {
-        (**self).is_zero()
-    }
-}
-
-pub struct Loose<V> {
-    ty: ty::Tree,
-    value: Value<V>,
-}
-
-pub(crate) enum Value<V> {
-    Compile(usize),
-    Run(V),
-}
-
-impl<V: ToTokens> Loosen for Loose<V> {
-    fn loose(&self) -> ty::Loose {
-        self.ty.loosen()
-    }
-
-    fn is_zero(&self) -> bool {
-        match &self.value {
-            Value::Compile(0) => true,
-            Value::Compile(_) => false,
-            Value::Run(_) => false,
+impl<'ir> From<&'ir ty::Tree> for Ty<'ir> {
+    fn from(tree: &'ir ty::Tree) -> Self {
+        match tree {
+            ty::Tree::Node(node) => Self::Node(node),
+            ty::Tree::Leaf(leaf) => Self::Leaf(leaf),
         }
     }
 }
 
-impl<V: ToTokens> ToTokens for Loose<V> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        match &self.value {
-            Value::Compile(value) => self.ty.loosen().literal(*value as u128).to_tokens(tokens),
-            Value::Run(value) => match &self.ty {
-                ty::Tree::Leaf(leaf) if leaf.is_loose() => value.to_tokens(tokens),
-                ty::Tree::Leaf(leaf) => {
-                    quote!(::ribbit::convert::packed_to_loose::<#leaf>(#value)).to_tokens(tokens)
-                }
-                ty::Tree::Node(node) => {
-                    let loose = node.loosen();
-                    let inner = quote!(::ribbit::convert::loose_to_loose::<_, #loose>(
-                        ::ribbit::convert::packed_to_loose::<#node>(#value)
-                    ));
-                    inner.to_tokens(tokens)
-                }
-            },
+impl<'ir> Ty<'ir> {
+    fn convert(from: Self, into: Self, value: impl ToTokens) -> TokenStream {
+        if from == into {
+            return value.to_token_stream();
+        }
+
+        match (from, into) {
+            (Ty::Node(_), Ty::Node(_)) => todo!(),
+
+            (Ty::Leaf(from), Ty::Leaf(into)) if from.is_loose() && into.is_loose() => {
+                quote!(::ribbit::convert::loose_to_loose::<_, #into>(#value))
+            }
+
+            (Ty::Leaf(from), into) if from.is_loose() => {
+                let value = Self::convert(from.into(), into.loosen().tighten().into(), value);
+
+                quote!(
+                    unsafe { ::ribbit::convert::loose_to_packed::<#into>(#value) }
+                )
+            }
+
+            (from, Ty::Leaf(into)) if into.is_loose() => Self::convert(
+                from.loosen().tighten().into(),
+                into.into(),
+                quote!(
+                    ::ribbit::convert::packed_to_loose::<#from>(#value)
+                ),
+            ),
+
+            _ => todo!("conversion {:?} to {:?}", from, into),
+        }
+    }
+
+    fn mask(&self) -> u128 {
+        match self {
+            Self::Node(node) => node.tighten().mask(),
+            Self::Leaf(leaf) => leaf.mask(),
+        }
+    }
+
+    fn loosen(&self) -> &ty::Loose {
+        match self {
+            Self::Node(node) => node.loosen(),
+            Self::Leaf(leaf) => leaf.loosen(),
         }
     }
 }
 
-impl<V: ToTokens, T: Into<ty::Tree>> Rem<T> for Value<V> {
-    type Output = Expression<'static, Loose<V>>;
-    fn rem(self, tight: T) -> Self::Output {
-        Expression {
-            inner: Loose {
-                value: self,
-                ty: tight.into(),
-            },
-            op: Op::Pass,
-        }
-    }
-}
-
-impl<'a, V: Loosen> BitAnd<u128> for Expression<'a, V> {
-    type Output = Expression<'static, Expression<'a, V>>;
-    fn bitand(self, mask: u128) -> Self::Output {
-        Expression {
-            inner: self,
-            op: Op::And(mask),
-        }
-    }
-}
-
-impl<'a, V: Loosen> Shl<usize> for Expression<'a, V> {
-    type Output = Expression<'static, Expression<'a, V>>;
-    fn shl(self, shift: usize) -> Self::Output {
-        Expression {
-            inner: self,
-            op: Op::Shift { dir: Dir::L, shift },
-        }
-    }
-}
-
-impl<'a, V: Loosen> Shr<usize> for Expression<'a, V> {
-    type Output = Expression<'static, Expression<'a, V>>;
-    fn shr(self, shift: usize) -> Self::Output {
-        Expression {
-            inner: self,
-            op: Op::Shift { dir: Dir::R, shift },
-        }
-    }
-}
-
-impl<'a, 'r, V: Loosen> BitOr<Box<dyn Loosen + 'r>> for Expression<'a, V> {
-    type Output = Expression<'r, Expression<'a, V>>;
-    fn bitor(self, rhs: Box<dyn Loosen + 'r>) -> Self::Output {
-        Expression {
-            inner: self,
-            op: Op::Or(rhs),
-        }
-    }
-}
-
-impl<'a, V: Loosen> Rem<ty::Loose> for Expression<'a, V> {
-    type Output = Expression<'static, Expression<'a, V>>;
-    fn rem(self, loose: ty::Loose) -> Self::Output {
-        Expression {
-            inner: self,
-            op: Op::Cast(loose),
-        }
-    }
-}
-
-impl<'a, V: Loosen> Rem<ty::Tree> for Expression<'a, V> {
-    type Output = Tight<Expression<'a, V>>;
-    fn rem(self, tight: ty::Tree) -> Self::Output {
-        Tight {
-            inner: self,
-            ty: tight,
-        }
-    }
-}
-
-impl Rem<ty::Tree> for Box<dyn Loosen + '_> {
-    type Output = Tight<Self>;
-    fn rem(self, tight: ty::Tree) -> Self::Output {
-        Tight {
-            inner: self,
-            ty: tight,
-        }
-    }
-}
-
-pub struct Expression<'ir, V> {
-    inner: V,
-    op: Op<'ir>,
-}
-
-pub(crate) enum Op<'ir> {
-    Pass,
-    Shift { dir: Dir, shift: usize },
-    And(u128),
-    Or(Box<dyn Loosen + 'ir>),
-    Cast(ty::Loose),
-}
-
-#[derive(Copy, Clone)]
-pub(crate) enum Dir {
-    L,
-    R,
-}
-
-impl ToTokens for Dir {
+impl ToTokens for Ty<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            Dir::L => quote!(<<),
-            Dir::R => quote!(>>),
-        }
-        .to_tokens(tokens)
-    }
-}
-
-impl<V: Loosen> Loosen for Expression<'_, V> {
-    fn loose(&self) -> ty::Loose {
-        match &self.op {
-            Op::Pass | Op::Shift { .. } | Op::And(_) | Op::Or(_) => self.inner.loose(),
-            Op::Cast(loose) => *loose,
-        }
-    }
-
-    fn is_zero(&self) -> bool {
-        // Could be more precise, but this covers generated code
-        match self.op {
-            Op::Pass => self.inner.is_zero(),
-            Op::And(0) => true,
-            _ => false,
+            Self::Node(node) => node.to_tokens(tokens),
+            Self::Leaf(leaf) => leaf.to_tokens(tokens),
         }
     }
 }
 
-impl<V: Loosen> ToTokens for Expression<'_, V> {
+impl<'ir> Expr<'ir> {
+    pub(crate) fn new(value: impl ToTokens, r#type: impl Into<Ty<'ir>>) -> Self {
+        Self::Value {
+            value: value.to_token_stream(),
+            r#type: r#type.into(),
+        }
+    }
+
+    pub(crate) fn constant(value: u128) -> Self {
+        Self::Constant { value }
+    }
+
+    pub(crate) fn or<I: IntoIterator<Item = (u8, Self)>>(
+        r#type: impl Into<Ty<'ir>>,
+        iter: I,
+    ) -> Self {
+        Self::Combine {
+            exprs: iter.into_iter().collect(),
+            r#type: r#type.into(),
+        }
+    }
+
+    pub(crate) fn hole(self, offset: u8, r#type: impl Into<Ty<'ir>>) -> Self {
+        Self::Hole {
+            expr: Box::new(self),
+            offset,
+            r#type: r#type.into(),
+        }
+    }
+
+    pub(crate) fn extract(self, offset: u8, r#type: impl Into<Ty<'ir>>) -> Self {
+        Self::Extract {
+            expr: Box::new(self),
+            offset,
+            r#type: Or::L(r#type.into()),
+        }
+    }
+
+    pub(crate) fn mask(self, offset: u8, mask: u128) -> Self {
+        Self::Extract {
+            expr: Box::new(self),
+            offset,
+            r#type: Or::R(mask),
+        }
+    }
+
+    pub(crate) fn canonicalize(self) -> impl ToTokens + 'ir {
+        Canonical(self)
+    }
+
+    fn loose(&self) -> Result<&ty::Loose, u128> {
+        match self {
+            Expr::Constant { value } => Err(*value),
+            Expr::Value { r#type, .. }
+            | Expr::Combine { r#type, .. }
+            | Expr::Extract {
+                r#type: Or::L(r#type),
+                ..
+            } => Ok(r#type.loosen()),
+            Expr::Extract {
+                expr,
+                r#type: Or::R(_),
+                ..
+            }
+            | Expr::Hole { expr, .. } => Ok(expr.loose()?),
+        }
+    }
+
+    fn tight(&self) -> Ty<'ir> {
+        match self {
+            Expr::Constant { .. } => unreachable!(),
+            Expr::Value { r#type, .. }
+            | Expr::Combine { r#type, .. }
+            | Expr::Extract {
+                r#type: Or::L(r#type),
+                ..
+            } => *r#type,
+            // HACK: only used by discriminant matching,
+            // where we don't want canonicalization to
+            // convert back to tight type
+            Expr::Extract {
+                expr,
+                r#type: Or::R(_),
+                ..
+            } => expr.loose().unwrap().tighten().into(),
+            Expr::Hole { expr, .. } => expr.tight(),
+        }
+    }
+
+    fn compile(&self) -> TokenStream {
+        match self {
+            Expr::Constant { .. } => {
+                unreachable!("[INTERNAL ERROR]: constant with no type")
+            }
+
+            Expr::Value { value, r#type } => {
+                Ty::convert(*r#type, r#type.loosen().tighten().into(), value)
+            }
+
+            Expr::Extract {
+                expr,
+                offset,
+                r#type,
+            } => {
+                let from = expr.loose().expect("[INTERNAL ERROR]: constant in shift");
+
+                let shift = from.literal(*offset as u128);
+
+                let expr = expr.compile();
+                let expr = quote!((#expr >> #shift));
+
+                // Convert to extracted loose type
+                match r#type {
+                    Or::L(r#type) => {
+                        let into = r#type.loosen();
+                        let expr = Ty::convert(from.tighten().into(), into.tighten().into(), expr);
+                        let mask = into.literal(r#type.mask());
+                        quote!((#expr & #mask))
+                    }
+                    Or::R(mask) => {
+                        let mask = from.literal(*mask);
+                        quote!((#expr & #mask))
+                    }
+                }
+            }
+
+            Expr::Hole {
+                expr,
+                offset,
+                r#type,
+            } => {
+                let mask = expr
+                    .loose()
+                    .expect("[INTERNAL ERROR]: constant in shift")
+                    .literal(!(r#type.mask() << *offset) & expr.tight().mask());
+
+                let expr = expr.compile();
+                quote!((#expr & #mask))
+            }
+
+            Expr::Combine { exprs, r#type } if exprs.is_empty() => r#type.loosen().literal(0),
+
+            Expr::Combine { exprs, r#type } => {
+                let into = r#type.loosen();
+
+                let exprs = exprs.iter().map(|(offset, expr)| {
+                    let expr = match expr.loose() {
+                        Ok(from) => Ty::convert(
+                            from.tighten().into(),
+                            into.tighten().into(),
+                            expr.compile(),
+                        ),
+                        Err(value) => into.literal(value).to_token_stream(),
+                    };
+
+                    let offset = into.literal(*offset as u128);
+
+                    quote!((#expr << #offset))
+                });
+
+                quote!((#(#exprs )|*))
+            }
+        }
+    }
+}
+
+struct Canonical<'ir>(Expr<'ir>);
+
+impl<'ir> ToTokens for Canonical<'ir> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let inner = self.inner.to_token_stream();
-
-        let inner = match &self.op {
-            Op::Pass => inner,
-
-            Op::Shift { dir: _, shift: 0 } => inner,
-            Op::Shift { dir, shift } => {
-                let shift = self.loose().literal(*shift as u128);
-                quote!((#inner #dir #shift))
-            }
-
-            Op::And(0) => self.loose().literal(0).to_token_stream(),
-            Op::And(mask) if *mask == self.loose().mask() => inner,
-            Op::And(value) => {
-                let value = self.loose().literal(*value);
-                quote!((#inner & #value))
-            }
-
-            Op::Or(value) if self.inner.is_zero() => value.to_token_stream(),
-            Op::Or(value) if value.is_zero() => self.inner.to_token_stream(),
-            Op::Or(value) => {
-                let cast = ty::Loose::cast(value.loose(), self.loose(), quote!(#value));
-                quote!((#inner | #cast))
-            }
-
-            Op::Cast(loose) => ty::Loose::cast(self.inner.loose(), *loose, inner),
-        };
-
-        inner.to_tokens(tokens);
-    }
-}
-
-pub struct Tight<V> {
-    inner: V,
-    ty: ty::Tree,
-}
-
-impl<V: Loosen> ToTokens for Tight<V> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let source = self.inner.loose();
-
-        let inner = self.inner.to_token_stream();
-        let inner = ty::Loose::cast(source, self.ty.loosen(), inner);
-
-        match &self.ty {
-            ty::Tree::Leaf(leaf) if leaf.is_loose() => inner,
-            ty::Tree::Leaf(leaf) => quote!(unsafe {
-                ::ribbit::convert::loose_to_packed::<#leaf>(#inner)
-            }),
-            ty::Tree::Node(node) => quote! {
-                unsafe { ::ribbit::convert::loose_to_packed::<#node>(::ribbit::convert::loose_to_loose(#inner)) }
-            },
-        }
-        .to_tokens(tokens)
+        let from = self.0.loose().unwrap();
+        let into = self.0.tight();
+        Ty::convert(from.tighten().into(), into, self.0.compile()).to_tokens(tokens);
     }
 }

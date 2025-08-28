@@ -16,6 +16,7 @@ pub(crate) fn packed(ir: &ir::Ir) -> TokenStream {
     let packed = ir.ident_packed();
 
     quote! {
+        #[repr(transparent)]
         #vis struct #packed #generics_ty {
             value: #tight,
             r#type: ::ribbit::private::PhantomData<fn(#(#lifetimes),*) -> (#(#tys),*)>,

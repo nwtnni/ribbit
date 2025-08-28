@@ -3,11 +3,9 @@ use core::ops::Deref;
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use quote::ToTokens;
 
 use crate::ir;
-use crate::lift::Lift as _;
-use crate::ty;
+use crate::lift;
 use crate::Or;
 
 pub(crate) fn set<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 'ir {
@@ -15,64 +13,43 @@ pub(crate) fn set<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
 
     match &ir.data {
         ir::Data::Struct(r#struct) => Or::L({
-            let newtype = r#struct.is_newtype();
-
-            r#struct
-                .iter_nonzero()
-                .map(
-                    |ir::Field {
-                         vis,
-                         ident,
-                         ty,
-                         offset,
-                         ..
-                     }| { (vis, ident, ty.deref().clone(), *offset) },
-                )
-                .map(move |(vis, ident, ty_field, offset)| {
-                    let ty_struct = ty::Tree::from(tight.clone());
-                    let ty_struct_loose = tight.loosen();
-
-                    let escaped = ident.escaped().to_token_stream();
-
-                    let value_struct = match newtype {
-                        true if ty_field.is_leaf() => escaped.clone(),
-                        true => (escaped.clone().lift() % ty_field.clone() % ty_struct)
-                            .to_token_stream(),
-                        #[allow(clippy::precedence)]
-                        false => {
-                            let value_field = Box::new(
-                                escaped.to_token_stream().lift()
-                                    % ty_field.clone()
-                                    % ty_struct_loose
-                                    << offset,
-                            );
-
-                            let clear = !(ty_field.mask() << offset) & ty_struct.mask();
-
-                            (quote!(self.value).lift() % ty_struct.clone() & clear | value_field)
-                                % ty_struct
-                        }
-                        .to_token_stream(),
-                    };
+            r#struct.iter_nonzero().map(
+                move |ir::Field {
+                          vis,
+                          ident,
+                          ty,
+                          offset,
+                          ..
+                      }| {
+                    let escaped = ident.escaped();
+                    let value = lift::Expr::or(
+                        tight,
+                        [
+                            (*offset as u8, lift::Expr::new(ident.escaped(), ty.deref())),
+                            (
+                                0,
+                                lift::Expr::new(quote!(self.value), tight)
+                                    .hole(*offset as u8, ty.deref()),
+                            ),
+                        ],
+                    )
+                    .canonicalize();
 
                     let with = ident.unescaped("with");
-
-                    let ty_field = match ty_field {
-                        ty::Tree::Node(node) => quote!(<#node as ::ribbit::Pack>::Packed),
-                        ty::Tree::Leaf(leaf) => leaf.to_token_stream(),
-                    };
+                    let ty_field = ty.packed();
 
                     quote! {
                         #[inline]
                         #vis const fn #with(&self, #escaped: #ty_field) -> Self {
                             let _: () = Self::_RIBBIT_ASSERT_LAYOUT;
                             Self {
-                                value: #value_struct,
+                                value: #value,
                                 r#type: ::ribbit::private::PhantomData,
                             }
                         }
                     }
-                })
+                },
+            )
         }),
         ir::Data::Enum(_) => Or::R(iter::empty()),
     }

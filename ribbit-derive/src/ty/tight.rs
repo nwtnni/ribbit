@@ -179,15 +179,11 @@ impl Tight {
         matches!(self, Self::NonZero { .. })
     }
 
-    pub(crate) fn loosen(&self) -> Loose {
+    pub(crate) fn loosen(&self) -> &Loose {
         match self {
-            Tight::Unit | Tight::Bool => Loose::N8,
-            Tight::Loose { signed: _, loose } => *loose,
+            Tight::Unit | Tight::Bool => &Loose::N8,
+            Tight::Loose { loose, .. } | Tight::NonZero { loose, .. } => loose,
             Tight::Arbitrary { inner, path: _ } => inner.loosen(),
-            Tight::NonZero {
-                loose: inner,
-                path: _,
-            } => *inner,
         }
     }
 }

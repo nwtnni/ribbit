@@ -32,13 +32,13 @@ impl Arbitrary {
         super::mask(self.size)
     }
 
-    pub(crate) fn loosen(&self) -> Loose {
+    pub(crate) fn loosen(&self) -> &Loose {
         match self.size {
-            0..=7 => Loose::N8,
-            9..=15 => Loose::N16,
-            17..=31 => Loose::N32,
-            33..=63 => Loose::N64,
-            65..=127 => Loose::N128,
+            0..=7 => &Loose::N8,
+            9..=15 => &Loose::N16,
+            17..=31 => &Loose::N32,
+            33..=63 => &Loose::N64,
+            65..=127 => &Loose::N128,
             _ => unreachable!(),
         }
     }
