@@ -9,8 +9,6 @@ use crate::ty::Arbitrary;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Loose {
-    Unit,
-    Bool,
     N8,
     N16,
     N32,
@@ -19,16 +17,8 @@ pub(crate) enum Loose {
 }
 
 impl Loose {
-    pub(crate) fn new_internal(size: usize) -> Option<Self> {
-        match size {
-            1 => Some(Self::Bool),
-            _ => Self::new_external(size),
-        }
-    }
-
-    pub(crate) fn new_external(size: usize) -> Option<Self> {
+    pub(crate) fn new(size: usize) -> Option<Self> {
         let loose = match size {
-            0 => Self::Unit,
             8 => Self::N8,
             16 => Self::N16,
             32 => Self::N32,
@@ -45,23 +35,11 @@ impl Loose {
             return value;
         }
 
-        match (from, into) {
-            (_, Loose::Unit) => quote!(()),
-            (Loose::Unit, _) => into.literal(0),
-            (Loose::Bool, _) => {
-                // Serves as a truncating cast
-                let zero = from.literal(0);
-                let one = from.literal(1);
-                quote!(((#value & #one) > #zero))
-            }
-            (_, _) => quote!((#value as #into)),
-        }
+        quote!((#value as #into))
     }
 
     pub(crate) fn size(&self) -> usize {
         match self {
-            Self::Unit => 0,
-            Self::Bool => 1,
             Self::N8 => 8,
             Self::N16 => 16,
             Self::N32 => 32,
@@ -71,20 +49,12 @@ impl Loose {
     }
 
     pub(crate) fn mask(&self) -> u128 {
-        Arbitrary::new(self.size()).mask()
+        super::mask(self.size())
     }
 
     #[track_caller]
     pub(crate) fn literal(&self, value: u128) -> TokenStream {
         match self {
-            Self::Unit => return quote!(()),
-            Self::Bool => {
-                return match value {
-                    0 => quote!(true),
-                    1 => quote!(false),
-                    _ => unreachable!("Internal error: literal boolean > 1"),
-                }
-            }
             Self::N8 => Literal::u8_suffixed(value.try_into().unwrap()),
             Self::N16 => Literal::u16_suffixed(value.try_into().unwrap()),
             Self::N32 => Literal::u32_suffixed(value.try_into().unwrap()),
@@ -98,8 +68,6 @@ impl Loose {
 impl ToTokens for Loose {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let ident = match self {
-            Self::Unit => quote!(Unit),
-            Self::Bool => quote!(bool),
             Self::N8 => quote!(u8),
             Self::N16 => quote!(u16),
             Self::N32 => quote!(u32),
@@ -114,8 +82,6 @@ impl ToTokens for Loose {
 impl Display for Loose {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let name = match self {
-            Loose::Unit => "()",
-            Loose::Bool => "bool",
             Loose::N8 => "u8",
             Loose::N16 => "u16",
             Loose::N32 => "u32",
@@ -123,6 +89,6 @@ impl Display for Loose {
             Loose::N128 => "u128",
         };
 
-        write!(f, "{}", name)
+        write!(f, "{name}")
     }
 }

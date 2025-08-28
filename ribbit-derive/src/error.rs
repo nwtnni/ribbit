@@ -24,6 +24,9 @@ pub enum Error {
         actual: usize,
     },
     ArbitraryNonZero,
+    ArbitrarySize {
+        size: usize,
+    },
     UnsupportedType,
     VariantSize {
         variant: usize,
@@ -77,6 +80,9 @@ impl Display for Error {
             }
             Error::ArbitraryNonZero => {
                 write!(f, "Nonzero arbitrary sizes are currently unsupported",)
+            }
+            Error::ArbitrarySize { size } => {
+                write!(f, "Arbitrary size {} unsupported", size)
             }
             Error::UnsupportedType => {
                 write!(f, "Only type paths are supported")

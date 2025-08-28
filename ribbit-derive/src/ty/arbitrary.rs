@@ -13,8 +13,15 @@ pub(crate) struct Arbitrary {
 }
 
 impl Arbitrary {
-    pub(super) fn new(size: usize) -> Self {
-        Self { size }
+    pub(super) fn new(size: usize) -> Result<Self, crate::Error> {
+        match size {
+            0 | 8 | 16 | 32 | 64 | 128 => unreachable!(
+                "[INTERNAL ERROR]: constructing arbitrary with reserved size {}",
+                size,
+            ),
+            129.. => Err(crate::Error::ArbitrarySize { size }),
+            _ => Ok(Self { size }),
+        }
     }
 
     pub(crate) fn size(&self) -> usize {
@@ -22,10 +29,7 @@ impl Arbitrary {
     }
 
     pub(crate) fn mask(&self) -> u128 {
-        1u128
-            .checked_shl(self.size as u32)
-            .and_then(|mask| mask.checked_sub(1))
-            .unwrap_or(u128::MAX)
+        super::mask(self.size)
     }
 
     pub(crate) fn loosen(&self) -> Loose {

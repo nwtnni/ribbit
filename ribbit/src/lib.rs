@@ -69,30 +69,25 @@ unsafe trait Loose: Copy {}
 
 impl<T: Loose> Tight for T {}
 
-/// Implements `const`-compatible conversions between packed, loose, and tight
-/// representations.
+/// Implements `const`-compatible conversions between packed and loose representations.
 pub mod convert {
+    use core::mem::MaybeUninit;
+
     use super::Loose;
     use super::Pack;
 
     union Transmute<T: Pack> {
         packed: T::Packed,
         loose: T::Loose,
-        tight: T::Tight,
     }
 
     /// Convert from a packed struct to a native integer type.
     #[inline]
     pub const fn packed_to_loose<T: Pack>(packed: T::Packed) -> T::Loose {
-        const { assert_layout::<T>() }
-        unsafe { Transmute::<T> { packed }.loose }
-    }
-
-    /// Convert from a packed struct to an integer type.
-    #[inline]
-    pub const fn packed_to_tight<T: Pack>(packed: T::Packed) -> T::Tight {
-        const { assert_layout::<T>() }
-        unsafe { Transmute::<T> { packed }.tight }
+        unsafe {
+            let mut zeroed = MaybeUninit::<Transmute<T>>::zeroed();
+            zeroed.write(Transmute { packed }).loose
+        }
     }
 
     /// Convert from a native integer type to a packed struct.
@@ -102,19 +97,10 @@ pub mod convert {
     /// Caller must guarantee that `loose` is a valid bit pattern for type `T`.
     #[inline]
     pub const unsafe fn loose_to_packed<T: Pack>(loose: T::Loose) -> T::Packed {
-        const { assert_layout::<T>() }
-        Transmute::<T> { loose }.packed
-    }
-
-    /// Convert from an integer type to a packed struct.
-    ///
-    /// # Safety
-    ///
-    /// Caller must guarantee that `loose` is a valid bit pattern for type `T`.
-    #[inline]
-    pub const unsafe fn tight_to_packed<T: Pack>(tight: T::Tight) -> T::Packed {
-        const { assert_layout::<T>() }
-        Transmute::<T> { tight }.packed
+        unsafe {
+            let mut zeroed = MaybeUninit::<Transmute<T>>::zeroed();
+            zeroed.write(Transmute { loose }).packed
+        }
     }
 
     union Convert<F: Loose, I: Loose> {
@@ -132,21 +118,6 @@ pub mod convert {
             let mut zeroed = core::mem::zeroed::<Convert<F, I>>();
             zeroed.from = from;
             zeroed.into
-        }
-    }
-
-    // Sanity check for size and alignment at compile time.
-    const fn assert_layout<T: Pack>() {
-        const {
-            assert!(
-                core::mem::size_of::<T::Packed>() == core::mem::size_of::<T::Tight>()
-                    && core::mem::align_of::<T::Packed>() == core::mem::align_of::<T::Tight>()
-            );
-
-            assert!(
-                core::mem::size_of::<T::Packed>() == core::mem::size_of::<T::Loose>()
-                    && core::mem::align_of::<T::Packed>() == core::mem::align_of::<T::Loose>()
-            );
         }
     }
 }
@@ -202,13 +173,13 @@ macro_rules! impl_impl_number {
     };
 }
 
-unsafe impl Loose for () {}
+impl Tight for () {}
 
 unsafe impl Pack for () {
     const BITS: usize = 0;
     type Packed = Self;
     type Tight = Self;
-    type Loose = Self;
+    type Loose = u8;
     fn pack(self) -> Self::Packed {}
 }
 
@@ -218,7 +189,7 @@ unsafe impl<T> Pack for PhantomData<T> {
     const BITS: usize = 0;
     type Packed = PhantomData<T>;
     type Tight = ();
-    type Loose = ();
+    type Loose = u8;
     fn pack(self) -> Self::Packed {
         self
     }
@@ -231,7 +202,7 @@ impl<T> Unpack for PhantomData<T> {
     }
 }
 
-unsafe impl Loose for bool {}
+impl Tight for bool {}
 
 unsafe impl Pack for bool {
     const BITS: usize = 1;
