@@ -19,9 +19,15 @@ pub(crate) fn pre(ir: &ir::Ir) -> TokenStream {
 
     quote! {
         #[doc(hidden)]
-        const _RIBBIT_ASSERT_LAYOUT: () = {
+        const _RIBBIT_PRECONDITION: () = {
             #(#assertions ;)*
         };
+    }
+}
+
+pub(crate) fn precondition() -> TokenStream {
+    quote! {
+        let _: () = Self::_RIBBIT_PRECONDITION;
     }
 }
 

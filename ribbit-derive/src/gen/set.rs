@@ -39,11 +39,12 @@ pub(crate) fn set<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
 
             let with = ident.unescaped("with");
             let ty_field = ty.packed();
+            let precondition = crate::gen::pre::precondition();
 
             quote! {
                 #[inline]
                 #vis const fn #with(self, #escaped: #ty_field) -> Self {
-                    let _: () = Self::_RIBBIT_ASSERT_LAYOUT;
+                    #precondition
                     Self {
                         value: #value,
                         r#type: ::ribbit::private::PhantomData,

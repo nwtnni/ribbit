@@ -7,7 +7,7 @@ pub(crate) mod new;
 pub(crate) mod ord;
 mod pack;
 mod packed;
-mod pre;
+pub(crate) mod pre;
 mod set;
 mod unpack;
 mod unpacked;

@@ -81,12 +81,14 @@ fn new_struct<'ir, F: FnOnce(lift::Expr<'ir>) -> lift::Expr<'ir>>(
     ))
     .compile();
 
+    let precondition = crate::gen::pre::precondition();
+
     quote! {
         #[inline]
         #vis const fn #new(
             #(#parameters),*
         ) -> Self {
-            let _: () = Self::_RIBBIT_ASSERT_LAYOUT;
+            #precondition
             Self {
                 value: #value,
                 r#type: ::ribbit::private::PhantomData,

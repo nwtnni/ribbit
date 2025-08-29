@@ -9,27 +9,29 @@ use crate::ty::Type;
 use crate::Or;
 
 pub(crate) fn get<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 'ir {
+    let ir::Data::Struct(r#struct) = &ir.data else {
+        return Or::L(core::iter::empty());
+    };
+
     let ty_struct = ir.r#type();
+    let precondition = crate::gen::pre::precondition();
 
-    match &ir.data {
-        ir::Data::Struct(r#struct) => Or::L({
-            r#struct.iter().map(move |field| {
-                let value = get_field(ty_struct, field, field.offset as u8);
-                let vis = field.vis;
-                let get = field.ident.escaped();
-                let r#type = field.ty.packed();
+    Or::R({
+        r#struct.iter().map(move |field| {
+            let value = get_field(ty_struct, field, field.offset as u8);
+            let vis = field.vis;
+            let get = field.ident.escaped();
+            let r#type = field.ty.packed();
 
-                quote! {
-                    #[inline]
-                    #vis const fn #get(self) -> #r#type {
-                        let _: () = Self::_RIBBIT_ASSERT_LAYOUT;
-                        #value
-                    }
+            quote! {
+                #[inline]
+                #vis const fn #get(self) -> #r#type {
+                    #precondition
+                    #value
                 }
-            })
-        }),
-        ir::Data::Enum(_) => Or::R(core::iter::empty()),
-    }
+            }
+        })
+    })
 }
 
 pub(crate) fn get_field(r#type: &Type, field: &ir::Field, offset: u8) -> TokenStream {
