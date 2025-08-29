@@ -12,9 +12,7 @@ use crate::Or;
 
 #[derive(Debug)]
 pub(crate) enum Expr<'ir> {
-    Constant {
-        value: u128,
-    },
+    Constant(u128),
     Value {
         value: TokenStream,
         r#type: &'ir Type,
@@ -54,7 +52,7 @@ impl<'ir> Expr<'ir> {
     }
 
     pub(crate) fn constant(value: u128) -> Self {
-        Self::Constant { value }
+        Self::Constant(value)
     }
 
     pub(crate) fn or<I: IntoIterator<Item = (u8, Self)>>(tight: &'ir Tight, iter: I) -> Self {
@@ -96,7 +94,7 @@ impl<'ir> Expr<'ir> {
 
     fn type_intermediate(&self) -> Result<TypeRef<'ir>, u128> {
         let r#type = match self {
-            Expr::Constant { value } => return Err(*value),
+            Expr::Constant(value) => return Err(*value),
             Expr::Value { r#type, .. } => (*r#type).into(),
             Expr::ValueSelf(tight) => (**tight).into(),
 
@@ -144,8 +142,8 @@ impl<'ir> Expr<'ir> {
 
     fn compile_intermediate(&self) -> TokenStream {
         match self {
-            Expr::Constant { .. } => {
-                unreachable!("[INTERNAL ERROR]: constant with no type")
+            Expr::Constant(value) => {
+                proc_macro2::Literal::u128_unsuffixed(*value).to_token_stream()
             }
 
             Expr::Value { value, .. } => value.clone(),
@@ -155,9 +153,7 @@ impl<'ir> Expr<'ir> {
                 let from = expr.type_intermediate().unwrap();
                 let loose = from.to_loose();
                 let expr = expr.compile_intermediate().convert(from, loose);
-
-                let shift = loose.literal(*offset as u128);
-                let expr = quote!((#expr >> #shift));
+                let expr = Self::shift(expr, Dir::R, *offset, loose);
 
                 match mask {
                     // Convert to extracted loose type
@@ -196,17 +192,35 @@ impl<'ir> Expr<'ir> {
                 let exprs = exprs.iter().map(|(offset, expr)| {
                     let expr = match expr.type_intermediate() {
                         Ok(from) => expr.compile_intermediate().convert(from, into),
-                        Err(value) => into.literal(value).to_token_stream(),
+                        Err(value) => return into.literal(value << offset).to_token_stream(),
                     };
 
-                    let offset = into.literal(*offset as u128);
-                    quote!((#expr << #offset))
+                    Self::shift(expr, Dir::L, *offset, into)
                 });
 
                 quote!((#(#exprs )|*))
             }
         }
     }
+
+    fn shift(expr: TokenStream, dir: Dir, shift: u8, loose: Loose) -> TokenStream {
+        if shift == 0 {
+            return expr;
+        }
+
+        let dir = match dir {
+            Dir::L => quote!(<<),
+            Dir::R => quote!(>>),
+        };
+
+        let shift = loose.literal(shift as u128);
+        quote!((#expr #dir #shift))
+    }
+}
+
+enum Dir {
+    L,
+    R,
 }
 
 trait Convert {

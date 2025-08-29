@@ -19,7 +19,7 @@ use crate::ir;
 use crate::Error;
 use crate::Spanned;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, Eq)]
 pub(crate) enum Type {
     Tight {
         path: Option<TypePath>,
@@ -222,6 +222,36 @@ impl ToTokens for Type {
             } => path.to_tokens(tokens),
             Self::Tight { path: None, tight } => tight.to_tokens(tokens),
             Self::User { path, .. } => path.to_tokens(tokens),
+        }
+    }
+}
+
+impl PartialEq for Type {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (
+                Type::Tight {
+                    path: _,
+                    tight: left,
+                },
+                Type::Tight {
+                    path: _,
+                    tight: right,
+                },
+            ) => left == right,
+            (
+                Type::User {
+                    path: left_path,
+                    uses: _,
+                    tight: left_tight,
+                },
+                Type::User {
+                    path: right_path,
+                    uses: _,
+                    tight: right_tight,
+                },
+            ) => left_tight == right_tight && left_path == right_path,
+            _ => false,
         }
     }
 }
