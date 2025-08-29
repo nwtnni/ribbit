@@ -232,30 +232,31 @@ impl Convert for TokenStream {
                 return value;
             }
 
-            match (from, into) {
-                // Base case: convert between loose types
-                (TypeRef::Loose(_), TypeRef::Loose(into)) => quote! {
-                    ::ribbit::convert::loose_to_loose::<_, #into>(#value)
-                },
+            let from_loose = from.to_loose();
+            let into_loose = into.to_loose();
 
-                // First convert packed into loose
-                (from @ TypeRef::Type(_), into) => convert_impl(
-                    quote! {
-                        ::ribbit::convert::packed_to_loose(#value)
-                    },
-                    TypeRef::Loose(from.to_loose()),
-                    into,
-                ),
+            let value = from.convert_to_loose(value);
 
-                // Then convert loose into packed
-                (from @ TypeRef::Loose(_), TypeRef::Type(into)) => {
-                    let packed = into.packed();
-                    let value = convert_impl(value, from, TypeRef::Loose(into.to_loose()));
-                    quote! {
-                        unsafe { ::ribbit::convert::loose_to_packed::<#packed>(#value) }
-                    }
+            let value = if !from.is_generic() && !into.is_generic() {
+                match from_loose == into_loose {
+                    true => value,
+                    false => quote!((#value as #into_loose)),
                 }
-            }
+            } else {
+                let from_loose = match from.is_generic() {
+                    true => quote!(_),
+                    false => quote!(#from_loose),
+                };
+
+                let into_loose = match into.is_generic() {
+                    true => quote!(_),
+                    false => quote!(#into_loose),
+                };
+
+                quote!(::ribbit::convert::loose_to_loose::<#from_loose, #into_loose>(#value))
+            };
+
+            into.convert_from_loose(value)
         }
 
         convert_impl(self, from.into(), into.into())
@@ -269,6 +270,13 @@ enum TypeRef<'ir> {
 }
 
 impl TypeRef<'_> {
+    fn is_generic(&self) -> bool {
+        match self {
+            TypeRef::Type(r#type) => r#type.is_generic(),
+            TypeRef::Loose(_) => false,
+        }
+    }
+
     fn to_loose(&self) -> Loose {
         match self {
             TypeRef::Type(r#type) => r#type.as_tight().to_loose(),
@@ -276,10 +284,24 @@ impl TypeRef<'_> {
         }
     }
 
-    pub(crate) fn mask(&self) -> u128 {
+    fn mask(&self) -> u128 {
         match self {
             Self::Type(r#type) => r#type.as_tight().mask(),
             Self::Loose(loose) => loose.mask(),
+        }
+    }
+
+    fn convert_to_loose(&self, expression: TokenStream) -> TokenStream {
+        match self {
+            TypeRef::Type(r#type) => r#type.convert_to_loose(expression),
+            TypeRef::Loose(_) => expression,
+        }
+    }
+
+    fn convert_from_loose(&self, expression: TokenStream) -> TokenStream {
+        match self {
+            TypeRef::Type(r#type) => r#type.convert_from_loose(expression),
+            TypeRef::Loose(_) => expression,
         }
     }
 }

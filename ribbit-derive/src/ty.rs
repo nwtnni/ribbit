@@ -96,6 +96,10 @@ impl Type {
         matches!(self, Self::User { .. })
     }
 
+    pub(crate) fn is_generic(&self) -> bool {
+        matches!(self, Self::User { uses, .. } if !uses.is_empty())
+    }
+
     pub(crate) fn as_tight(&self) -> &Tight {
         match self {
             Self::Tight { tight, .. } | Self::User { tight, .. } => tight,
@@ -124,6 +128,71 @@ impl Type {
         match self {
             Type::User { .. } => quote!(#expression.unpack()),
             Type::Tight { .. } => expression,
+        }
+    }
+
+    pub(crate) fn convert_to_loose(&self, expression: TokenStream) -> TokenStream {
+        match self {
+            Type::Tight { tight, .. } => tight.convert_to_loose(expression),
+            Type::User { .. } if self.is_generic() => {
+                let loose = self.to_loose();
+                quote! {
+                    ::ribbit::convert::loose_to_loose::<_, #loose>(
+                        ::ribbit::convert::packed_to_loose(#expression)
+                    )
+                }
+            }
+            Type::User { .. } => {
+                quote!(::ribbit::convert::packed_to_loose(#expression))
+            }
+        }
+    }
+
+    pub(crate) fn convert_from_loose(&self, expression: TokenStream) -> TokenStream {
+        match self {
+            Type::Tight {
+                tight: Tight::Unit, ..
+            } => quote!(()),
+            Type::Tight {
+                tight: Tight::Bool, ..
+            } => {
+                let zero = proc_macro2::Literal::usize_unsuffixed(0);
+                quote!((#expression != #zero))
+            }
+            Type::Tight {
+                tight: Tight::Loose { signed: false, .. },
+                ..
+            } => expression,
+            Type::Tight {
+                tight:
+                    Tight::Loose {
+                        signed: true,
+                        loose,
+                    },
+                ..
+            } => quote!((#expression as #loose)),
+
+            Type::User { .. } if self.is_generic() => {
+                let loose = self.to_loose();
+                let packed = self.packed();
+                quote!(unsafe {
+                    ::ribbit::convert::loose_to_packed::<#packed>(
+                        ::ribbit::convert::loose_to_loose::<#loose, _>(
+                            #expression
+                        )
+                    )
+                })
+            }
+
+            // Skip validation logic in `NonZero` and `Arbitrary` constructors
+            Type::Tight {
+                tight: Tight::NonZero(_) | Tight::Arbitrary(_),
+                ..
+            }
+            | Type::User { .. } => {
+                let packed = self.packed();
+                quote!(unsafe { ::ribbit::convert::loose_to_packed::<#packed>(#expression) })
+            }
         }
     }
 

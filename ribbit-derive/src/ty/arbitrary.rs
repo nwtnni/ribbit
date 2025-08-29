@@ -32,7 +32,7 @@ impl Arbitrary {
         crate::mask(self.size)
     }
 
-    pub(crate) fn to_loose(&self) -> Loose {
+    pub(crate) fn to_loose(self) -> Loose {
         match self.size {
             0..=7 => Loose::N8,
             9..=15 => Loose::N16,

@@ -46,14 +46,23 @@ fn extract_assertions<'ir>(r#struct: &'ir ir::Struct) -> impl Iterator<Item = To
     let pack = fields.map(|r#type| {
         let expected = r#type.size_expected();
         let actual = r#type.size_actual();
+        let generic = r#type.is_generic();
+
+        let (message, compare) = match generic {
+            true => (quote!("fit"), quote!(>=)),
+            false => (quote!("match"), quote!(==)),
+        };
+
         quote_spanned! {r#type.span()=>
             ::ribbit::private::concat_assert!(
-                #expected == #actual,
+                #expected #compare #actual,
                 "Annotated size ",
                 #expected,
                 " of type ",
                 stringify!(#r#type),
-                " does not match actual size ",
+                " does not ",
+                #message,
+                " actual size ",
                 #actual,
             )
         }

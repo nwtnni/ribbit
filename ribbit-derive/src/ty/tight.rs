@@ -66,10 +66,8 @@ impl Tight {
     }
 
     fn new(nonzero: bool, signed: bool, size: usize) -> Result<Self, crate::Error> {
-        match size {
-            0 => return Ok(Self::Unit),
-            1 => return Ok(Self::Bool),
-            _ => (),
+        if size == 0 {
+            return Ok(Self::Unit);
         }
 
         let loose = Loose::new(size);
@@ -113,11 +111,37 @@ impl Tight {
         matches!(self, Self::NonZero { .. })
     }
 
-    pub(crate) fn to_loose(&self) -> Loose {
+    pub(crate) fn to_loose(self) -> Loose {
         match self {
             Tight::Unit | Tight::Bool => Loose::N8,
-            Tight::Loose { loose, .. } | Tight::NonZero(loose) => *loose,
+            Tight::Loose { loose, .. } | Tight::NonZero(loose) => loose,
             Tight::Arbitrary(arbitrary) => arbitrary.to_loose(),
+        }
+    }
+
+    pub(crate) fn convert_to_loose(&self, expression: TokenStream) -> TokenStream {
+        match self {
+            Tight::Unit => proc_macro2::Literal::usize_unsuffixed(0).to_token_stream(),
+            Tight::Bool => {
+                let zero = proc_macro2::Literal::usize_unsuffixed(0);
+                let one = proc_macro2::Literal::usize_unsuffixed(1);
+                quote! {
+                    match #expression {
+                        false => #zero,
+                        true => #one,
+                    }
+                }
+            }
+            Tight::Loose {
+                signed: false,
+                loose: _,
+            } => expression,
+            Tight::Loose {
+                signed: true,
+                loose,
+            } => quote!((expression as #loose)),
+            Tight::Arbitrary(_) => quote!(#expression.value()),
+            Tight::NonZero(_) => quote!(#expression.get()),
         }
     }
 }
