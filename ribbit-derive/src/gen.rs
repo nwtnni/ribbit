@@ -1,14 +1,14 @@
 pub(crate) mod debug;
 pub(crate) mod eq;
 pub(crate) mod from;
-pub(crate) mod get;
+mod get;
 pub(crate) mod hash;
 pub(crate) mod new;
 pub(crate) mod ord;
 mod pack;
 mod packed;
-pub(crate) mod pre;
-pub(crate) mod set;
+mod pre;
+mod set;
 mod unpack;
 mod unpacked;
 
