@@ -7,65 +7,14 @@ use quote::ToTokens;
 use crate::ty::Arbitrary;
 use crate::ty::Loose;
 
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Tight {
     Unit,
     Bool,
-    Loose {
-        signed: bool,
-        loose: Loose,
-    },
-    Arbitrary {
-        path: Option<syn::TypePath>,
-        inner: Arbitrary,
-    },
-    NonZero {
-        path: Option<syn::TypePath>,
-        loose: Loose,
-    },
+    Loose { signed: bool, loose: Loose },
+    Arbitrary(Arbitrary),
+    NonZero(Loose),
 }
-
-impl PartialEq for Tight {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Unit, Self::Unit) => true,
-            (Self::Bool, Self::Bool) => true,
-            (
-                Self::Loose {
-                    signed: signed_l,
-                    loose: loose_l,
-                },
-                Self::Loose {
-                    signed: signed_r,
-                    loose: loose_r,
-                },
-            ) => signed_l == signed_r && loose_l == loose_r,
-            (
-                Self::Arbitrary {
-                    inner: inner_l,
-                    path: _,
-                },
-                Self::Arbitrary {
-                    inner: inner_r,
-                    path: _,
-                },
-            ) => inner_l == inner_r,
-            (
-                Self::NonZero {
-                    loose: inner_l,
-                    path: _,
-                },
-                Self::NonZero {
-                    loose: inner_r,
-                    path: _,
-                },
-            ) => inner_l == inner_r,
-            _ => false,
-        }
-    }
-}
-
-impl Eq for Tight {}
 
 impl From<Loose> for Tight {
     fn from(loose: Loose) -> Self {
@@ -78,10 +27,10 @@ impl From<Loose> for Tight {
 
 impl Tight {
     pub(crate) fn from_size(nonzero: bool, size: usize) -> Result<Self, crate::Error> {
-        Self::new(None, nonzero, false, size)
+        Self::new(nonzero, false, size)
     }
 
-    pub(crate) fn from_path(path: &syn::TypePath) -> Option<Result<Self, crate::Error>> {
+    pub(crate) fn from_path(path: &syn::TypePath) -> Option<Self> {
         let segment = match path.path.segments.last()? {
             segment if !segment.arguments.is_none() => return None,
             segment => segment,
@@ -89,7 +38,7 @@ impl Tight {
 
         let ident = segment.ident.to_string();
         if ident == "bool" {
-            return Some(Ok(Self::Bool));
+            return Some(Self::Bool);
         }
 
         let nonzero = ident.starts_with("NonZero");
@@ -113,35 +62,30 @@ impl Tight {
             .parse::<usize>()
             .ok()?;
 
-        Some(Self::new(Some(path.clone()), nonzero, signed, size))
+        Self::new(nonzero, signed, size).ok()
     }
 
-    fn new(
-        path: Option<syn::TypePath>,
-        nonzero: bool,
-        signed: bool,
-        size: usize,
-    ) -> Result<Self, crate::Error> {
+    fn new(nonzero: bool, signed: bool, size: usize) -> Result<Self, crate::Error> {
         match size {
             0 => return Ok(Self::Unit),
-            1 if path.is_none() => return Ok(Self::Bool),
+            1 => return Ok(Self::Bool),
             _ => (),
         }
 
         let loose = Loose::new(size);
 
         if nonzero {
-            assert!(
-                !signed,
-                "[INTERNAL ERROR]: signed nonzero types are unsupported"
-            );
+            assert!(!signed, "[INTERNAL ERROR]: nonzero signed tight type");
             let loose = loose.ok_or(crate::Error::ArbitraryNonZero)?;
-            return Ok(Self::NonZero { path, loose });
+            return Ok(Self::NonZero(loose));
         }
 
         match loose {
-            Some(loose) => Ok(Self::Loose { signed, loose }),
-            None => Arbitrary::new(size).map(|inner| Self::Arbitrary { path, inner }),
+            Some(loose) => Ok(Self::Loose {
+                signed: false,
+                loose,
+            }),
+            None => Arbitrary::new(size).map(Self::Arbitrary),
         }
     }
 
@@ -150,11 +94,8 @@ impl Tight {
             Tight::Unit => 0,
             Tight::Bool => 1,
             Tight::Loose { signed: _, loose } => loose.size(),
-            Tight::Arbitrary { inner, path: _ } => inner.size(),
-            Tight::NonZero {
-                loose: inner,
-                path: _,
-            } => inner.size(),
+            Tight::Arbitrary(arbitrary) => arbitrary.size(),
+            Tight::NonZero(loose) => loose.size(),
         }
     }
 
@@ -163,11 +104,8 @@ impl Tight {
             Tight::Unit => 0,
             Tight::Bool => 1,
             Tight::Loose { signed: _, loose } => loose.mask(),
-            Tight::Arbitrary { inner, path: _ } => inner.mask(),
-            Tight::NonZero {
-                loose: inner,
-                path: _,
-            } => inner.mask(),
+            Tight::Arbitrary(arbitrary) => arbitrary.mask(),
+            Tight::NonZero(loose) => loose.mask(),
         }
     }
 
@@ -182,8 +120,8 @@ impl Tight {
     pub(crate) fn loosen(&self) -> &Loose {
         match self {
             Tight::Unit | Tight::Bool => &Loose::N8,
-            Tight::Loose { loose, .. } | Tight::NonZero { loose, .. } => loose,
-            Tight::Arbitrary { inner, path: _ } => inner.loosen(),
+            Tight::Loose { loose, .. } | Tight::NonZero(loose) => loose,
+            Tight::Arbitrary(arbitrary) => arbitrary.loosen(),
         }
     }
 }
@@ -197,43 +135,16 @@ impl ToTokens for Tight {
                 signed: true,
                 loose: _,
             } => todo!(),
-
             Tight::Loose {
                 signed: false,
                 loose,
             } => return loose.to_tokens(tokens),
-
-            Tight::Arbitrary {
-                inner: _,
-                path: Some(path),
-            }
-            | Tight::NonZero {
-                loose: _,
-                path: Some(path),
-            } => return path.to_tokens(tokens),
-
-            Tight::NonZero {
-                loose: Loose::N8,
-                path: None,
-            } => quote!(NonZeroU8),
-            Tight::NonZero {
-                loose: Loose::N16,
-                path: None,
-            } => quote!(NonZeroU16),
-            Tight::NonZero {
-                loose: Loose::N32,
-                path: None,
-            } => quote!(NonZeroU32),
-            Tight::NonZero {
-                loose: Loose::N64,
-                path: None,
-            } => quote!(NonZeroU64),
-            Tight::NonZero {
-                loose: Loose::N128,
-                path: None,
-            } => quote!(NonZeroU128),
-
-            Tight::Arbitrary { inner, path: None } => return inner.to_tokens(tokens),
+            Tight::NonZero(Loose::N8) => quote!(NonZeroU8),
+            Tight::NonZero(Loose::N16) => quote!(NonZeroU16),
+            Tight::NonZero(Loose::N32) => quote!(NonZeroU32),
+            Tight::NonZero(Loose::N64) => quote!(NonZeroU64),
+            Tight::NonZero(Loose::N128) => quote!(NonZeroU128),
+            Tight::Arbitrary(arbitrary) => return arbitrary.to_tokens(tokens),
         };
 
         quote!(::ribbit::private::#path).to_tokens(tokens)
@@ -249,43 +160,16 @@ impl Display for Tight {
                 signed: true,
                 loose: _,
             } => todo!(),
-
             Tight::Loose {
                 signed: false,
                 loose,
             } => loose.fmt(f),
-
-            Tight::Arbitrary {
-                inner: _,
-                path: Some(path),
-            }
-            | Tight::NonZero {
-                loose: _,
-                path: Some(path),
-            } => write!(f, "{}", path.to_token_stream()),
-
-            Tight::NonZero {
-                loose: Loose::N8,
-                path: None,
-            } => "NonZeroU8".fmt(f),
-            Tight::NonZero {
-                loose: Loose::N16,
-                path: None,
-            } => "NonZeroU16".fmt(f),
-            Tight::NonZero {
-                loose: Loose::N32,
-                path: None,
-            } => "NonZeroU32".fmt(f),
-            Tight::NonZero {
-                loose: Loose::N64,
-                path: None,
-            } => "NonZeroU64".fmt(f),
-            Tight::NonZero {
-                loose: Loose::N128,
-                path: None,
-            } => "NonZeroU128".fmt(f),
-
-            Tight::Arbitrary { inner, path: None } => inner.fmt(f),
+            Tight::NonZero(Loose::N8) => "NonZeroU8".fmt(f),
+            Tight::NonZero(Loose::N16) => "NonZeroU16".fmt(f),
+            Tight::NonZero(Loose::N32) => "NonZeroU32".fmt(f),
+            Tight::NonZero(Loose::N64) => "NonZeroU64".fmt(f),
+            Tight::NonZero(Loose::N128) => "NonZeroU128".fmt(f),
+            Tight::Arbitrary(arbitrary) => arbitrary.fmt(f),
         }
     }
 }

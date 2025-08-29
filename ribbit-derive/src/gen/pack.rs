@@ -54,7 +54,7 @@ pub(crate) fn pack(ir: &ir::Ir) -> TokenStream {
         }
     };
 
-    let tight = ir.tight();
+    let tight = ir.r#type().as_tight();
     let size = tight.size();
 
     let generics = ir.generics_bounded(None);

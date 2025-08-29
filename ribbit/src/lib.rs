@@ -128,8 +128,8 @@ macro_rules! impl_impl_number {
 
         unsafe impl Pack for $loose {
             const BITS: usize = $loose_bits;
-            type Packed = $loose;
-            type Loose = $loose;
+            type Packed = Self;
+            type Loose = Self;
 
             fn pack(self) -> Self::Packed {
                 self
@@ -340,15 +340,9 @@ impl_u128!(
 ///
 /// # Safety
 ///
-/// Sealed trait cannot be implemented outside of this crate.
-///
 /// Implementer must guarantee that zero is not a valid bit pattern for this type.
 #[allow(private_bounds)]
-pub unsafe trait NonZero: seal::Seal {}
-
-mod seal {
-    pub(super) trait Seal {}
-}
+pub unsafe trait NonZero {}
 
 macro_rules! impl_nonzero {
     ($ty:ty, $loose:ty, $bits:expr) => {
@@ -361,7 +355,6 @@ macro_rules! impl_nonzero {
             }
         }
 
-        impl seal::Seal for $ty {}
         unsafe impl NonZero for $ty {}
         impl_unpack!($ty);
     };

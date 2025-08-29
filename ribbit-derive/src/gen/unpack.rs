@@ -5,7 +5,7 @@ use crate::ir;
 use crate::lift;
 
 pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
-    let ty_struct = ir.tight();
+    let ty_struct = ir.r#type();
 
     let unpacked = ir.ident_unpacked();
     let packed = ir.ident_packed();
@@ -31,7 +31,7 @@ pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
         ir::Data::Enum(r#enum) => {
             let size_discriminant = r#enum.discriminant_size();
             let variants = r#enum.variants.iter().enumerate().map(|(index, variant)| {
-                let discriminant = ty_struct.loosen().literal(index as u128);
+                let discriminant = ty_struct.as_tight().loosen().literal(index as u128);
 
                 let ident = &variant.r#struct.unpacked;
 
@@ -53,7 +53,7 @@ pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
 
             let discriminant = lift::Expr::new(quote!(self.value), ty_struct)
                 .mask(0, (1 << size_discriminant) - 1)
-                .canonicalize();
+                .compile();
 
             quote! {
                 match #discriminant {

@@ -5,7 +5,7 @@ use crate::ir;
 
 pub(crate) fn packed(ir: &ir::Ir) -> TokenStream {
     let vis = &ir.vis;
-    let tight = ir.tight();
+    let tight = ir.r#type().as_tight();
 
     let generics = ir.generics();
     let (generics_impl, generics_ty, generics_where) = generics.split_for_impl();

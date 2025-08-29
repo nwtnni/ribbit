@@ -2,14 +2,14 @@ use core::ops::Deref as _;
 
 use proc_macro2::TokenStream;
 use quote::quote;
-use quote::ToTokens;
 
 use crate::ir;
 use crate::lift;
+use crate::ty::Type;
 use crate::Or;
 
 pub(crate) fn get<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 'ir {
-    let ty_struct = ir.tight();
+    let ty_struct = ir.r#type();
 
     match &ir.data {
         ir::Data::Struct(r#struct) => Or::L({
@@ -21,7 +21,7 @@ pub(crate) fn get<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
 
                 quote! {
                     #[inline]
-                    #vis const fn #get(&self) -> #ty {
+                    #vis const fn #get(self) -> #ty {
                         let _: () = Self::_RIBBIT_ASSERT_LAYOUT;
                         #value
                     }
@@ -32,13 +32,8 @@ pub(crate) fn get<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
     }
 }
 
-pub(crate) fn get_field(
-    shift: usize,
-    ty_struct: &crate::ty::Tight,
-    field: &ir::Field,
-) -> TokenStream {
-    lift::Expr::new(quote!(self.value), ty_struct)
+pub(crate) fn get_field(shift: usize, ty_struct: &Type, field: &ir::Field) -> TokenStream {
+    lift::Expr::new(quote!(self), ty_struct)
         .extract((shift + field.offset) as u8, field.ty.deref())
-        .canonicalize()
-        .to_token_stream()
+        .compile()
 }

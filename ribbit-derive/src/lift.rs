@@ -2,7 +2,8 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use quote::ToTokens;
 
-use crate::ty;
+use crate::ty::Loose;
+use crate::ty::Type;
 use crate::Or;
 
 #[derive(Debug)]
@@ -12,110 +13,31 @@ pub(crate) enum Expr<'ir> {
     },
     Value {
         value: TokenStream,
-        r#type: Ty<'ir>,
+        r#type: &'ir Type,
     },
+
+    /// Carve hole of size `type` at `offset` in `expr`.
     Hole {
         expr: Box<Self>,
         offset: u8,
-        r#type: Ty<'ir>,
+        r#type: &'ir Type,
     },
+
+    /// Extract `mask` bits at `offset` in `expr`.
     Extract {
         expr: Box<Self>,
         offset: u8,
-        r#type: Or<Ty<'ir>, u128>,
+        mask: Or<&'ir Type, u128>,
     },
+
     Combine {
         exprs: Vec<(u8, Self)>,
-        r#type: Ty<'ir>,
+        r#type: &'ir Type,
     },
-}
-
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
-pub(crate) enum Ty<'ir> {
-    Node(&'ir ty::Node),
-    Leaf(&'ir ty::Tight),
-}
-
-impl<'ir> From<&'ir ty::Node> for Ty<'ir> {
-    fn from(node: &'ir ty::Node) -> Self {
-        Self::Node(node)
-    }
-}
-
-impl<'ir> From<&'ir ty::Tight> for Ty<'ir> {
-    fn from(leaf: &'ir ty::Tight) -> Self {
-        Self::Leaf(leaf)
-    }
-}
-
-impl<'ir> From<&'ir ty::Tree> for Ty<'ir> {
-    fn from(tree: &'ir ty::Tree) -> Self {
-        match tree {
-            ty::Tree::Node(node) => Self::Node(node),
-            ty::Tree::Leaf(leaf) => Self::Leaf(leaf),
-        }
-    }
-}
-
-impl<'ir> Ty<'ir> {
-    fn convert(from: Self, into: Self, value: impl ToTokens) -> TokenStream {
-        if from == into {
-            return value.to_token_stream();
-        }
-
-        match (from, into) {
-            (Ty::Node(_), Ty::Node(_)) => todo!(),
-
-            (Ty::Leaf(from), Ty::Leaf(into)) if from.is_loose() && into.is_loose() => {
-                quote!(::ribbit::convert::loose_to_loose::<_, #into>(#value))
-            }
-
-            (Ty::Leaf(from), into) if from.is_loose() => {
-                let value = Self::convert(from.into(), into.loosen().tighten().into(), value);
-
-                quote!(
-                    unsafe { ::ribbit::convert::loose_to_packed::<#into>(#value) }
-                )
-            }
-
-            (from, Ty::Leaf(into)) if into.is_loose() => Self::convert(
-                from.loosen().tighten().into(),
-                into.into(),
-                quote!(
-                    ::ribbit::convert::packed_to_loose::<#from>(#value)
-                ),
-            ),
-
-            _ => todo!("conversion {:?} to {:?}", from, into),
-        }
-    }
-
-    fn mask(&self) -> u128 {
-        match self {
-            Self::Node(node) => node.tighten().mask(),
-            Self::Leaf(leaf) => leaf.mask(),
-        }
-    }
-
-    fn loosen(&self) -> &ty::Loose {
-        match self {
-            Self::Node(node) => node.loosen(),
-            Self::Leaf(leaf) => leaf.loosen(),
-        }
-    }
-}
-
-impl ToTokens for Ty<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        match self {
-            Self::Node(node) => node.to_tokens(tokens),
-            Self::Leaf(leaf) => leaf.to_tokens(tokens),
-        }
-    }
 }
 
 impl<'ir> Expr<'ir> {
-    pub(crate) fn new(value: impl ToTokens, r#type: impl Into<Ty<'ir>>) -> Self {
+    pub(crate) fn new(value: impl ToTokens, r#type: &'ir Type) -> Self {
         Self::Value {
             value: value.to_token_stream(),
             r#type: r#type.into(),
@@ -126,29 +48,26 @@ impl<'ir> Expr<'ir> {
         Self::Constant { value }
     }
 
-    pub(crate) fn or<I: IntoIterator<Item = (u8, Self)>>(
-        r#type: impl Into<Ty<'ir>>,
-        iter: I,
-    ) -> Self {
+    pub(crate) fn or<I: IntoIterator<Item = (u8, Self)>>(r#type: &'ir Type, iter: I) -> Self {
         Self::Combine {
             exprs: iter.into_iter().collect(),
-            r#type: r#type.into(),
+            r#type,
         }
     }
 
-    pub(crate) fn hole(self, offset: u8, r#type: impl Into<Ty<'ir>>) -> Self {
+    pub(crate) fn hole(self, offset: u8, r#type: &'ir Type) -> Self {
         Self::Hole {
             expr: Box::new(self),
             offset,
-            r#type: r#type.into(),
+            r#type,
         }
     }
 
-    pub(crate) fn extract(self, offset: u8, r#type: impl Into<Ty<'ir>>) -> Self {
+    pub(crate) fn extract(self, offset: u8, r#type: &'ir Type) -> Self {
         Self::Extract {
             expr: Box::new(self),
             offset,
-            r#type: Or::L(r#type.into()),
+            mask: Or::L(r#type),
         }
     }
 
@@ -156,85 +75,87 @@ impl<'ir> Expr<'ir> {
         Self::Extract {
             expr: Box::new(self),
             offset,
-            r#type: Or::R(mask),
+            mask: Or::R(mask),
         }
     }
 
-    pub(crate) fn canonicalize(self) -> impl ToTokens + 'ir {
-        Canonical(self)
+    pub(crate) fn compile(self) -> TokenStream {
+        let from = self.type_intermediate().unwrap();
+        let into = self.type_final();
+        self.compile_intermediate().convert(from, into)
     }
 
-    fn loose(&self) -> Result<&ty::Loose, u128> {
+    fn type_intermediate(&self) -> Result<TypeRef<'ir>, u128> {
         match self {
             Expr::Constant { value } => Err(*value),
-            Expr::Value { r#type, .. }
-            | Expr::Combine { r#type, .. }
+            Expr::Value { r#type, .. } => Ok(TypeRef::Type(r#type)),
+
+            Expr::Combine { r#type, .. }
             | Expr::Extract {
-                r#type: Or::L(r#type),
+                mask: Or::L(r#type),
                 ..
-            } => Ok(r#type.loosen()),
+            } => Ok(TypeRef::Loose(*r#type.as_tight().loosen())),
+
             Expr::Extract {
                 expr,
-                r#type: Or::R(_),
+                mask: Or::R(_),
                 ..
             }
-            | Expr::Hole { expr, .. } => Ok(expr.loose()?),
+            | Expr::Hole { expr, .. } => {
+                Ok(TypeRef::Loose(expr.type_intermediate().unwrap().to_loose()))
+            }
         }
     }
 
-    fn tight(&self) -> Ty<'ir> {
+    fn type_final(&self) -> TypeRef<'ir> {
         match self {
             Expr::Constant { .. } => unreachable!(),
             Expr::Value { r#type, .. }
             | Expr::Combine { r#type, .. }
             | Expr::Extract {
-                r#type: Or::L(r#type),
+                mask: Or::L(r#type),
                 ..
-            } => *r#type,
+            } => TypeRef::Type(r#type),
+
             // HACK: only used by discriminant matching,
             // where we don't want canonicalization to
             // convert back to tight type
             Expr::Extract {
                 expr,
-                r#type: Or::R(_),
+                mask: Or::R(_),
                 ..
-            } => expr.loose().unwrap().tighten().into(),
-            Expr::Hole { expr, .. } => expr.tight(),
+            } => TypeRef::Loose(expr.type_final().to_loose()),
+
+            Expr::Hole { expr, .. } => expr.type_final(),
         }
     }
 
-    fn compile(&self) -> TokenStream {
+    fn compile_intermediate(&self) -> TokenStream {
         match self {
             Expr::Constant { .. } => {
                 unreachable!("[INTERNAL ERROR]: constant with no type")
             }
 
-            Expr::Value { value, r#type } => {
-                Ty::convert(*r#type, r#type.loosen().tighten().into(), value)
-            }
+            Expr::Value { value, .. } => value.clone(),
 
-            Expr::Extract {
-                expr,
-                offset,
-                r#type,
-            } => {
-                let from = expr.loose().expect("[INTERNAL ERROR]: constant in shift");
+            Expr::Extract { expr, offset, mask } => {
+                let from = expr.type_intermediate().unwrap();
+                let loose = from.to_loose();
+                let expr = expr.compile_intermediate().convert(from, loose);
 
-                let shift = from.literal(*offset as u128);
-
-                let expr = expr.compile();
+                let shift = loose.literal(*offset as u128);
                 let expr = quote!((#expr >> #shift));
 
-                // Convert to extracted loose type
-                match r#type {
+                match mask {
+                    // Convert to extracted loose type
                     Or::L(r#type) => {
-                        let into = r#type.loosen();
-                        let expr = Ty::convert(from.tighten().into(), into.tighten().into(), expr);
+                        let into = r#type.to_loose();
+                        let expr = expr.convert(loose, into);
                         let mask = into.literal(r#type.mask());
                         quote!((#expr & #mask))
                     }
                     Or::R(mask) => {
-                        let mask = from.literal(*mask);
+                        let mask = loose.literal(*mask);
                         quote!((#expr & #mask))
                     }
                 }
@@ -245,32 +166,27 @@ impl<'ir> Expr<'ir> {
                 offset,
                 r#type,
             } => {
-                let mask = expr
-                    .loose()
-                    .expect("[INTERNAL ERROR]: constant in shift")
-                    .literal(!(r#type.mask() << *offset) & expr.tight().mask());
+                let from = expr.type_intermediate().unwrap();
+                let loose = from.to_loose();
 
-                let expr = expr.compile();
+                let mask = loose.literal(!(r#type.mask() << *offset) & expr.type_final().mask());
+                let expr = expr.compile_intermediate().convert(from, loose);
+
                 quote!((#expr & #mask))
             }
 
-            Expr::Combine { exprs, r#type } if exprs.is_empty() => r#type.loosen().literal(0),
+            Expr::Combine { exprs, r#type } if exprs.is_empty() => r#type.to_loose().literal(0),
 
             Expr::Combine { exprs, r#type } => {
-                let into = r#type.loosen();
+                let into = r#type.to_loose();
 
                 let exprs = exprs.iter().map(|(offset, expr)| {
-                    let expr = match expr.loose() {
-                        Ok(from) => Ty::convert(
-                            from.tighten().into(),
-                            into.tighten().into(),
-                            expr.compile(),
-                        ),
+                    let expr = match expr.type_intermediate() {
+                        Ok(from) => expr.compile_intermediate().convert(from, into),
                         Err(value) => into.literal(value).to_token_stream(),
                     };
 
                     let offset = into.literal(*offset as u128);
-
                     quote!((#expr << #offset))
                 });
 
@@ -280,12 +196,95 @@ impl<'ir> Expr<'ir> {
     }
 }
 
-struct Canonical<'ir>(Expr<'ir>);
+trait Convert {
+    fn convert<'ir>(
+        self,
+        from: impl Into<TypeRef<'ir>>,
+        into: impl Into<TypeRef<'ir>>,
+    ) -> TokenStream;
+}
 
-impl<'ir> ToTokens for Canonical<'ir> {
+impl Convert for TokenStream {
+    fn convert<'ir>(
+        self,
+        from: impl Into<TypeRef<'ir>>,
+        into: impl Into<TypeRef<'ir>>,
+    ) -> TokenStream {
+        fn convert_impl<'ir>(
+            value: TokenStream,
+            from: TypeRef<'ir>,
+            into: TypeRef<'ir>,
+        ) -> TokenStream {
+            if from == into {
+                return value;
+            }
+
+            match (from, into) {
+                (TypeRef::Loose(_), TypeRef::Loose(into)) => {
+                    quote!(::ribbit::convert::loose_to_loose::<_, #into>(#value))
+                }
+
+                (from @ TypeRef::Loose(_), into) => {
+                    let value = convert_impl(value, from, TypeRef::Loose(into.to_loose()));
+
+                    quote!(
+                        unsafe { ::ribbit::convert::loose_to_packed::<#into>(#value) }
+                    )
+                }
+
+                (from, into) => convert_impl(
+                    quote!(
+                        ::ribbit::convert::packed_to_loose::<#from>(#value)
+                    ),
+                    TypeRef::Loose(from.to_loose()),
+                    into,
+                ),
+            }
+        }
+
+        convert_impl(self, from.into(), into.into())
+    }
+}
+
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+enum TypeRef<'ir> {
+    Type(&'ir Type),
+    Loose(Loose),
+}
+
+impl TypeRef<'_> {
+    fn to_loose(self) -> Loose {
+        match self {
+            TypeRef::Type(r#type) => *r#type.as_tight().loosen(),
+            TypeRef::Loose(loose) => loose,
+        }
+    }
+
+    pub(crate) fn mask(&self) -> u128 {
+        match self {
+            Self::Type(r#type) => r#type.as_tight().mask(),
+            Self::Loose(loose) => loose.mask(),
+        }
+    }
+}
+
+impl ToTokens for TypeRef<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let from = self.0.loose().unwrap();
-        let into = self.0.tight();
-        Ty::convert(from.tighten().into(), into, self.0.compile()).to_tokens(tokens);
+        match self {
+            TypeRef::Type(r#type) => r#type.to_tokens(tokens),
+            TypeRef::Loose(loose) => loose.to_tokens(tokens),
+        }
+    }
+}
+
+impl<'ir> From<Loose> for TypeRef<'ir> {
+    fn from(loose: Loose) -> Self {
+        Self::Loose(loose)
+    }
+}
+
+impl<'ir> From<&'ir Type> for TypeRef<'ir> {
+    fn from(r#type: &'ir Type) -> Self {
+        Self::Type(r#type)
     }
 }

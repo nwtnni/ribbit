@@ -19,6 +19,7 @@ use crate::gen;
 use crate::input;
 use crate::ty;
 use crate::ty::Tight;
+use crate::ty::Type;
 use crate::Spanned;
 
 pub(crate) fn new<'input>(item: &'input input::Item) -> darling::Result<Ir<'input>> {
@@ -57,9 +58,9 @@ pub(crate) fn new<'input>(item: &'input input::Item) -> darling::Result<Ir<'inpu
                         &variant.fields,
                     )?;
 
-                    if r#struct.tight.size() > (*size - size_discriminant) {
+                    if r#struct.r#type.as_tight().size() > (*size - size_discriminant) {
                         bail!(variant=> crate::Error::VariantSize {
-                            variant: r#struct.tight.size(),
+                            variant: r#struct.r#type.as_tight().size(),
                             r#enum: *size,
                             discriminant: size_discriminant,
                         });
@@ -73,12 +74,18 @@ pub(crate) fn new<'input>(item: &'input input::Item) -> darling::Result<Ir<'inpu
                 })
                 .collect::<darling::Result<Vec<_>>>()?;
 
+            let unpacked = &item.ident;
             let r#enum = Enum {
                 opt: &item.opt,
                 attrs: &item.attrs,
                 packed: format_ident!("_{}Packed", item.ident),
-                unpacked: &item.ident,
-                tight,
+                unpacked,
+                r#type: Type::User {
+                    path: parse_quote!(#unpacked),
+                    uses: Default::default(),
+                    tight,
+                    exact: true,
+                },
                 variants,
             };
 
@@ -90,7 +97,7 @@ pub(crate) fn new<'input>(item: &'input input::Item) -> darling::Result<Ir<'inpu
             &item.opt,
             &item.attrs,
             &item.ident,
-            &r#struct,
+            r#struct,
         )
         .map(Data::Struct)?,
     };
@@ -143,10 +150,10 @@ impl Ir<'_> {
         }
     }
 
-    pub(crate) fn tight(&self) -> &Tight {
+    pub(crate) fn r#type(&self) -> &Type {
         match &self.data {
-            Data::Enum(r#enum) => &r#enum.tight,
-            Data::Struct(r#struct) => &r#struct.tight,
+            Data::Enum(r#enum) => &r#enum.r#type,
+            Data::Struct(r#struct) => &r#struct.r#type,
         }
     }
 
@@ -176,7 +183,7 @@ pub(crate) struct Enum<'input> {
     pub(crate) attrs: &'input [syn::Attribute],
     pub(crate) unpacked: &'input syn::Ident,
     pub(crate) packed: syn::Ident,
-    pub(crate) tight: Tight,
+    pub(crate) r#type: Type,
     pub(crate) variants: Vec<Variant<'input>>,
 }
 
@@ -202,7 +209,7 @@ pub(crate) struct Struct<'input> {
     pub(crate) attrs: &'input [syn::Attribute],
     pub(crate) unpacked: &'input syn::Ident,
     pub(crate) packed: syn::Ident,
-    pub(crate) tight: Tight,
+    pub(crate) r#type: Type,
     pub(crate) opt: &'input StructOpt,
 
     pub(crate) shape: darling::util::Shape,
@@ -247,16 +254,22 @@ impl Struct<'_> {
             fields
                 .iter()
                 .map(|field| &field.ty)
-                .filter(|ty| ty.is_node())
+                .filter(|ty| ty.is_user())
                 .filter(|ty| ty.size_expected() != 0)
                 .map(|ty| -> syn::WherePredicate { parse_quote!(#ty: ::ribbit::Pack) }),
         );
 
+        let unpacked = ident;
         Ok(Struct {
             attrs,
             packed: format_ident!("_{}Packed", ident),
-            unpacked: ident,
-            tight,
+            unpacked,
+            r#type: Type::User {
+                path: parse_quote!(#unpacked),
+                uses: Default::default(),
+                tight,
+                exact: true,
+            },
             opt,
             shape,
             fields,
@@ -299,7 +312,7 @@ pub(crate) struct Field<'input> {
     pub(crate) attrs: &'input [syn::Attribute],
     pub(crate) vis: &'input syn::Visibility,
     pub(crate) ident: FieldIdent<'input>,
-    pub(crate) ty: Spanned<ty::Tree>,
+    pub(crate) ty: Spanned<ty::Type>,
     pub(crate) offset: usize,
 }
 
@@ -312,23 +325,7 @@ impl<'input> Field<'input> {
         index: usize,
         field: &'input SpannedValue<input::Field>,
     ) -> darling::Result<Self> {
-        // For convenience, forward nonzero and size annotations
-        // for newtype structs.
-        let nonzero = match (newtype, field.opt.nonzero) {
-            (false, nonzero) | (true, nonzero @ Some(_)) => nonzero,
-            (true, None) => opt.nonzero,
-        };
-        let size = match (newtype, field.opt.size) {
-            (false, size) | (true, size @ Some(_)) => size,
-            (true, None) => opt.size,
-        };
-
-        let ty = ty::Tree::parse(
-            ty_params,
-            field.ty.clone(),
-            nonzero.map(Spanned::from),
-            size.map(Spanned::from),
-        )?;
+        let ty = ty::Type::parse(newtype, opt, &field.opt, ty_params, field.ty.clone())?;
 
         let size = ty.size_expected();
 

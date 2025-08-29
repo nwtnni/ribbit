@@ -1,12 +1,12 @@
 mod arbitrary;
 mod loose;
-mod node;
 pub(crate) mod tight;
 
 pub(crate) use arbitrary::Arbitrary;
+use darling::usage::CollectTypeParams as _;
 use darling::usage::IdentSet;
 pub(crate) use loose::Loose;
-pub(crate) use node::Node;
+use syn::TypePath;
 pub(crate) use tight::Tight;
 
 use proc_macro2::TokenStream;
@@ -15,113 +15,124 @@ use quote::ToTokens;
 use syn::spanned::Spanned as _;
 
 use crate::error::bail;
+use crate::ir;
 use crate::Error;
 use crate::Spanned;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub(crate) enum Tree {
-    Node(Node),
-    Leaf(Tight),
+pub(crate) enum Type {
+    Tight {
+        path: Option<TypePath>,
+        tight: Tight,
+    },
+    User {
+        path: TypePath,
+        uses: IdentSet,
+        tight: Tight,
+        exact: bool,
+    },
 }
 
-impl Tree {
+impl Type {
     pub(crate) fn parse(
+        newtype: bool,
+        opt_struct: &ir::StructOpt,
+        opt_field: &ir::FieldOpt,
         ty_params: &IdentSet,
         ty: syn::Type,
-        nonzero: Option<Spanned<bool>>,
-        size: Option<Spanned<usize>>,
     ) -> darling::Result<Spanned<Self>> {
-        match ty {
-            syn::Type::Path(path) => {
-                let span = path.span();
+        let syn::Type::Path(path) = ty else {
+            bail!(ty=> Error::UnsupportedType)
+        };
 
-                let ty = match Tight::from_path(&path) {
-                    Some(tight) => {
-                        let tight = match tight {
-                            Ok(tight) => tight,
-                            Err(error) => bail!(span=> error),
-                        };
+        let span = path.span();
 
-                        if let Some(expected) = size.filter(|size| **size != tight.size()) {
-                            bail!(span=> Error::WrongSize {
-                                expected: *expected,
-                                actual: tight.size(),
-                                ty: tight,
-                            });
-                        }
-
-                        Self::Leaf(tight)
-                    }
-                    None => {
-                        let Some(size) = size else {
-                            bail!(span=> Error::OpaqueSize);
-                        };
-
-                        let tight =
-                            Tight::from_size(nonzero.as_deref().copied().unwrap_or(false), *size);
-
-                        let tight = match tight {
-                            Ok(tight) => tight,
-                            Err(error) => bail!(span=> error),
-                        };
-
-                        Self::Node(Node::parse(ty_params, path, tight))
-                    }
-                };
-
-                Ok(Spanned::new(ty, span))
+        if let Some(tight) = Tight::from_path(&path) {
+            if let Some(expected) = opt_field.size.filter(|size| **size != tight.size()) {
+                bail!(span=> Error::WrongSize {
+                    expected: *expected,
+                    actual: tight.size(),
+                    ty: tight,
+                });
             }
-            _ => bail!(ty=> Error::UnsupportedType),
+
+            return Ok(Spanned::new(
+                Self::Tight {
+                    path: Some(path),
+                    tight,
+                },
+                span,
+            ));
+        };
+
+        // For convenience, forward nonzero and size annotations
+        // for newtype structs.
+        let nonzero = match (newtype, opt_field.nonzero) {
+            (false, nonzero) | (true, nonzero @ Some(_)) => nonzero,
+            (true, None) => opt_struct.nonzero,
+        };
+        let (exact, size) = match (newtype, opt_field.size) {
+            (false, size) | (true, size @ Some(_)) => (true, size),
+            (true, None) => (false, opt_struct.size),
+        };
+
+        let Some(size) = size else {
+            bail!(span=> Error::OpaqueSize);
+        };
+
+        let tight = Tight::from_size(nonzero.as_deref().copied().unwrap_or(false), *size);
+
+        let tight = match tight {
+            Ok(tight) => tight,
+            Err(error) => bail!(span=> error),
+        };
+
+        let uses = std::iter::once(&path)
+            .collect_type_params_cloned(&darling::usage::Purpose::Declare.into(), ty_params);
+
+        Ok(Spanned::new(
+            Self::User {
+                path,
+                uses,
+                tight,
+                exact,
+            },
+            span,
+        ))
+    }
+
+    pub(crate) fn is_user(&self) -> bool {
+        matches!(self, Self::User { .. })
+    }
+
+    pub(crate) fn as_tight(&self) -> &Tight {
+        match self {
+            Self::Tight { tight, .. } | Self::User { tight, .. } => tight,
         }
     }
 
-    pub(crate) fn is_node(&self) -> bool {
-        matches!(self, Tree::Node(_))
-    }
-
-    pub(crate) fn is_leaf(&self) -> bool {
-        matches!(self, Tree::Leaf(_))
+    pub(crate) fn to_loose(&self) -> Loose {
+        *self.as_tight().loosen()
     }
 
     pub(crate) fn packed(&self) -> TokenStream {
         match self {
-            Tree::Leaf(_) => quote!(#self),
-            Tree::Node(node) => quote!(<#node as ::ribbit::Pack>::Packed),
+            Type::User { .. } => quote!(<#self as ::ribbit::Pack>::Packed),
+            Type::Tight { .. } => quote!(#self),
         }
     }
 
     pub(crate) fn pack(&self, expression: TokenStream) -> TokenStream {
         match self {
-            Tree::Leaf(_) => expression,
-            Tree::Node(_) => quote!(#expression.pack()),
+            Type::User { .. } => quote!(#expression.pack()),
+            Type::Tight { .. } => expression,
         }
     }
 
     pub(crate) fn unpack(&self, expression: TokenStream) -> TokenStream {
         match self {
-            Tree::Leaf(_) => expression,
-            Tree::Node(_) => quote!(#expression.unpack()),
-        }
-    }
-
-    pub(crate) fn tighten(&self) -> Tight {
-        match self {
-            Tree::Node(node) => node.tighten().clone(),
-            Tree::Leaf(leaf) => leaf.clone(),
-        }
-    }
-
-    pub(crate) fn loosen(&self) -> &Loose {
-        match self {
-            Tree::Node(node) => node.loosen(),
-            Tree::Leaf(leaf) => leaf.loosen(),
-        }
-    }
-
-    pub(crate) fn size_expected(&self) -> usize {
-        match self {
-            Tree::Node(node) => node.tighten().size(),
-            Tree::Leaf(leaf) => leaf.size(),
+            Type::User { .. } => quote!(#expression.unpack()),
+            Type::Tight { .. } => expression,
         }
     }
 
@@ -129,39 +140,28 @@ impl Tree {
         quote!(<#self as ::ribbit::Pack>::BITS)
     }
 
-    pub(crate) fn mask(&self) -> u128 {
-        match self {
-            Tree::Node(node) => node.tighten().mask(),
-            Tree::Leaf(leaf) => leaf.mask(),
-        }
+    pub(crate) fn size_expected(&self) -> usize {
+        self.as_tight().size()
     }
 
     pub(crate) fn is_nonzero(&self) -> bool {
-        match self {
-            Tree::Node(node) => node.tighten().is_nonzero(),
-            Tree::Leaf(leaf) => leaf.is_nonzero(),
-        }
+        self.as_tight().is_nonzero()
+    }
+
+    pub(crate) fn mask(&self) -> u128 {
+        self.as_tight().mask()
     }
 }
 
-impl ToTokens for Tree {
+impl ToTokens for Type {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            Tree::Node(node) => node.to_tokens(tokens),
-            Tree::Leaf(leaf) => leaf.to_tokens(tokens),
+            Self::Tight {
+                path: Some(path), ..
+            } => path.to_tokens(tokens),
+            Self::Tight { path: None, tight } => tight.to_tokens(tokens),
+            Self::User { path, .. } => path.to_tokens(tokens),
         }
-    }
-}
-
-impl From<Tight> for Tree {
-    fn from(leaf: Tight) -> Self {
-        Self::Leaf(leaf)
-    }
-}
-
-impl From<Loose> for Tree {
-    fn from(loose: Loose) -> Self {
-        Self::Leaf(Tight::from(loose))
     }
 }
 

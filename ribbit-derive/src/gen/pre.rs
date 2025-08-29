@@ -31,13 +31,12 @@ fn extract_assertions<'ir>(r#struct: &'ir ir::Struct) -> impl Iterator<Item = To
         .iter()
         .map(|field| &field.ty)
         // Only need to check user-defined types
-        .filter(|ty| ty.is_node());
+        .filter(|ty| ty.is_user());
 
-    let nonzero = fields.clone().filter(|ty| ty.is_nonzero()).map(|ty| {
-        quote!(
-            ::ribbit::private::assert_impl_all!(<#ty as ::ribbit::Pack>::Tight: ::ribbit::NonZero)
-        )
-    });
+    let nonzero = fields
+        .clone()
+        .filter(|ty| ty.is_nonzero())
+        .map(|ty| quote!(::ribbit::private::assert_impl_all!(#ty: ::ribbit::NonZero)));
 
     let pack = fields.map(|ty| {
         let expected = ty.size_expected();

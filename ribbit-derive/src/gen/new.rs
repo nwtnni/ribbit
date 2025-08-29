@@ -5,12 +5,10 @@ use heck::ToSnakeCase as _;
 use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
-use quote::ToTokens;
 use syn::parse_quote;
 
 use crate::ir;
 use crate::lift;
-use crate::ty;
 use crate::Or;
 
 #[derive(FromMeta, Clone, Debug, Default)]
@@ -32,7 +30,7 @@ pub(crate) fn new<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
         ))),
         ir::Data::Enum(r#enum @ ir::Enum { variants, .. }) => {
             let discriminant_size = r#enum.discriminant_size();
-            let ty_struct = ir.tight();
+            let ty_struct = ir.r#type();
 
             Or::R(variants.iter().map(move |variant| {
                 assert!(!variant.extract, "TODO");
@@ -63,7 +61,7 @@ fn new_struct<'ir, F: FnOnce(lift::Expr<'ir>) -> lift::Expr<'ir>>(
     r#struct: &'ir ir::Struct,
     map: F,
 ) -> TokenStream {
-    let ty_struct = &r#struct.tight;
+    let ty_struct = &r#struct.r#type;
 
     let parameters = r#struct.iter_nonzero().map(|field| {
         let ident = field.ident.escaped();
@@ -80,7 +78,7 @@ fn new_struct<'ir, F: FnOnce(lift::Expr<'ir>) -> lift::Expr<'ir>>(
         ),
     );
 
-    let value = map(value).canonicalize();
+    let value = map(value).compile();
 
     quote! {
         #[inline]
@@ -88,10 +86,7 @@ fn new_struct<'ir, F: FnOnce(lift::Expr<'ir>) -> lift::Expr<'ir>>(
             #(#parameters),*
         ) -> Self {
             let _: () = Self::_RIBBIT_ASSERT_LAYOUT;
-            Self {
-                value: #value,
-                r#type: ::ribbit::private::PhantomData,
-            }
+            #value
         }
     }
 }

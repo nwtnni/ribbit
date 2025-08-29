@@ -29,13 +29,22 @@ pub(crate) fn unpacked<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream
                 }
             });
 
-            let (_, generics_ty, generics_where) = generics.split_for_impl();
+            let (generics_impl, generics_ty, generics_where) = generics.split_for_impl();
+
+            let nonzero = r#enum
+                .opt
+                .nonzero
+                .filter(|nonzero| **nonzero)
+                .map(|_| quote!(unsafe impl #generics_impl ::ribbit::NonZero for #ident #generics_ty #generics_where {}))
+                .into_iter();
 
             Or::R(core::iter::once(quote! {
                 #(#attrs)*
                 #vis enum #ident #generics_ty #generics_where {
                     #(#variants,)*
                 }
+
+                #(#nonzero)*
             }))
         }
     }
@@ -50,7 +59,7 @@ fn unpacked_struct(
 ) -> TokenStream {
     let fields = unpacked_fields(r#struct);
 
-    let (_, generics_ty, generics_where) = generics.split_for_impl();
+    let (generics_impl, generics_ty, generics_where) = generics.split_for_impl();
 
     let fields = match r#struct.shape {
         Shape::Unit => quote! { #generics_where ; },
@@ -58,9 +67,18 @@ fn unpacked_struct(
         Shape::Tuple | Shape::Newtype => quote! { #fields #generics_where; },
     };
 
+    let nonzero = r#struct
+        .opt
+        .nonzero
+        .filter(|nonzero| **nonzero)
+        .map(|_| quote!(unsafe impl #generics_impl ::ribbit::NonZero for #ident #generics_ty #generics_where {}))
+        .into_iter();
+
     quote! {
         #(#attrs)*
         #vis struct #ident #generics_ty #fields
+
+        #(#nonzero)*
     }
 }
 
