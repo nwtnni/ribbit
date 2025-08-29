@@ -50,15 +50,14 @@ impl Loose {
 
 impl ToTokens for Loose {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        let ident = match self {
+        match self {
             Self::N8 => quote!(u8),
             Self::N16 => quote!(u16),
             Self::N32 => quote!(u32),
             Self::N64 => quote!(u64),
             Self::N128 => quote!(u128),
-        };
-
-        quote!(::ribbit::private::#ident).to_tokens(tokens)
+        }
+        .to_tokens(tokens)
     }
 }
 
