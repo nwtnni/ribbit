@@ -1,6 +1,6 @@
 use core::fmt::Display;
+use core::str::FromStr as _;
 
-use proc_macro2::Literal;
 use proc_macro2::TokenStream;
 use quote::quote;
 use quote::ToTokens;
@@ -44,14 +44,7 @@ impl Loose {
 
     #[track_caller]
     pub(crate) fn literal(&self, value: u128) -> TokenStream {
-        match self {
-            Self::N8 => Literal::u8_suffixed(value.try_into().unwrap()),
-            Self::N16 => Literal::u16_suffixed(value.try_into().unwrap()),
-            Self::N32 => Literal::u32_suffixed(value.try_into().unwrap()),
-            Self::N64 => Literal::u64_suffixed(value.try_into().unwrap()),
-            Self::N128 => Literal::u128_suffixed(value),
-        }
-        .to_token_stream()
+        TokenStream::from_str(&format!("{value:#X}{self}")).unwrap()
     }
 }
 
