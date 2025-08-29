@@ -9,43 +9,47 @@ use crate::lift;
 use crate::Or;
 
 pub(crate) fn set<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 'ir {
-    match &ir.data {
-        ir::Data::Struct(r#struct) => Or::L({
-            r#struct.iter_nonzero().map(
-                move |ir::Field {
-                          vis,
-                          ident,
-                          ty,
-                          offset,
-                          ..
-                      }| {
-                    let escaped = ident.escaped();
-                    let value = lift::Expr::or(
-                        ir.r#type(),
-                        [
-                            (*offset as u8, lift::Expr::new(ident.escaped(), ty.deref())),
-                            (
-                                0,
-                                lift::Expr::new(quote!(self), ir.r#type())
-                                    .hole(*offset as u8, ty.deref()),
-                            ),
-                        ],
-                    )
-                    .compile();
+    let ir::Data::Struct(r#struct) = &ir.data else {
+        return Or::L(iter::empty());
+    };
 
-                    let with = ident.unescaped("with");
-                    let ty_field = ty.packed();
-
-                    quote! {
-                        #[inline]
-                        #vis const fn #with(self, #escaped: #ty_field) -> Self {
-                            let _: () = Self::_RIBBIT_ASSERT_LAYOUT;
-                            #value
-                        }
-                    }
-                },
+    Or::R(r#struct.iter_nonzero().map(
+        move |ir::Field {
+                  vis,
+                  ident,
+                  ty,
+                  offset,
+                  ..
+              }| {
+            let escaped = ident.escaped();
+            let value = lift::Expr::or(
+                ir.r#type().as_tight(),
+                [
+                    (
+                        *offset as u8,
+                        lift::Expr::value(ident.escaped(), ty.deref()),
+                    ),
+                    (
+                        0,
+                        lift::Expr::value_self(&r#struct.r#type).hole(*offset as u8, ty.deref()),
+                    ),
+                ],
             )
-        }),
-        ir::Data::Enum(_) => Or::R(iter::empty()),
-    }
+            .compile();
+
+            let with = ident.unescaped("with");
+            let ty_field = ty.packed();
+
+            quote! {
+                #[inline]
+                #vis const fn #with(self, #escaped: #ty_field) -> Self {
+                    let _: () = Self::_RIBBIT_ASSERT_LAYOUT;
+                    Self {
+                        value: #value,
+                        r#type: ::ribbit::private::PhantomData,
+                    }
+                }
+            }
+        },
+    ))
 }

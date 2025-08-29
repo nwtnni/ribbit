@@ -17,11 +17,11 @@ pub(crate) fn get<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
                 let value = get_field(ty_struct, field, field.offset as u8);
                 let vis = field.vis;
                 let get = field.ident.escaped();
-                let ty = field.ty.packed();
+                let r#type = field.ty.packed();
 
                 quote! {
                     #[inline]
-                    #vis const fn #get(self) -> #ty {
+                    #vis const fn #get(self) -> #r#type {
                         let _: () = Self::_RIBBIT_ASSERT_LAYOUT;
                         #value
                     }
@@ -32,8 +32,8 @@ pub(crate) fn get<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
     }
 }
 
-pub(crate) fn get_field(ty_struct: &Type, field: &ir::Field, offset: u8) -> TokenStream {
-    lift::Expr::new(quote!(self), ty_struct)
+pub(crate) fn get_field(r#type: &Type, field: &ir::Field, offset: u8) -> TokenStream {
+    lift::Expr::value_self(r#type)
         .extract(offset, field.ty.deref())
         .compile()
 }

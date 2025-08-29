@@ -103,7 +103,7 @@ impl Type {
     }
 
     pub(crate) fn to_loose(&self) -> Loose {
-        *self.as_tight().loosen()
+        self.as_tight().to_loose()
     }
 
     pub(crate) fn packed(&self) -> TokenStream {

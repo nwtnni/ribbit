@@ -44,7 +44,7 @@ pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
 
                 let discriminant = ty_struct
                     .as_tight()
-                    .loosen()
+                    .to_loose()
                     .literal(variant.discriminant as u128);
 
                 let ident = &variant.r#struct.unpacked;
@@ -52,7 +52,7 @@ pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
                 quote!(#discriminant => #unpacked::#ident { #(#fields ,)* })
             });
 
-            let discriminant = lift::Expr::new(quote!(self.value), ty_struct)
+            let discriminant = lift::Expr::value_self(ty_struct)
                 .discriminant(&discriminant)
                 .compile();
 
@@ -72,7 +72,7 @@ pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
 
     let tight = ir.r#type().as_tight();
     let size = tight.size();
-    let loose = tight.loosen();
+    let loose = tight.to_loose();
 
     quote! {
         unsafe impl #generics_impl ::ribbit::Unpack for #packed #generics_ty #generics_where {

@@ -1,9 +1,12 @@
+use std::borrow::Cow;
+
 use proc_macro2::TokenStream;
 use quote::quote;
 use quote::ToTokens;
 
 use crate::ir;
 use crate::ty::Loose;
+use crate::ty::Tight;
 use crate::ty::Type;
 use crate::Or;
 
@@ -16,6 +19,7 @@ pub(crate) enum Expr<'ir> {
         value: TokenStream,
         r#type: &'ir Type,
     },
+    ValueSelf(&'ir Tight),
 
     /// Carve hole of size `type` at `offset` in `expr`.
     Hole {
@@ -33,26 +37,30 @@ pub(crate) enum Expr<'ir> {
 
     Combine {
         exprs: Vec<(u8, Self)>,
-        r#type: &'ir Type,
+        tight: &'ir Tight,
     },
 }
 
 impl<'ir> Expr<'ir> {
-    pub(crate) fn new(value: impl ToTokens, r#type: &'ir Type) -> Self {
+    pub(crate) fn value(value: impl ToTokens, r#type: &'ir Type) -> Self {
         Self::Value {
             value: value.to_token_stream(),
             r#type,
         }
     }
 
+    pub(crate) fn value_self(r#type: &'ir Type) -> Self {
+        Self::ValueSelf(r#type.as_tight())
+    }
+
     pub(crate) fn constant(value: u128) -> Self {
         Self::Constant { value }
     }
 
-    pub(crate) fn or<I: IntoIterator<Item = (u8, Self)>>(r#type: &'ir Type, iter: I) -> Self {
+    pub(crate) fn or<I: IntoIterator<Item = (u8, Self)>>(tight: &'ir Tight, iter: I) -> Self {
         Self::Combine {
             exprs: iter.into_iter().collect(),
-            r#type,
+            tight,
         }
     }
 
@@ -87,36 +95,39 @@ impl<'ir> Expr<'ir> {
     }
 
     fn type_intermediate(&self) -> Result<TypeRef<'ir>, u128> {
-        match self {
-            Expr::Constant { value } => Err(*value),
-            Expr::Value { r#type, .. } => Ok(TypeRef::Type(r#type)),
+        let r#type = match self {
+            Expr::Constant { value } => return Err(*value),
+            Expr::Value { r#type, .. } => (*r#type).into(),
+            Expr::ValueSelf(tight) => (**tight).into(),
 
-            Expr::Combine { r#type, .. }
-            | Expr::Extract {
+            Expr::Combine { tight, .. } => tight.to_loose().into(),
+
+            Expr::Extract {
                 mask: Or::L(r#type),
                 ..
-            } => Ok(TypeRef::Loose(*r#type.as_tight().loosen())),
+            } => r#type.as_tight().to_loose().into(),
 
             Expr::Extract {
                 expr,
                 mask: Or::R(_),
                 ..
             }
-            | Expr::Hole { expr, .. } => {
-                Ok(TypeRef::Loose(expr.type_intermediate().unwrap().to_loose()))
-            }
-        }
+            | Expr::Hole { expr, .. } => expr.type_intermediate().unwrap().to_loose().into(),
+        };
+
+        Ok(r#type)
     }
 
     fn type_final(&self) -> TypeRef<'ir> {
         match self {
             Expr::Constant { .. } => unreachable!(),
+            Expr::ValueSelf(tight) | Expr::Combine { tight, .. } => (**tight).into(),
+
             Expr::Value { r#type, .. }
-            | Expr::Combine { r#type, .. }
             | Expr::Extract {
                 mask: Or::L(r#type),
                 ..
-            } => TypeRef::Type(r#type),
+            } => (*r#type).into(),
 
             // HACK: only used by discriminant matching,
             // where we don't want canonicalization to
@@ -125,7 +136,7 @@ impl<'ir> Expr<'ir> {
                 expr,
                 mask: Or::R(_),
                 ..
-            } => TypeRef::Loose(expr.type_final().to_loose()),
+            } => expr.type_final().to_loose().into(),
 
             Expr::Hole { expr, .. } => expr.type_final(),
         }
@@ -138,6 +149,7 @@ impl<'ir> Expr<'ir> {
             }
 
             Expr::Value { value, .. } => value.clone(),
+            Expr::ValueSelf(_) => quote!(self.value),
 
             Expr::Extract { expr, offset, mask } => {
                 let from = expr.type_intermediate().unwrap();
@@ -176,10 +188,10 @@ impl<'ir> Expr<'ir> {
                 quote!((#expr & #mask))
             }
 
-            Expr::Combine { exprs, r#type } if exprs.is_empty() => r#type.to_loose().literal(0),
+            Expr::Combine { exprs, tight } if exprs.is_empty() => tight.to_loose().literal(0),
 
-            Expr::Combine { exprs, r#type } => {
-                let into = r#type.to_loose();
+            Expr::Combine { exprs, tight } => {
+                let into = tight.to_loose();
 
                 let exprs = exprs.iter().map(|(offset, expr)| {
                     let expr = match expr.type_intermediate() {
@@ -227,7 +239,7 @@ impl Convert for TokenStream {
                 },
 
                 // First convert packed into loose
-                (TypeRef::Type(_), into) => convert_impl(
+                (from @ TypeRef::Type(_), into) => convert_impl(
                     quote! {
                         ::ribbit::convert::packed_to_loose(#value)
                     },
@@ -236,7 +248,7 @@ impl Convert for TokenStream {
                 ),
 
                 // Then convert loose into packed
-                (TypeRef::Loose(_), TypeRef::Type(into)) => {
+                (from @ TypeRef::Loose(_), TypeRef::Type(into)) => {
                     let packed = into.packed();
                     let value = convert_impl(value, from, TypeRef::Loose(into.to_loose()));
                     quote! {
@@ -250,17 +262,17 @@ impl Convert for TokenStream {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum TypeRef<'ir> {
-    Type(&'ir Type),
+    Type(Cow<'ir, Type>),
     Loose(Loose),
 }
 
 impl TypeRef<'_> {
-    fn to_loose(self) -> Loose {
+    fn to_loose(&self) -> Loose {
         match self {
-            TypeRef::Type(r#type) => *r#type.as_tight().loosen(),
-            TypeRef::Loose(loose) => loose,
+            TypeRef::Type(r#type) => r#type.as_tight().to_loose(),
+            TypeRef::Loose(loose) => *loose,
         }
     }
 
@@ -289,6 +301,12 @@ impl<'ir> From<Loose> for TypeRef<'ir> {
 
 impl<'ir> From<&'ir Type> for TypeRef<'ir> {
     fn from(r#type: &'ir Type) -> Self {
-        Self::Type(r#type)
+        Self::Type(Cow::Borrowed(r#type))
+    }
+}
+
+impl<'ir> From<Tight> for TypeRef<'ir> {
+    fn from(tight: Tight) -> Self {
+        Self::Type(Cow::Owned(Type::Tight { path: None, tight }))
     }
 }

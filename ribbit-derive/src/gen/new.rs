@@ -30,7 +30,6 @@ pub(crate) fn new<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
         ))),
         ir::Data::Enum(r#enum @ ir::Enum { variants, .. }) => {
             let discriminant = r#enum.discriminant();
-            let ty_struct = ir.r#type();
 
             Or::R(variants.iter().map(move |variant| {
                 assert!(!variant.extract, "TODO");
@@ -41,12 +40,12 @@ pub(crate) fn new<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
                     variant.r#struct.unpacked.to_string().to_snake_case(),
                 );
 
-                new_struct(&vis, &new, &variant.r#struct, |value| {
+                new_struct(&vis, &new, &variant.r#struct, |expr| {
                     lift::Expr::or(
-                        ty_struct,
+                        ir.r#type().as_tight(),
                         [
                             (0, lift::Expr::constant(variant.discriminant as u128)),
-                            (discriminant.size as u8, value),
+                            (discriminant.size as u8, expr),
                         ],
                     )
                 })
@@ -61,24 +60,26 @@ fn new_struct<'ir, F: FnOnce(lift::Expr<'ir>) -> lift::Expr<'ir>>(
     r#struct: &'ir ir::Struct,
     map: F,
 ) -> TokenStream {
-    let ty_struct = &r#struct.r#type;
-
     let parameters = r#struct.iter_nonzero().map(|field| {
         let ident = field.ident.escaped();
         let ty = field.ty.packed();
         quote!(#ident: #ty)
     });
 
-    let value = lift::Expr::or(
-        ty_struct,
+    let value = map(lift::Expr::or(
+        r#struct.r#type.as_tight(),
         r#struct.iter_nonzero().map(
             |ir::Field {
                  ident, ty, offset, ..
-             }| { (*offset as u8, lift::Expr::new(ident.escaped(), ty.deref())) },
+             }| {
+                (
+                    *offset as u8,
+                    lift::Expr::value(ident.escaped(), ty.deref()),
+                )
+            },
         ),
-    );
-
-    let value = map(value).compile();
+    ))
+    .compile();
 
     quote! {
         #[inline]
@@ -86,7 +87,10 @@ fn new_struct<'ir, F: FnOnce(lift::Expr<'ir>) -> lift::Expr<'ir>>(
             #(#parameters),*
         ) -> Self {
             let _: () = Self::_RIBBIT_ASSERT_LAYOUT;
-            #value
+            Self {
+                value: #value,
+                r#type: ::ribbit::private::PhantomData,
+            }
         }
     }
 }
