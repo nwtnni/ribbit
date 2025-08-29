@@ -85,7 +85,6 @@ pub(crate) fn new<'input>(item: &'input input::Item) -> darling::Result<Ir<'inpu
                     path: parse_quote!(#unpacked),
                     uses: Default::default(),
                     tight,
-                    exact: true,
                 },
                 variants,
             };
@@ -279,7 +278,6 @@ impl Struct<'_> {
                 path: parse_quote!(#unpacked),
                 uses: Default::default(),
                 tight,
-                exact: true,
             },
             opt,
             shape,

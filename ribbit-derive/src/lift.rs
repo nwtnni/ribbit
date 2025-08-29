@@ -221,25 +221,27 @@ impl Convert for TokenStream {
             }
 
             match (from, into) {
-                (TypeRef::Loose(_), TypeRef::Loose(into)) => {
-                    quote!(::ribbit::convert::loose_to_loose::<_, #into>(#value))
-                }
+                // Base case: convert between loose types
+                (TypeRef::Loose(_), TypeRef::Loose(into)) => quote! {
+                    ::ribbit::convert::loose_to_loose::<_, #into>(#value)
+                },
 
-                (from @ TypeRef::Loose(_), into) => {
-                    let value = convert_impl(value, from, TypeRef::Loose(into.to_loose()));
-
-                    quote!(
-                        unsafe { ::ribbit::convert::loose_to_packed(#value) }
-                    )
-                }
-
-                (from, into) => convert_impl(
-                    quote!(
+                // First convert packed into loose
+                (TypeRef::Type(_), into) => convert_impl(
+                    quote! {
                         ::ribbit::convert::packed_to_loose(#value)
-                    ),
+                    },
                     TypeRef::Loose(from.to_loose()),
                     into,
                 ),
+
+                // Then convert loose into packed
+                (TypeRef::Loose(_), TypeRef::Type(into)) => {
+                    let value = convert_impl(value, from, TypeRef::Loose(into.to_loose()));
+                    quote! {
+                        unsafe { ::ribbit::convert::loose_to_packed(#value) }
+                    }
+                }
             }
         }
 

@@ -74,7 +74,7 @@ fn relax() {
     // Pack a smaller type into a larger hole
     #[derive(Clone)]
     #[ribbit::pack(size = 30)]
-    struct Large(Small);
+    struct Large(#[ribbit(size = 7)] Small);
 
     let a = Small(u7::new(5));
     let b = Large(a).pack();

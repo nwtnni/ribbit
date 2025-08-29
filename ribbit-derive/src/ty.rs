@@ -29,7 +29,6 @@ pub(crate) enum Type {
         path: TypePath,
         uses: IdentSet,
         tight: Tight,
-        exact: bool,
     },
 }
 
@@ -71,9 +70,9 @@ impl Type {
             (false, nonzero) | (true, nonzero @ Some(_)) => nonzero,
             (true, None) => opt_struct.nonzero,
         };
-        let (exact, size) = match (newtype, opt_field.size) {
-            (false, size) | (true, size @ Some(_)) => (true, size),
-            (true, None) => (false, opt_struct.size),
+        let size = match (newtype, opt_field.size) {
+            (false, size) | (true, size @ Some(_)) => size,
+            (true, None) => opt_struct.size,
         };
 
         let Some(size) = size else {
@@ -90,15 +89,7 @@ impl Type {
         let uses = std::iter::once(&path)
             .collect_type_params_cloned(&darling::usage::Purpose::Declare.into(), ty_params);
 
-        Ok(Spanned::new(
-            Self::User {
-                path,
-                uses,
-                tight,
-                exact,
-            },
-            span,
-        ))
+        Ok(Spanned::new(Self::User { path, uses, tight }, span))
     }
 
     pub(crate) fn is_user(&self) -> bool {
@@ -137,7 +128,8 @@ impl Type {
     }
 
     pub(crate) fn size_actual(&self) -> TokenStream {
-        quote!(<#self as ::ribbit::Pack>::BITS)
+        let packed = self.packed();
+        quote!(<#packed as ::ribbit::Unpack>::BITS)
     }
 
     pub(crate) fn size_expected(&self) -> usize {

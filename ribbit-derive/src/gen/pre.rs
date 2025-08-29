@@ -31,24 +31,29 @@ fn extract_assertions<'ir>(r#struct: &'ir ir::Struct) -> impl Iterator<Item = To
         .iter()
         .map(|field| &field.ty)
         // Only need to check user-defined types
-        .filter(|ty| ty.is_user());
+        .filter(|r#type| r#type.is_user());
 
     let nonzero = fields
         .clone()
-        .filter(|ty| ty.is_nonzero())
-        .map(|ty| quote!(::ribbit::private::assert_impl_all!(#ty: ::ribbit::NonZero)));
+        .filter(|r#type| r#type.is_nonzero())
+        .map(|r#type| {
+            let packed = r#type.packed();
+            quote! {
+                ::ribbit::private::assert_impl_all!(#packed: ::ribbit::NonZero)
+            }
+        });
 
-    let pack = fields.map(|ty| {
-        let expected = ty.size_expected();
-        let actual = ty.size_actual();
-        quote_spanned! {ty.span()=>
+    let pack = fields.map(|r#type| {
+        let expected = r#type.size_expected();
+        let actual = r#type.size_actual();
+        quote_spanned! {r#type.span()=>
             ::ribbit::private::concat_assert!(
-                #expected >= #actual,
+                #expected == #actual,
                 "Annotated size ",
                 #expected,
-                " is too small to fit type ",
-                stringify!(#ty),
-                " of size ",
+                " of type ",
+                stringify!(#r#type),
+                " does not match actual size ",
                 #actual,
             )
         }
