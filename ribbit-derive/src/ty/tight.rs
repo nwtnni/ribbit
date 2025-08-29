@@ -109,10 +109,6 @@ impl Tight {
         }
     }
 
-    pub(crate) fn is_loose(&self) -> bool {
-        matches!(self, Self::Loose { .. })
-    }
-
     pub(crate) fn is_nonzero(&self) -> bool {
         matches!(self, Self::NonZero { .. })
     }

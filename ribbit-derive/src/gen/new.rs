@@ -29,7 +29,7 @@ pub(crate) fn new<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
             core::convert::identity,
         ))),
         ir::Data::Enum(r#enum @ ir::Enum { variants, .. }) => {
-            let discriminant_size = r#enum.discriminant_size();
+            let discriminant = r#enum.discriminant();
             let ty_struct = ir.r#type();
 
             Or::R(variants.iter().map(move |variant| {
@@ -46,7 +46,7 @@ pub(crate) fn new<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
                         ty_struct,
                         [
                             (0, lift::Expr::constant(variant.discriminant as u128)),
-                            (discriminant_size as u8, value),
+                            (discriminant.size as u8, value),
                         ],
                     )
                 })

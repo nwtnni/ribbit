@@ -29,7 +29,7 @@ impl Arbitrary {
     }
 
     pub(crate) fn mask(&self) -> u128 {
-        super::mask(self.size)
+        crate::mask(self.size)
     }
 
     pub(crate) fn loosen(&self) -> &Loose {

@@ -131,8 +131,8 @@ impl Ir<'_> {
 
     pub(crate) fn ident_unpacked(&self) -> &syn::Ident {
         match &self.data {
-            Data::Enum(r#enum) => &r#enum.unpacked,
-            Data::Struct(r#struct) => &r#struct.unpacked,
+            Data::Enum(r#enum) => r#enum.unpacked,
+            Data::Struct(r#struct) => r#struct.unpacked,
         }
     }
 
@@ -188,15 +188,25 @@ pub(crate) struct Enum<'input> {
 }
 
 impl Enum<'_> {
-    pub(crate) fn discriminant_size(&self) -> usize {
-        self.variants.len().next_power_of_two().trailing_zeros() as usize
-    }
+    pub(crate) fn discriminant(&self) -> Discriminant {
+        let size = self
+            .variants
+            .iter()
+            .map(|variant| variant.discriminant)
+            .max()
+            .unwrap_or(0);
 
-    pub(crate) fn discriminant_mask(&self) -> u128 {
-        crate::ty::Tight::from_size(false, self.discriminant_size())
-            .unwrap()
-            .mask()
+        Discriminant {
+            size,
+            mask: crate::mask(size),
+        }
     }
+}
+
+#[derive(Debug)]
+pub(crate) struct Discriminant {
+    pub(crate) size: usize,
+    pub(crate) mask: u128,
 }
 
 pub(crate) struct Variant<'input> {
@@ -276,14 +286,6 @@ impl Struct<'_> {
         })
     }
 
-    pub(crate) fn is_named(&self) -> bool {
-        self.iter().any(|field| field.ident.is_named())
-    }
-
-    pub(crate) fn is_newtype(&self) -> bool {
-        self.iter_nonzero().count() == 1
-    }
-
     pub(crate) fn iter_nonzero(&self) -> impl Iterator<Item = &Field> {
         self.iter().filter(|field| field.ty.size_expected() != 0)
     }
@@ -308,7 +310,6 @@ pub(crate) struct StructOpt {
 }
 
 pub(crate) struct Field<'input> {
-    pub(crate) opt: &'input FieldOpt,
     pub(crate) attrs: &'input [syn::Attribute],
     pub(crate) vis: &'input syn::Visibility,
     pub(crate) ident: FieldIdent<'input>,
@@ -332,7 +333,6 @@ impl<'input> Field<'input> {
         // Special-case ZSTs
         if size == 0 {
             return Ok(Self {
-                opt: &field.opt,
                 attrs: &field.attrs,
                 vis: &field.vis,
                 ident: FieldIdent::new(index, field.ident.as_ref()),
@@ -371,7 +371,6 @@ impl<'input> Field<'input> {
         }
 
         Ok(Self {
-            opt: &field.opt,
             attrs: &field.attrs,
             vis: &field.vis,
             ident: FieldIdent::new(index, field.ident.as_ref()),
@@ -386,9 +385,6 @@ pub(crate) struct FieldOpt {
     pub(crate) nonzero: Option<SpannedValue<bool>>,
     pub(crate) size: Option<SpannedValue<usize>>,
     pub(crate) offset: Option<SpannedValue<usize>>,
-
-    #[darling(default)]
-    pub(crate) debug: gen::debug::FieldOpt,
 }
 
 pub(crate) enum FieldIdent<'input> {

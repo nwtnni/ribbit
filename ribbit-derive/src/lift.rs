@@ -2,6 +2,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use quote::ToTokens;
 
+use crate::ir;
 use crate::ty::Loose;
 use crate::ty::Type;
 use crate::Or;
@@ -27,7 +28,7 @@ pub(crate) enum Expr<'ir> {
     Extract {
         expr: Box<Self>,
         offset: u8,
-        mask: Or<&'ir Type, u128>,
+        mask: Or<&'ir Type, &'ir ir::Discriminant>,
     },
 
     Combine {
@@ -40,7 +41,7 @@ impl<'ir> Expr<'ir> {
     pub(crate) fn new(value: impl ToTokens, r#type: &'ir Type) -> Self {
         Self::Value {
             value: value.to_token_stream(),
-            r#type: r#type.into(),
+            r#type,
         }
     }
 
@@ -71,11 +72,11 @@ impl<'ir> Expr<'ir> {
         }
     }
 
-    pub(crate) fn mask(self, offset: u8, mask: u128) -> Self {
+    pub(crate) fn discriminant(self, discriminant: &'ir ir::Discriminant) -> Self {
         Self::Extract {
             expr: Box::new(self),
-            offset,
-            mask: Or::R(mask),
+            offset: 0,
+            mask: Or::R(discriminant),
         }
     }
 
@@ -154,8 +155,8 @@ impl<'ir> Expr<'ir> {
                         let mask = into.literal(r#type.mask());
                         quote!((#expr & #mask))
                     }
-                    Or::R(mask) => {
-                        let mask = loose.literal(*mask);
+                    Or::R(discriminant) => {
+                        let mask = loose.literal(discriminant.mask);
                         quote!((#expr & #mask))
                     }
                 }

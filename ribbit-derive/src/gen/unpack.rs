@@ -29,30 +29,34 @@ pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
             }
         }
         ir::Data::Enum(r#enum) => {
-            let size_discriminant = r#enum.discriminant_size();
-            let variants = r#enum.variants.iter().enumerate().map(|(index, variant)| {
-                let discriminant = ty_struct.as_tight().loosen().literal(index as u128);
+            let discriminant = r#enum.discriminant();
 
-                let ident = &variant.r#struct.unpacked;
-
+            let variants = r#enum.variants.iter().map(|variant| {
                 assert!(!variant.extract, "TODO");
 
                 let fields = variant.r#struct.fields.iter().map(|field| {
                     let name = &field.ident;
                     let value = field.ty.unpack(crate::gen::get::get_field(
-                        size_discriminant,
                         ty_struct,
                         field,
+                        (discriminant.size + field.offset) as u8,
                     ));
 
                     quote!(#name: #value)
                 });
 
+                let discriminant = ty_struct
+                    .as_tight()
+                    .loosen()
+                    .literal(variant.discriminant as u128);
+
+                let ident = &variant.r#struct.unpacked;
+
                 quote!(#discriminant => #unpacked::#ident { #(#fields ,)* })
             });
 
             let discriminant = lift::Expr::new(quote!(self.value), ty_struct)
-                .mask(0, (1 << size_discriminant) - 1)
+                .discriminant(&discriminant)
                 .compile();
 
             quote! {

@@ -8,11 +8,6 @@ use crate::ir;
 #[derive(FromMeta, Clone, Debug)]
 pub(crate) struct StructOpt;
 
-#[derive(FromMeta, Clone, Debug, Default)]
-pub(crate) struct FieldOpt {
-    format: Option<syn::LitStr>,
-}
-
 pub(crate) fn debug(ir: &ir::Ir) -> TokenStream {
     if ir.opt().debug.is_none() {
         return TokenStream::new();

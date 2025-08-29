@@ -74,15 +74,14 @@ impl Display for Error {
             } => {
                 write!(
                     f,
-                    "Size attribute #[ribbit(size = {})] does not match size of {}: {}",
-                    expected, ty, actual,
+                    "Size attribute #[ribbit(size = {expected})] does not match size of {ty}: {actual}",
                 )
             }
             Error::ArbitraryNonZero => {
                 write!(f, "Nonzero arbitrary sizes are currently unsupported",)
             }
             Error::ArbitrarySize { size } => {
-                write!(f, "Arbitrary size {} unsupported", size)
+                write!(f, "Arbitrary size {size} unsupported")
             }
             Error::UnsupportedType => {
                 write!(f, "Only type paths are supported")
@@ -97,8 +96,7 @@ impl Display for Error {
             } => {
                 write!(
                     f,
-                    "Variant of size {} does not fit in enum of size {} with discriminant of size {}",
-                    variant, r#enum, discriminant,
+                    "Variant of size {variant} does not fit in enum of size {enum} with discriminant of size {discriminant}",
                 )
             }
         }

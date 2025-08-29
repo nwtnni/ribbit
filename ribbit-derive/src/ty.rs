@@ -164,15 +164,3 @@ impl ToTokens for Type {
         }
     }
 }
-
-fn mask(size: usize) -> u128 {
-    assert!(
-        size <= 128,
-        "[INTERNAL ERROR]: cannot mask size > 128: {size}",
-    );
-
-    1u128
-        .checked_shl(size as u32)
-        .and_then(|mask| mask.checked_sub(1))
-        .unwrap_or(u128::MAX)
-}

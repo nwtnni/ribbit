@@ -8,8 +8,6 @@ mod ty;
 use core::ops::Deref;
 use core::ops::DerefMut;
 
-use darling::util::AsShape;
-use darling::util::Shape;
 use darling::util::SpannedValue;
 
 pub(crate) use error::Error;
@@ -104,104 +102,6 @@ fn pack_item(ir: &Ir, output: &mut TokenStream) -> Result<(), darling::Error> {
     Ok(())
 }
 
-fn unpack_inner(input: &syn::DeriveInput) -> darling::Result<TokenStream> {
-    // Generate unpacked type
-    let mut stream = TokenStream::new();
-
-    match &input.data {
-        syn::Data::Union(_) => unimplemented!(),
-        syn::Data::Struct(_) => (),
-        syn::Data::Enum(r#enum) => {
-            for variant in &r#enum.variants {
-                match variant.fields.as_shape() {
-                    // Assume wrapped type implements `ribbit::Pack`
-                    Shape::Newtype => (),
-
-                    // No generation needed
-                    Shape::Unit => (),
-
-                    // Generate struct for variant
-                    Shape::Named | Shape::Tuple => {
-                        let child = syn::DeriveInput {
-                            attrs: variant.attrs.clone(),
-                            vis: input.vis.clone(),
-                            ident: variant.ident.clone(),
-                            generics: input.generics.clone(),
-                            data: syn::Data::Struct(syn::DataStruct {
-                                struct_token: Default::default(),
-                                fields: variant.fields.clone(),
-                                semi_token: Default::default(),
-                            }),
-                        };
-
-                        stream.append_all(unpack_item(child));
-                    }
-                }
-            }
-        }
-    }
-
-    stream.append_all(unpack_item(input.clone()));
-    Ok(stream)
-}
-
-fn unpack_item(mut input: syn::DeriveInput) -> TokenStream {
-    strip(&mut input.attrs);
-
-    // It's possible to interact with packed structs only via
-    // getters and setters, without eagerly unpacking the
-    // entire type.
-    input.attrs.push(parse_quote!(#[allow(dead_code)]));
-
-    let (_, ty, _) = input.generics.split_for_impl();
-
-    match &mut input.data {
-        syn::Data::Enum(r#enum) => r#enum
-            .variants
-            .iter_mut()
-            .flat_map(|variant| {
-                strip(&mut variant.attrs);
-
-                match variant.as_shape() {
-                    Shape::Unit | Shape::Newtype => (),
-                    Shape::Named | Shape::Tuple => {
-                        let ident = variant.ident.clone();
-                        let mut fields = syn::punctuated::Punctuated::new();
-                        fields.push(syn::Field {
-                            attrs: Vec::new(),
-                            vis: syn::Visibility::Inherited,
-                            mutability: syn::FieldMutability::None,
-                            ident: None,
-                            colon_token: Default::default(),
-                            ty: parse_quote!(#ident #ty),
-                        });
-                        variant.fields = syn::Fields::Unnamed(syn::FieldsUnnamed {
-                            paren_token: Default::default(),
-                            unnamed: fields,
-                        });
-                    }
-                }
-
-                &mut variant.fields
-            })
-            .for_each(|field| strip(&mut field.attrs)),
-        syn::Data::Struct(r#struct) => r#struct
-            .fields
-            .iter_mut()
-            .for_each(|field| strip(&mut field.attrs)),
-        syn::Data::Union(_) => unimplemented!(),
-    }
-
-    input.to_token_stream()
-}
-
-fn strip(attrs: &mut Vec<syn::Attribute>) {
-    attrs.retain(|attr| match attr.path().segments.first() {
-        None => true,
-        Some(segment) => segment.ident != "ribbit",
-    })
-}
-
 #[derive(Copy, Clone, Debug)]
 pub(crate) struct Spanned<T>(SpannedValue<T>);
 
@@ -266,4 +166,16 @@ where
             Or::R(r) => r.next(),
         }
     }
+}
+
+fn mask(size: usize) -> u128 {
+    assert!(
+        size <= 128,
+        "[INTERNAL ERROR]: cannot mask size > 128: {size}",
+    );
+
+    1u128
+        .checked_shl(size as u32)
+        .and_then(|mask| mask.checked_sub(1))
+        .unwrap_or(u128::MAX)
 }

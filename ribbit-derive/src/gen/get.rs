@@ -14,7 +14,7 @@ pub(crate) fn get<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
     match &ir.data {
         ir::Data::Struct(r#struct) => Or::L({
             r#struct.iter().map(move |field| {
-                let value = get_field(0, ty_struct, field);
+                let value = get_field(ty_struct, field, field.offset as u8);
                 let vis = field.vis;
                 let get = field.ident.escaped();
                 let ty = field.ty.packed();
@@ -32,8 +32,8 @@ pub(crate) fn get<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
     }
 }
 
-pub(crate) fn get_field(shift: usize, ty_struct: &Type, field: &ir::Field) -> TokenStream {
+pub(crate) fn get_field(ty_struct: &Type, field: &ir::Field, offset: u8) -> TokenStream {
     lift::Expr::new(quote!(self), ty_struct)
-        .extract((shift + field.offset) as u8, field.ty.deref())
+        .extract(offset, field.ty.deref())
         .compile()
 }
