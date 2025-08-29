@@ -1,5 +1,5 @@
 error: Only type paths are supported
- --> tests/ui/unsupported_type.rs:3:8
+ --> tests/ui/unsupported_type.rs:4:8
   |
-3 |     a: (u8, u16),
+4 |     a: (u8, u16),
   |        ^^^^^^^^^

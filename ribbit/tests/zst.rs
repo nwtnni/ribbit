@@ -91,8 +91,8 @@ fn pack_zst() {
     let zst = Foo.pack();
 
     #[allow(clippy::let_unit_value)]
-    let loose = ribbit::convert::packed_to_loose::<Foo>(zst);
-    let packed = unsafe { ribbit::convert::loose_to_packed::<Foo>(loose) };
+    let loose = ribbit::convert::packed_to_loose(zst);
+    let packed = unsafe { ribbit::convert::loose_to_packed(loose) };
 
     assert_eq!(zst, packed);
 }
@@ -105,7 +105,7 @@ fn pack_zst_large() {
 
     #[derive(Clone, Debug)]
     #[ribbit::pack(size = 32)]
-    struct Hole(Zst);
+    struct Hole(#[ribbit(size = 0)] Zst);
 
     let zst = Zst;
     let hole = Hole(zst.clone()).pack();

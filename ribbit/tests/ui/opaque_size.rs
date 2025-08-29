@@ -1,13 +1,13 @@
 use std::num::NonZeroU16;
 
-use ribbit::u5;
-
 #[ribbit::pack(size = 16, nonzero)]
+#[derive(Clone)]
 struct Inner(NonZeroU16);
 
 #[ribbit::pack(size = 21)]
+#[derive(Clone)]
 struct Outer {
-    pad: u5,
+    pad: ribbit::u5,
     inner: Inner,
 }
 

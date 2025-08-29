@@ -1,5 +1,5 @@
 error: Field requires 32 bits at offset 1, but only 31 are available
- --> tests/ui/overflow_explicit.rs:3:23
+ --> tests/ui/overflow_explicit.rs:4:23
   |
-3 |     #[ribbit(offset = 1)]
+4 |     #[ribbit(offset = 1)]
   |                       ^

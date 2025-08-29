@@ -3,3 +3,17 @@ error: Nonzero arbitrary sizes are currently unsupported
   |
 5 | #[ribbit::pack(size = 15, nonzero)]
   |                           ^^^^^^^
+
+warning: unused import: `std::num::NonZeroU8`
+ --> tests/ui/arbitrary_nonzero.rs:1:5
+  |
+1 | use std::num::NonZeroU8;
+  |     ^^^^^^^^^^^^^^^^^^^
+  |
+  = note: `#[warn(unused_imports)]` on by default
+
+warning: unused import: `ribbit::u7`
+ --> tests/ui/arbitrary_nonzero.rs:3:5
+  |
+3 | use ribbit::u7;
+  |     ^^^^^^^^^^

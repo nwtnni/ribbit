@@ -1,5 +1,5 @@
 error: Field requires 64 bits at offset 32, but only 32 are available
- --> tests/ui/overflow_implicit.rs:4:5
+ --> tests/ui/overflow_implicit.rs:5:5
   |
-4 |     b: u64,
+5 |     b: u64,
   |     ^

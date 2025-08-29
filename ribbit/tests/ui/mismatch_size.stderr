@@ -1,15 +1,31 @@
+error[E0308]: mismatched types
+ --> tests/ui/mismatch_size.rs:7:1
+  |
+7 | #[ribbit::pack(size = 16)]
+  | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  | |
+  | expected `u16`, found `u8`
+  | arguments to this function are incorrect
+  |
+note: function defined here
+ --> src/lib.rs
+  |
+  |     pub const unsafe fn loose_to_packed<T: Unpack>(loose: T::Loose) -> T {
+  |                         ^^^^^^^^^^^^^^^
+  = note: this error originates in the attribute macro `ribbit::pack` (in Nightly builds, run with -Z macro-backtrace for more info)
+
 error[E0080]: evaluation of constant value failed
- --> tests/ui/mismatch_size.rs:9:8
-  |
-9 |     a: A,
-  |        ^ the evaluated program panicked at 'Annotated size 1 is too small to fit type "A" of size 16', $DIR/tests/ui/mismatch_size.rs:9:8
-  |
-  = note: this error originates in the macro `$crate::concat_panic` which comes from the expansion of the macro `::ribbit::private::concat_assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+  --> tests/ui/mismatch_size.rs:11:8
+   |
+11 |     a: A,
+   |        ^ evaluation panicked: Annotated size 1 of type "A" does not match actual size 16
+   |
+   = note: this error originates in the macro `$crate::concat_panic` which comes from the expansion of the macro `::ribbit::private::concat_assert` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 note: erroneous constant encountered
- --> tests/ui/mismatch_size.rs:6:1
+ --> tests/ui/mismatch_size.rs:7:1
   |
-6 | #[ribbit::pack(size = 16)]
+7 | #[ribbit::pack(size = 16)]
   | ^^^^^^^^^^^^^^^^^^^^^^^^^^
   |
   = note: this note originates in the attribute macro `ribbit::pack` (in Nightly builds, run with -Z macro-backtrace for more info)
