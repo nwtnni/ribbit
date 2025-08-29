@@ -374,8 +374,7 @@ impl_nonzero!(NonZeroU128, u128, 128);
 
 unsafe impl<T> Pack for Option<T>
 where
-    T: Pack,
-    <T as Pack>::Packed: NonZero,
+    T: Pack + NonZero,
 {
     type Packed = Option<T::Packed>;
     fn pack(self) -> Self::Packed {
@@ -385,7 +384,8 @@ where
 
 unsafe impl<T> Unpack for Option<T>
 where
-    T: Unpack + NonZero,
+    T: Unpack,
+    T::Unpacked: NonZero,
 {
     const BITS: usize = T::BITS;
     type Unpacked = Option<T::Unpacked>;

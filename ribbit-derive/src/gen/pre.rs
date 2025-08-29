@@ -37,9 +37,8 @@ fn extract_assertions<'ir>(r#struct: &'ir ir::Struct) -> impl Iterator<Item = To
         .clone()
         .filter(|r#type| r#type.is_nonzero())
         .map(|r#type| {
-            let packed = r#type.packed();
             quote! {
-                ::ribbit::private::assert_impl_all!(#packed: ::ribbit::NonZero)
+                ::ribbit::private::assert_impl_all!(#r#type: ::ribbit::NonZero)
             }
         });
 
