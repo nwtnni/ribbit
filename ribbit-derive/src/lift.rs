@@ -87,9 +87,10 @@ impl<'ir> Expr<'ir> {
     }
 
     pub(crate) fn compile(self) -> TokenStream {
-        let from = self.type_intermediate().unwrap();
-        let into = self.type_final();
-        self.compile_intermediate().convert(from, into)
+        let expr = self.optimize();
+        let from = expr.type_intermediate().unwrap();
+        let into = expr.type_final();
+        expr.compile_intermediate().convert(from, into)
     }
 
     fn type_intermediate(&self) -> Result<TypeRef<'ir>, u128> {
@@ -200,6 +201,20 @@ impl<'ir> Expr<'ir> {
 
                 quote!((#(#exprs )|*))
             }
+        }
+    }
+
+    fn optimize(self) -> Self {
+        match self {
+            Self::Combine { mut exprs, tight }
+                if exprs.len() == 1
+                    && exprs[0].0 == 0
+                    && exprs[0].1.type_intermediate() == Ok((*tight).into()) =>
+            {
+                exprs.remove(0).1
+            }
+
+            _ => self,
         }
     }
 
