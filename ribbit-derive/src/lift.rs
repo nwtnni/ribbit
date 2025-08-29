@@ -237,9 +237,10 @@ impl Convert for TokenStream {
 
                 // Then convert loose into packed
                 (TypeRef::Loose(_), TypeRef::Type(into)) => {
+                    let packed = into.packed();
                     let value = convert_impl(value, from, TypeRef::Loose(into.to_loose()));
                     quote! {
-                        unsafe { ::ribbit::convert::loose_to_packed(#value) }
+                        unsafe { ::ribbit::convert::loose_to_packed::<#packed>(#value) }
                     }
                 }
             }
