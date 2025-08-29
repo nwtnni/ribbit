@@ -10,9 +10,6 @@ pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
     let unpacked = ir.ident_unpacked();
     let packed = ir.ident_packed();
 
-    let generics = ir.generics_bounded(None);
-    let (generics_impl, generics_ty, generics_where) = generics.split_for_impl();
-
     let unpack = match &ir.data {
         ir::Data::Struct(r#struct) => {
             let fields = r#struct.iter().map(|field| {
@@ -70,10 +67,18 @@ pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
         }
     };
 
-    quote! {
-        impl #generics_impl ::ribbit::Unpack for #packed #generics_ty #generics_where {
-            type Unpacked = #unpacked #generics_ty;
+    let generics = ir.generics_bounded(None);
+    let (generics_impl, generics_ty, generics_where) = generics.split_for_impl();
 
+    let tight = ir.r#type().as_tight();
+    let size = tight.size();
+    let loose = tight.loosen();
+
+    quote! {
+        unsafe impl #generics_impl ::ribbit::Unpack for #packed #generics_ty #generics_where {
+            const BITS: usize = #size;
+            type Unpacked = #unpacked #generics_ty;
+            type Loose = #loose;
             #[inline]
             fn unpack(self) -> #unpacked #generics_ty {
                 #unpack

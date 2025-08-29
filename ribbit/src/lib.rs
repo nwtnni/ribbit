@@ -24,25 +24,30 @@ macro_rules! Pack {
 /// # Safety
 ///
 /// This trait should only be implemented by the `pack` macro.
-///
-/// Implementer must ensure:
-/// - Type has size `BITS`
-/// - Type has the same size and alignment as `Tight` and `Loose`
-/// - Every valid bit pattern of type is a valid bit pattern of `Tight`.
 pub unsafe trait Pack: Clone {
-    /// The number of bits in the packed representation.
-    const BITS: usize;
-
     type Packed: Unpack<Unpacked = Self>;
-
-    #[allow(private_bounds)]
-    type Loose: Loose;
 
     fn pack(self) -> Self::Packed;
 }
 
-pub trait Unpack: Copy {
+/// Marks a packed type with size `BITS`.
+///
+/// Currently supports sizes up to 128 bits.
+///
+/// # Safety
+///
+/// This trait should only be implemented by the `pack` macro.
+///
+/// Implementer must ensure:
+/// - Type has size `BITS`
+/// - Size and alignment of `Self::Loose` >= `Self`
+pub unsafe trait Unpack: Copy {
+    const BITS: usize;
+
     type Unpacked: Pack<Packed = Self>;
+
+    #[allow(private_bounds)]
+    type Loose: Loose;
 
     fn unpack(self) -> Self::Unpacked;
 }
@@ -61,17 +66,17 @@ unsafe trait Loose: Copy {}
 pub mod convert {
     use core::mem::MaybeUninit;
 
-    use super::Loose;
-    use super::Pack;
+    use crate::Loose;
+    use crate::Unpack;
 
-    union Transmute<T: Pack> {
-        packed: T::Packed,
+    union Transmute<T: Unpack> {
+        packed: T,
         loose: T::Loose,
     }
 
     /// Convert from a packed struct to a native integer type.
     #[inline]
-    pub const fn packed_to_loose<T: Pack>(packed: T::Packed) -> T::Loose {
+    pub const fn packed_to_loose<T: Unpack>(packed: T) -> T::Loose {
         unsafe {
             let mut zeroed = MaybeUninit::<Transmute<T>>::zeroed();
             zeroed.write(Transmute { packed }).loose
@@ -84,7 +89,7 @@ pub mod convert {
     ///
     /// Caller must guarantee that `loose` is a valid bit pattern for type `T`.
     #[inline]
-    pub const unsafe fn loose_to_packed<T: Pack>(loose: T::Loose) -> T::Packed {
+    pub const unsafe fn loose_to_packed<T: Unpack>(loose: T::Loose) -> T {
         unsafe {
             let mut zeroed = MaybeUninit::<Transmute<T>>::zeroed();
             zeroed.write(Transmute { loose }).packed
@@ -110,11 +115,11 @@ pub mod convert {
     }
 }
 
-macro_rules! impl_unpack {
+macro_rules! impl_pack {
     ($tight:ty) => {
-        impl Unpack for $tight {
-            type Unpacked = Self;
-            fn unpack(self) -> Self::Unpacked {
+        unsafe impl Pack for $tight {
+            type Packed = Self;
+            fn pack(self) -> Self::Packed {
                 self
             }
         }
@@ -126,72 +131,72 @@ macro_rules! impl_impl_number {
     ($name:ident, $loose:ty, $loose_bits:expr, $dollar:tt) => {
         unsafe impl Loose for $loose {}
 
-        unsafe impl Pack for $loose {
+        unsafe impl Unpack for $loose {
             const BITS: usize = $loose_bits;
-            type Packed = Self;
+            type Unpacked = Self;
             type Loose = Self;
 
-            fn pack(self) -> Self::Packed {
+            fn unpack(self) -> Self::Unpacked {
                 self
             }
         }
 
-        impl_unpack!($loose);
+        impl_pack!($loose);
 
         macro_rules! $name {
             ($dollar($tight:ident: $bits:expr),* $dollar(,)?) => {
                 $dollar(
-                    unsafe impl Pack for private::$tight {
+                    unsafe impl Unpack for private::$tight {
                         const BITS: usize = $bits;
-                        type Packed = Self;
+                        type Unpacked = Self;
                         type Loose = $loose;
-                        fn pack(self) -> Self::Packed {
+                        fn unpack(self) -> Self::Unpacked {
                             self
                         }
                     }
 
-                    impl_unpack!($tight);
+                    impl_pack!($tight);
                 )*
             };
         }
     };
 }
 
-unsafe impl Pack for () {
+impl_pack!(());
+
+unsafe impl Unpack for () {
     const BITS: usize = 0;
-    type Packed = Self;
+    type Unpacked = Self;
     type Loose = u8;
-    fn pack(self) -> Self::Packed {}
+    fn unpack(self) -> Self::Unpacked {}
 }
 
-impl_unpack!(());
-
 unsafe impl<T> Pack for PhantomData<T> {
-    const BITS: usize = 0;
-    type Packed = PhantomData<T>;
-    type Loose = u8;
+    type Packed = Self;
     fn pack(self) -> Self::Packed {
         self
     }
 }
 
-impl<T> Unpack for PhantomData<T> {
-    type Unpacked = Self;
+unsafe impl<T> Unpack for PhantomData<T> {
+    const BITS: usize = 0;
+    type Unpacked = PhantomData<T>;
+    type Loose = u8;
     fn unpack(self) -> Self::Unpacked {
         self
     }
 }
 
-unsafe impl Pack for bool {
+impl_pack!(bool);
+
+unsafe impl Unpack for bool {
     const BITS: usize = 1;
-    type Packed = bool;
+    type Unpacked = bool;
     type Loose = u8;
-    fn pack(self) -> Self::Packed {
+    fn unpack(self) -> Self::Unpacked {
         self
     }
 }
-
-impl_unpack!(bool);
 
 impl_impl_number!(impl_u8, u8, 8, $);
 impl_u8!(
@@ -346,17 +351,18 @@ pub unsafe trait NonZero {}
 
 macro_rules! impl_nonzero {
     ($ty:ty, $loose:ty, $bits:expr) => {
-        unsafe impl Pack for $ty {
+        impl_pack!($ty);
+
+        unsafe impl Unpack for $ty {
             const BITS: usize = $bits;
-            type Packed = $ty;
+            type Unpacked = $ty;
             type Loose = $loose;
-            fn pack(self) -> Self::Packed {
+            fn unpack(self) -> Self::Unpacked {
                 self
             }
         }
 
         unsafe impl NonZero for $ty {}
-        impl_unpack!($ty);
     };
 }
 
@@ -368,22 +374,22 @@ impl_nonzero!(NonZeroU128, u128, 128);
 
 unsafe impl<T> Pack for Option<T>
 where
-    T: Pack + NonZero,
+    T: Pack,
+    <T as Pack>::Packed: NonZero,
 {
-    const BITS: usize = T::BITS;
     type Packed = Option<T::Packed>;
-    type Loose = T::Loose;
     fn pack(self) -> Self::Packed {
         self.map(|unpacked| unpacked.pack())
     }
 }
 
-impl<T> Unpack for Option<T>
+unsafe impl<T> Unpack for Option<T>
 where
-    T: Unpack,
-    <T as Unpack>::Unpacked: NonZero,
+    T: Unpack + NonZero,
 {
+    const BITS: usize = T::BITS;
     type Unpacked = Option<T::Unpacked>;
+    type Loose = T::Loose;
     fn unpack(self) -> Self::Unpacked {
         self.map(|packed| packed.unpack())
     }

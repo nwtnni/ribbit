@@ -229,13 +229,13 @@ impl Convert for TokenStream {
                     let value = convert_impl(value, from, TypeRef::Loose(into.to_loose()));
 
                     quote!(
-                        unsafe { ::ribbit::convert::loose_to_packed::<#into>(#value) }
+                        unsafe { ::ribbit::convert::loose_to_packed(#value) }
                     )
                 }
 
                 (from, into) => convert_impl(
                     quote!(
-                        ::ribbit::convert::packed_to_loose::<#from>(#value)
+                        ::ribbit::convert::packed_to_loose(#value)
                     ),
                     TypeRef::Loose(from.to_loose()),
                     into,

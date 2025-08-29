@@ -15,6 +15,16 @@ pub(crate) fn packed(ir: &ir::Ir) -> TokenStream {
     let tys = generics.type_params();
     let packed = ir.ident_packed();
 
+    let nonzero = ir
+        .opt()
+        .nonzero
+        .filter(|nonzero| **nonzero)
+        .map(|_| quote! {
+            #[automatically_derived]
+            unsafe impl #generics_impl ::ribbit::NonZero for #packed #generics_ty #generics_where {}
+        })
+        .into_iter();
+
     quote! {
         #[repr(transparent)]
         #vis struct #packed #generics_ty {
@@ -31,5 +41,7 @@ pub(crate) fn packed(ir: &ir::Ir) -> TokenStream {
                 *self
             }
         }
+
+        #(#nonzero)*
     }
 }

@@ -8,6 +8,7 @@ use core::sync::atomic::AtomicU8;
 use core::sync::atomic::Ordering;
 
 use crate::Pack;
+use crate::Unpack;
 
 macro_rules! atomic {
     ($name:ident, $atomic:ty, $loose:ty, $size:expr) => {
@@ -41,7 +42,7 @@ macro_rules! atomic {
         where
             T: Pack,
         {
-            const INVARIANT: () = assert!(T::BITS <= $size);
+            const INVARIANT: () = assert!(<<T as Pack>::Packed as Unpack>::BITS <= $size);
 
             pub const fn new(value: T::Packed) -> Self {
                 const { Self::INVARIANT }
@@ -99,14 +100,14 @@ macro_rules! atomic {
 
             const fn loosen(value: T::Packed) -> $loose {
                 const { Self::INVARIANT }
-                let loose = crate::convert::packed_to_loose::<T>(value);
+                let loose = crate::convert::packed_to_loose(value);
                 crate::convert::loose_to_loose(loose)
             }
 
             const fn pack(loose: $loose) -> T::Packed {
                 const { Self::INVARIANT }
                 let loose = crate::convert::loose_to_loose(loose);
-                unsafe { crate::convert::loose_to_packed::<T>(loose) }
+                unsafe { crate::convert::loose_to_packed(loose) }
             }
         }
     };

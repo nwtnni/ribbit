@@ -52,18 +52,12 @@ pub(crate) fn pack(ir: &ir::Ir) -> TokenStream {
         }
     };
 
-    let tight = ir.r#type().as_tight();
-    let size = tight.size();
-
     let generics = ir.generics_bounded(None);
     let (generics_impl, generics_ty, generics_where) = generics.split_for_impl();
 
     quote! {
         unsafe impl #generics_impl ::ribbit::Pack for #unpacked #generics_ty #generics_where {
-            const BITS: usize = #size;
             type Packed = #packed #generics_ty;
-            type Loose = <#tight as ::ribbit::Pack>::Loose;
-
             #[inline]
             fn pack(self) -> #packed #generics_ty {
                 #pack
