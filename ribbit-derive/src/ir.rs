@@ -336,7 +336,7 @@ impl<'input> Field<'input> {
                 vis: &field.vis,
                 ident: FieldIdent::new(index, field.ident.as_ref()),
                 ty,
-                offset: bits.len(),
+                offset: 0,
             });
         }
 
