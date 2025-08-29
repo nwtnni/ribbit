@@ -225,6 +225,13 @@ impl<'ir> Expr<'ir> {
 
             Self::Extract { expr, offset, mask } => {
                 let expr = expr.optimize();
+
+                if let Or::L(r#type) = &mask {
+                    if offset == 0 && expr.type_intermediate() == Ok((*r#type).into()) {
+                        return expr;
+                    }
+                }
+
                 Self::Extract {
                     expr: Box::new(expr),
                     offset,
