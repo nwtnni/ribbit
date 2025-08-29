@@ -10,6 +10,7 @@ use proc_macro2::Literal;
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use quote::format_ident;
+use quote::quote;
 use quote::ToTokens;
 use syn::parse_quote;
 use syn::punctuated::Punctuated;
@@ -401,6 +402,16 @@ impl<'input> FieldIdent<'input> {
 
     pub(crate) fn is_named(&self) -> bool {
         matches!(self, Self::Named(_))
+    }
+
+    pub(crate) fn pattern(&self) -> TokenStream {
+        match self {
+            FieldIdent::Named(_) => quote!(#self),
+            FieldIdent::Unnamed(_) => {
+                let escaped = self.escaped();
+                quote!(#self: #escaped)
+            }
+        }
     }
 
     pub(crate) fn unescaped(&self, prefix: &'static str) -> TokenStream {

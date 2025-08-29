@@ -21,11 +21,11 @@ pub(crate) fn pack(ir: &ir::Ir) -> TokenStream {
             let variants = r#enum.variants.iter().map(|variant| {
                 assert!(!variant.extract, "TODO");
 
-                let patterns = variant.r#struct.fields.iter().map(|field| {
-                    let name = field.ident.unescaped("");
-                    let value = field.ident.escaped();
-                    quote!(#name: #value)
-                });
+                let patterns = variant
+                    .r#struct
+                    .fields
+                    .iter()
+                    .map(|field| field.ident.pattern());
 
                 let new = format_ident!(
                     "{}_{}",
@@ -39,9 +39,7 @@ pub(crate) fn pack(ir: &ir::Ir) -> TokenStream {
                 });
 
                 let ident = &variant.r#struct.unpacked;
-                // FIXME: support shorthand
                 quote! {
-                    #[allow(non_shorthand_field_patterns)]
                     Self::#ident { #(#patterns ,)* } => #packed::#new( #(#arguments ,)* )
                 }
             });
