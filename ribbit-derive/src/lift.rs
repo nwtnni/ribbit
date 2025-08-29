@@ -161,8 +161,7 @@ impl<'ir> Expr<'ir> {
                     Or::L(r#type) => {
                         let into = r#type.to_loose();
                         let expr = expr.convert(loose, into);
-                        let mask = into.literal(r#type.mask());
-                        quote!((#expr & #mask))
+                        Self::mask(expr, into, r#type.size_expected())
                     }
                     Or::R(discriminant) => {
                         let mask = loose.literal(discriminant.mask);
@@ -257,6 +256,17 @@ impl<'ir> Expr<'ir> {
             }
 
             _ => self,
+        }
+    }
+
+    fn mask(expr: TokenStream, loose: Loose, size: usize) -> TokenStream {
+        match Loose::new(size) {
+            Some(loose_) if loose == loose_ => expr,
+            Some(loose) => quote!((#expr as #loose)),
+            None => {
+                let mask = loose.literal(crate::mask(size));
+                quote!((#expr & #mask))
+            }
         }
     }
 
