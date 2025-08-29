@@ -206,12 +206,47 @@ impl<'ir> Expr<'ir> {
 
     fn optimize(self) -> Self {
         match self {
-            Self::Combine { mut exprs, tight }
+            Self::Hole {
+                expr,
+                offset,
+                r#type,
+            } => {
+                let expr = expr.optimize();
+                if offset == 0 && expr.type_intermediate() == Ok(r#type.into()) {
+                    Self::Constant(0)
+                } else {
+                    Self::Hole {
+                        expr: Box::new(expr),
+                        offset,
+                        r#type,
+                    }
+                }
+            }
+
+            Self::Extract { expr, offset, mask } => {
+                let expr = expr.optimize();
+                Self::Extract {
+                    expr: Box::new(expr),
+                    offset,
+                    mask,
+                }
+            }
+
+            Self::Combine { exprs, tight } => {
+                let mut exprs = exprs
+                    .into_iter()
+                    .map(|(offset, expr)| (offset, expr.optimize()))
+                    .filter(|(_, expr)| !matches!(expr, Self::Constant(0)))
+                    .collect::<Vec<_>>();
+
                 if exprs.len() == 1
                     && exprs[0].0 == 0
-                    && exprs[0].1.type_intermediate() == Ok((*tight).into()) =>
-            {
-                exprs.remove(0).1
+                    && exprs[0].1.type_intermediate() == Ok((*tight).into())
+                {
+                    exprs.remove(0).1
+                } else {
+                    Self::Combine { exprs, tight }
+                }
             }
 
             _ => self,
