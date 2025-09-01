@@ -1,6 +1,7 @@
 use core::fmt::Display;
 
 use proc_macro2::TokenStream;
+use quote::format_ident;
 use quote::quote;
 use quote::ToTokens;
 
@@ -13,7 +14,7 @@ pub(crate) enum Tight {
     Bool,
     Loose { signed: bool, loose: Loose },
     Arbitrary(Arbitrary),
-    NonZero(Loose),
+    NonZero { signed: bool, loose: Loose },
 }
 
 impl From<Loose> for Tight {
@@ -73,9 +74,8 @@ impl Tight {
         let loose = Loose::new(size);
 
         if nonzero {
-            assert!(!signed, "[INTERNAL ERROR]: nonzero signed tight type");
             let loose = loose.ok_or(crate::Error::ArbitraryNonZero)?;
-            return Ok(Self::NonZero(loose));
+            return Ok(Self::NonZero { signed, loose });
         }
 
         match loose {
@@ -90,7 +90,7 @@ impl Tight {
             Tight::Bool => 1,
             Tight::Loose { signed: _, loose } => loose.size(),
             Tight::Arbitrary(arbitrary) => arbitrary.size(),
-            Tight::NonZero(loose) => loose.size(),
+            Tight::NonZero { signed: _, loose } => loose.size(),
         }
     }
 
@@ -100,7 +100,7 @@ impl Tight {
             Tight::Bool => 1,
             Tight::Loose { signed: _, loose } => loose.mask(),
             Tight::Arbitrary(arbitrary) => arbitrary.mask(),
-            Tight::NonZero(loose) => loose.mask(),
+            Tight::NonZero { signed: _, loose } => loose.mask(),
         }
     }
 
@@ -115,7 +115,7 @@ impl Tight {
     pub(crate) fn to_loose(self) -> Loose {
         match self {
             Tight::Unit | Tight::Bool => Loose::N8,
-            Tight::Loose { loose, .. } | Tight::NonZero(loose) => loose,
+            Tight::Loose { loose, .. } | Tight::NonZero { signed: _, loose } => loose,
             Tight::Arbitrary(arbitrary) => arbitrary.to_loose(),
         }
     }
@@ -148,7 +148,15 @@ impl Tight {
             }
             Tight::Arbitrary(_) => quote!(#expression.value()),
 
-            Tight::NonZero(_) => quote!(#expression.get()),
+            Tight::NonZero {
+                signed: false,
+                loose: _,
+            } => quote!(#expression.get()),
+
+            Tight::NonZero {
+                signed: true,
+                loose,
+            } => quote!((#expression.get() as #loose)),
         }
     }
 
@@ -166,7 +174,7 @@ impl Tight {
             } => quote!((#expression as #self)),
 
             // Skip validation logic in `NonZero` and `Arbitrary` constructors
-            Tight::NonZero(_) | Tight::Arbitrary(_) => {
+            Tight::NonZero { .. } | Tight::Arbitrary(_) => {
                 quote!(unsafe { ::ribbit::convert::loose_to_packed::<#self>(#expression) })
             }
         }
@@ -195,11 +203,14 @@ impl ToTokens for Tight {
                 signed: false,
                 loose,
             } => return loose.to_tokens(tokens),
-            Tight::NonZero(Loose::N8) => quote!(NonZeroU8),
-            Tight::NonZero(Loose::N16) => quote!(NonZeroU16),
-            Tight::NonZero(Loose::N32) => quote!(NonZeroU32),
-            Tight::NonZero(Loose::N64) => quote!(NonZeroU64),
-            Tight::NonZero(Loose::N128) => quote!(NonZeroU128),
+            Tight::NonZero { signed, loose } => {
+                let signed = match signed {
+                    true => 'I',
+                    false => 'U',
+                };
+                let size = loose.size();
+                format_ident!("NonZero{}{}", signed, size).to_token_stream()
+            }
             Tight::Arbitrary(arbitrary) => return arbitrary.to_tokens(tokens),
         };
 
@@ -220,11 +231,14 @@ impl Display for Tight {
                 signed: false,
                 loose,
             } => loose.fmt(f),
-            Tight::NonZero(Loose::N8) => "NonZeroU8".fmt(f),
-            Tight::NonZero(Loose::N16) => "NonZeroU16".fmt(f),
-            Tight::NonZero(Loose::N32) => "NonZeroU32".fmt(f),
-            Tight::NonZero(Loose::N64) => "NonZeroU64".fmt(f),
-            Tight::NonZero(Loose::N128) => "NonZeroU128".fmt(f),
+            Tight::NonZero { signed, loose } => {
+                let signed = match signed {
+                    true => 'I',
+                    false => 'U',
+                };
+                let size = loose.size();
+                write!(f, "NonZero{signed}{size}")
+            }
             Tight::Arbitrary(arbitrary) => arbitrary.fmt(f),
         }
     }

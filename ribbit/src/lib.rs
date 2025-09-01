@@ -1,4 +1,9 @@
 use core::marker::PhantomData;
+use core::num::NonZeroI128;
+use core::num::NonZeroI16;
+use core::num::NonZeroI32;
+use core::num::NonZeroI64;
+use core::num::NonZeroI8;
 use core::num::NonZeroU128;
 use core::num::NonZeroU16;
 use core::num::NonZeroU32;
@@ -373,27 +378,40 @@ impl_u128!(
 pub unsafe trait NonZero {}
 
 macro_rules! impl_nonzero {
-    ($ty:ty, $loose:ty, $bits:expr) => {
-        impl_pack!($ty);
+    ($unsigned:ty, $signed:ty, $loose:ty, $bits:expr) => {
+        impl_pack!($unsigned);
 
-        unsafe impl Unpack for $ty {
+        unsafe impl Unpack for $unsigned {
             const BITS: usize = $bits;
-            type Unpacked = $ty;
+            type Unpacked = Self;
             type Loose = $loose;
             fn unpack(self) -> Self::Unpacked {
                 self
             }
         }
 
-        unsafe impl NonZero for $ty {}
+        unsafe impl NonZero for $unsigned {}
+
+        impl_pack!($signed);
+
+        unsafe impl Unpack for $signed {
+            const BITS: usize = $bits;
+            type Unpacked = Self;
+            type Loose = $loose;
+            fn unpack(self) -> Self::Unpacked {
+                self
+            }
+        }
+
+        unsafe impl NonZero for $signed {}
     };
 }
 
-impl_nonzero!(NonZeroU8, u8, 8);
-impl_nonzero!(NonZeroU16, u16, 16);
-impl_nonzero!(NonZeroU32, u32, 32);
-impl_nonzero!(NonZeroU64, u64, 64);
-impl_nonzero!(NonZeroU128, u128, 128);
+impl_nonzero!(NonZeroU8, NonZeroI8, u8, 8);
+impl_nonzero!(NonZeroU16, NonZeroI16, u16, 16);
+impl_nonzero!(NonZeroU32, NonZeroI32, u32, 32);
+impl_nonzero!(NonZeroU64, NonZeroI64, u64, 64);
+impl_nonzero!(NonZeroU128, NonZeroI128, u128, 128);
 
 unsafe impl<T> Pack for Option<T>
 where
@@ -429,6 +447,12 @@ pub mod private {
     pub use ::core::num::NonZeroU32;
     pub use ::core::num::NonZeroU64;
     pub use ::core::num::NonZeroU128;
+
+    pub use ::core::num::NonZeroI8;
+    pub use ::core::num::NonZeroI16;
+    pub use ::core::num::NonZeroI32;
+    pub use ::core::num::NonZeroI64;
+    pub use ::core::num::NonZeroI128;
 
     pub use ::arbitrary_int::*;
     pub use ::static_assertions::assert_impl_all;

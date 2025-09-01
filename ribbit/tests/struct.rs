@@ -1,4 +1,6 @@
 use arbitrary_int::*;
+use core::num::NonZeroI32;
+use core::num::NonZeroI8;
 use core::num::NonZeroU128;
 use core::num::NonZeroU16;
 use ribbit::Pack as _;
@@ -224,4 +226,23 @@ fn arbitrary_signed() {
 
     assert_eq!(h.a().value(), 0xd_dead_beef);
     assert_eq!(h.b().value(), 0xe_efde);
+}
+
+#[test]
+fn nonzero_signed() {
+    #[derive(Clone)]
+    #[ribbit::pack(size = 64)]
+    struct Half {
+        a: NonZeroI32,
+        b: NonZeroI8,
+    }
+
+    let h = Half {
+        a: NonZeroI32::new(0xead_beef).unwrap(),
+        b: NonZeroI8::new(0xd).unwrap(),
+    }
+    .pack();
+
+    assert_eq!(h.a().get(), 0xead_beef);
+    assert_eq!(h.b().get(), 0xd);
 }
