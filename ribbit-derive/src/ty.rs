@@ -100,6 +100,10 @@ impl Type {
         matches!(self, Self::User { uses, .. } if !uses.is_empty())
     }
 
+    pub(crate) fn is_loose(&self) -> bool {
+        matches!(self, Self::Tight { tight, .. } if tight.is_loose())
+    }
+
     pub(crate) fn as_tight(&self) -> &Tight {
         match self {
             Self::Tight { tight, .. } | Self::User { tight, .. } => tight,

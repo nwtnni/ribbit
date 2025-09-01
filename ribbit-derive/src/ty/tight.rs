@@ -111,6 +111,10 @@ impl Tight {
         matches!(self, Self::NonZero { .. })
     }
 
+    pub(crate) fn is_loose(&self) -> bool {
+        matches!(self, Self::Loose { .. })
+    }
+
     pub(crate) fn to_loose(self) -> Loose {
         match self {
             Tight::Unit | Tight::Bool => Loose::N8,

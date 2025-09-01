@@ -33,8 +33,11 @@ pub(crate) fn get<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
 }
 
 pub(crate) fn get_field(r#type: &Type, field: &ir::Field, offset: u8) -> TokenStream {
-    lift::Expr::value_self(r#type)
-        .shift_right(offset)
-        .and(field.ty.mask())
-        .compile(&*field.ty)
+    let expr = lift::Expr::value_self(r#type).shift_right(offset);
+
+    match field.ty.is_loose() {
+        true => expr,
+        false => expr.and(field.ty.mask()),
+    }
+    .compile(&*field.ty)
 }
