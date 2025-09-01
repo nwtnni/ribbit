@@ -1,5 +1,3 @@
-use core::ops::Deref as _;
-
 use darling::FromMeta;
 use heck::ToSnakeCase as _;
 use proc_macro2::TokenStream;
@@ -20,14 +18,14 @@ pub(crate) struct StructOpt {
 pub(crate) fn new<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 'ir {
     let vis = ir.opt().new.vis();
     let new = ir.opt().new.name();
+    let tight = ir.r#type().as_tight();
 
     match &ir.data {
-        ir::Data::Struct(r#struct) => Or::L(core::iter::once(new_struct(
-            &vis,
-            &new,
-            r#struct,
-            core::convert::identity,
-        ))),
+        ir::Data::Struct(r#struct) => {
+            Or::L(core::iter::once(new_struct(&vis, &new, r#struct, |expr| {
+                expr.compile(tight)
+            })))
+        }
         ir::Data::Enum(r#enum @ ir::Enum { variants, .. }) => {
             let discriminant = r#enum.discriminant();
 
@@ -41,24 +39,22 @@ pub(crate) fn new<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
                 );
 
                 new_struct(&vis, &new, &variant.r#struct, |expr| {
-                    lift::Expr::or(
-                        ir.r#type().as_tight(),
-                        [
-                            (0, lift::Expr::constant(variant.discriminant as u128)),
-                            (discriminant.size as u8, expr),
-                        ],
-                    )
+                    lift::Expr::or([
+                        lift::Expr::constant(variant.discriminant as u128),
+                        expr.shift_left(discriminant.size as u8),
+                    ])
+                    .compile(tight)
                 })
             }))
         }
     }
 }
 
-fn new_struct<'ir, F: FnOnce(lift::Expr<'ir>) -> lift::Expr<'ir>>(
+fn new_struct<'ir, F: FnOnce(lift::Expr<'ir>) -> TokenStream>(
     vis: &syn::Visibility,
     new: &syn::Ident,
     r#struct: &'ir ir::Struct,
-    map: F,
+    compile: F,
 ) -> TokenStream {
     let parameters = r#struct.iter_nonzero().map(|field| {
         let ident = field.ident.escaped();
@@ -66,20 +62,9 @@ fn new_struct<'ir, F: FnOnce(lift::Expr<'ir>) -> lift::Expr<'ir>>(
         quote!(#ident: #ty)
     });
 
-    let value = map(lift::Expr::or(
-        r#struct.r#type.as_tight(),
-        r#struct.iter_nonzero().map(
-            |ir::Field {
-                 ident, ty, offset, ..
-             }| {
-                (
-                    *offset as u8,
-                    lift::Expr::value(ident.escaped(), ty.deref()),
-                )
-            },
-        ),
-    ))
-    .compile();
+    let value = compile(lift::Expr::or(r#struct.iter_nonzero().map(|field| {
+        lift::Expr::value(field.ident.escaped(), &field.ty).shift_left(field.offset as u8)
+    })));
 
     let precondition = crate::gen::pre::precondition();
 

@@ -1,5 +1,3 @@
-use core::ops::Deref as _;
-
 use proc_macro2::TokenStream;
 use quote::quote;
 
@@ -36,6 +34,7 @@ pub(crate) fn get<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
 
 pub(crate) fn get_field(r#type: &Type, field: &ir::Field, offset: u8) -> TokenStream {
     lift::Expr::value_self(r#type)
-        .extract(offset, field.ty.deref())
-        .compile()
+        .shift_right(offset)
+        .and(field.ty.mask())
+        .compile(&*field.ty)
 }

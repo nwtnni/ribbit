@@ -150,46 +150,8 @@ impl Type {
 
     pub(crate) fn convert_from_loose(&self, expression: TokenStream) -> TokenStream {
         match self {
-            Type::Tight {
-                tight: Tight::Unit, ..
-            } => quote!(()),
-            Type::Tight {
-                tight: Tight::Bool, ..
-            } => {
-                let zero = proc_macro2::Literal::usize_unsuffixed(0);
-                quote!((#expression != #zero))
-            }
-            Type::Tight {
-                tight: Tight::Loose { signed: false, .. },
-                ..
-            } => expression,
-            Type::Tight {
-                tight:
-                    Tight::Loose {
-                        signed: true,
-                        loose,
-                    },
-                ..
-            } => quote!((#expression as #loose)),
-
-            Type::User { .. } if self.is_generic() => {
-                let loose = self.to_loose();
-                let packed = self.packed();
-                quote!(unsafe {
-                    ::ribbit::convert::loose_to_packed::<#packed>(
-                        ::ribbit::convert::loose_to_loose::<#loose, _>(
-                            #expression
-                        )
-                    )
-                })
-            }
-
-            // Skip validation logic in `NonZero` and `Arbitrary` constructors
-            Type::Tight {
-                tight: Tight::NonZero(_) | Tight::Arbitrary(_),
-                ..
-            }
-            | Type::User { .. } => {
+            Type::Tight { tight, .. } => tight.convert_from_loose(expression),
+            Type::User { .. } => {
                 let packed = self.packed();
                 quote!(unsafe { ::ribbit::convert::loose_to_packed::<#packed>(#expression) })
             }

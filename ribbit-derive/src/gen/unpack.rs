@@ -53,8 +53,8 @@ pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
             });
 
             let discriminant = lift::Expr::value_self(ty_struct)
-                .discriminant(&discriminant)
-                .compile();
+                .and(discriminant.mask)
+                .compile(ty_struct.to_loose());
 
             quote! {
                 match #discriminant {

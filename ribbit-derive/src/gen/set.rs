@@ -22,20 +22,12 @@ pub(crate) fn set<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
                   ..
               }| {
             let escaped = ident.escaped();
-            let value = lift::Expr::or(
-                ir.r#type().as_tight(),
-                [
-                    (
-                        *offset as u8,
-                        lift::Expr::value(ident.escaped(), ty.deref()),
-                    ),
-                    (
-                        0,
-                        lift::Expr::value_self(&r#struct.r#type).hole(*offset as u8, ty.deref()),
-                    ),
-                ],
-            )
-            .compile();
+            let value = lift::Expr::or([
+                lift::Expr::value(ident.escaped(), ty.deref()).shift_left(*offset as u8),
+                lift::Expr::value_self(&r#struct.r#type)
+                    .and(!(ty.mask() << *offset) & ir.r#type().as_tight().mask()),
+            ])
+            .compile(ir.r#type().as_tight());
 
             let with = ident.unescaped("with");
             let ty_field = ty.packed();

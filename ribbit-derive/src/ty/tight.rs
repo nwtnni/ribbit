@@ -144,6 +144,26 @@ impl Tight {
             Tight::NonZero(_) => quote!(#expression.get()),
         }
     }
+
+    pub(crate) fn convert_from_loose(&self, expression: TokenStream) -> TokenStream {
+        match self {
+            Tight::Unit => quote!(()),
+            Tight::Bool => {
+                let zero = proc_macro2::Literal::usize_unsuffixed(0);
+                quote!((#expression != #zero))
+            }
+            Tight::Loose { signed: false, .. } => expression,
+            Tight::Loose {
+                signed: true,
+                loose,
+            } => quote!((#expression as #loose)),
+
+            // Skip validation logic in `NonZero` and `Arbitrary` constructors
+            Tight::NonZero(_) | Tight::Arbitrary(_) => {
+                quote!(unsafe { ::ribbit::convert::loose_to_packed::<#self>(#expression) })
+            }
+        }
+    }
 }
 
 impl ToTokens for Tight {
