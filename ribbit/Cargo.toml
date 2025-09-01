@@ -7,7 +7,7 @@ edition = "2021"
 atomic-u128 = ["dep:portable-atomic"]
 
 [dependencies]
-arbitrary-int = "1.2"
+arbitrary-int = "2.0"
 const_panic = "0.2"
 portable-atomic = { version = "1.11", optional = true, default-features = false, features = ["require-cas"] }
 ribbit-derive = { path = "../ribbit-derive" }

@@ -4,9 +4,9 @@ version = 4
 
 [[package]]
 name = "arbitrary-int"
-version = "1.2.7"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c84fc003e338a6f69fbd4f7fe9f92b535ff13e9af8997f3b14b6ddff8b1df46d"
+checksum = "c858caffa49edfc4ecc45a4bec37abd3e88041a2903816f10f990b7b41abc281"
 
 [[package]]
 name = "bitvec"

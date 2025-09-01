@@ -79,11 +79,8 @@ impl Tight {
         }
 
         match loose {
-            Some(loose) => Ok(Self::Loose {
-                signed: false,
-                loose,
-            }),
-            None => Arbitrary::new(size).map(Self::Arbitrary),
+            Some(loose) => Ok(Self::Loose { signed, loose }),
+            None => Arbitrary::new(signed, size).map(Self::Arbitrary),
         }
     }
 
@@ -143,8 +140,14 @@ impl Tight {
             Tight::Loose {
                 signed: true,
                 loose,
-            } => quote!((expression as #loose)),
+            } => quote!((#expression as #loose)),
+
+            Tight::Arbitrary(arbitrary) if arbitrary.is_signed() => {
+                let loose = arbitrary.to_loose();
+                quote!((#expression.value() as #loose))
+            }
             Tight::Arbitrary(_) => quote!(#expression.value()),
+
             Tight::NonZero(_) => quote!(#expression.get()),
         }
     }
@@ -159,8 +162,8 @@ impl Tight {
             Tight::Loose { signed: false, .. } => expression,
             Tight::Loose {
                 signed: true,
-                loose,
-            } => quote!((#expression as #loose)),
+                loose: _,
+            } => quote!((#expression as #self)),
 
             // Skip validation logic in `NonZero` and `Arbitrary` constructors
             Tight::NonZero(_) | Tight::Arbitrary(_) => {
@@ -177,8 +180,17 @@ impl ToTokens for Tight {
             Tight::Bool => quote!(bool),
             Tight::Loose {
                 signed: true,
-                loose: _,
-            } => todo!(),
+                loose,
+            } => {
+                return match loose {
+                    Loose::N8 => quote!(i8),
+                    Loose::N16 => quote!(i8),
+                    Loose::N32 => quote!(i32),
+                    Loose::N64 => quote!(i64),
+                    Loose::N128 => quote!(i128),
+                }
+                .to_tokens(tokens)
+            }
             Tight::Loose {
                 signed: false,
                 loose,

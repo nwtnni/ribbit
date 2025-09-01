@@ -187,3 +187,41 @@ fn u128() {
     #[ribbit::pack(size = 99)]
     struct Arbitrary(u99);
 }
+
+#[test]
+fn basic_signed() {
+    #[derive(Clone)]
+    #[ribbit::pack(size = 40)]
+    struct Half {
+        a: i32,
+        b: i8,
+    }
+
+    let h = Half {
+        a: 0xead_beef,
+        b: 0xd,
+    }
+    .pack();
+
+    assert_eq!(h.a(), 0xead_beef);
+    assert_eq!(h.b(), 0xd);
+}
+
+#[test]
+fn arbitrary_signed() {
+    #[derive(Clone)]
+    #[ribbit::pack(size = 64)]
+    struct Half {
+        a: i40,
+        b: i24,
+    }
+
+    let h = Half {
+        a: i40::new(0xd_dead_beef),
+        b: i24::new(0xe_efde),
+    }
+    .pack();
+
+    assert_eq!(h.a().value(), 0xd_dead_beef);
+    assert_eq!(h.b().value(), 0xe_efde);
+}

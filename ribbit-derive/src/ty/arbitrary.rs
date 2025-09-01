@@ -9,18 +9,19 @@ use crate::ty::Loose;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) struct Arbitrary {
+    signed: bool,
     size: usize,
 }
 
 impl Arbitrary {
-    pub(super) fn new(size: usize) -> Result<Self, crate::Error> {
+    pub(super) fn new(signed: bool, size: usize) -> Result<Self, crate::Error> {
         match size {
             0 | 8 | 16 | 32 | 64 | 128 => unreachable!(
                 "[INTERNAL ERROR]: constructing arbitrary with reserved size {}",
                 size,
             ),
             129.. => Err(crate::Error::ArbitrarySize { size }),
-            _ => Ok(Self { size }),
+            _ => Ok(Self { signed, size }),
         }
     }
 
@@ -30,6 +31,10 @@ impl Arbitrary {
 
     pub(crate) fn mask(&self) -> u128 {
         crate::mask(self.size)
+    }
+
+    pub(crate) fn is_signed(&self) -> bool {
+        self.signed
     }
 
     pub(crate) fn to_loose(self) -> Loose {
@@ -46,13 +51,21 @@ impl Arbitrary {
 
 impl ToTokens for Arbitrary {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let ident = format_ident!("u{}", self.size());
+        let signed = match self.signed {
+            true => 'i',
+            false => 'u',
+        };
+        let ident = format_ident!("{}{}", signed, self.size());
         quote!(::ribbit::private::#ident).to_tokens(tokens)
     }
 }
 
 impl Display for Arbitrary {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "u{}", self.size())
+        let signed = match self.signed {
+            true => 'i',
+            false => 'u',
+        };
+        write!(f, "{}{}", signed, self.size())
     }
 }
