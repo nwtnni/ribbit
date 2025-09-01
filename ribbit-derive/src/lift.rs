@@ -79,7 +79,12 @@ impl<'ir> Expr<'ir> {
     #[expect(private_bounds)]
     pub(crate) fn compile(self, r#type: impl Into<TypeRef<'ir>>) -> TokenStream {
         let r#type = r#type.into();
-        Canonical { r#type, expr: self }.to_token_stream()
+
+        Canonical {
+            r#type,
+            expr: self.optimize(),
+        }
+        .to_token_stream()
     }
 
     fn unify(&self, loose: Loose) -> Loose {
@@ -125,6 +130,67 @@ impl<'ir> Expr<'ir> {
             }
         }
     }
+
+    fn optimize(self) -> Self {
+        match self {
+            Self::And { expr: _, mask: 0 } => Self::Constant(0),
+
+            Self::And { expr, mask } => match expr.optimize() {
+                Self::Constant(value) => Self::Constant(value & mask),
+                expr => Self::And {
+                    expr: Box::new(expr.optimize()),
+                    mask,
+                },
+            },
+
+            Self::Or(exprs) => {
+                let mut constants = 0;
+
+                let mut exprs = exprs
+                    .into_vec()
+                    .into_iter()
+                    .map(|expr| expr.optimize())
+                    .filter(|expr| match expr {
+                        Self::Constant(value) => {
+                            constants |= value;
+                            false
+                        }
+                        _ => true,
+                    })
+                    .collect::<Vec<_>>();
+
+                if constants != 0 {
+                    exprs.push(Self::Constant(constants));
+                }
+
+                match exprs.len() {
+                    0 => Self::Constant(0),
+                    1 => exprs.remove(0),
+                    _ => Self::Or(exprs.into_boxed_slice()),
+                }
+            }
+
+            Self::Shift {
+                expr,
+                dir: _,
+                by: 0,
+            } => *expr,
+
+            Self::Shift { expr, dir, by } => match expr.optimize() {
+                Self::Constant(value) => Self::Constant(match dir {
+                    Dir::L => value << by,
+                    Dir::R => value >> by,
+                }),
+                expr => Self::Shift {
+                    expr: Box::new(expr),
+                    dir,
+                    by,
+                },
+            },
+
+            _ => self,
+        }
+    }
 }
 
 struct Canonical<'ir> {
@@ -137,7 +203,7 @@ impl<'ir> ToTokens for Canonical<'ir> {
         let r#final = &self.r#type;
         let loose = self.expr.unify(r#final.to_loose());
 
-        // Short circuit if conversion is not required
+        // Short circuit if
         match &self.expr {
             Expr::Value { value, r#type } if TypeRef::from(*r#type) == *r#final => {
                 return value.to_tokens(tokens)
