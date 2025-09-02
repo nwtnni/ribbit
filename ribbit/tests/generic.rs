@@ -149,3 +149,30 @@ fn relax() {
     assert_eq!(b.a(), a.pack());
     assert_eq!(b.b(), 7);
 }
+
+#[test]
+fn associated() {
+    trait Foo {
+        type Bar: Copy;
+    }
+
+    impl Foo for u32 {
+        type Bar = u64;
+    }
+
+    #[ribbit::pack(size = 64)]
+    struct Wrapper<A>(<A as Foo>::Bar)
+    where
+        A: Foo;
+
+    impl<A> Clone for Wrapper<A>
+    where
+        A: Foo,
+    {
+        fn clone(&self) -> Self {
+            *self
+        }
+    }
+
+    impl<A> Copy for Wrapper<A> where A: Foo {}
+}

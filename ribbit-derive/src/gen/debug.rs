@@ -17,7 +17,7 @@ pub(crate) fn debug(ir: &ir::Ir) -> TokenStream {
     let unpacked = ir.ident_unpacked();
 
     // Add Unpacked: Debug clause to where bound
-    let mut generics = ir.generics_bounded(None).clone();
+    let mut generics = ir.generics_bounded().clone();
     let (_, generics_type, _) = ir.generics().split_for_impl();
     generics
         .make_where_clause()

@@ -12,7 +12,7 @@ pub(crate) fn from(ir: &ir::Ir) -> TokenStream {
         return TokenStream::new();
     };
 
-    let generics = ir.generics_bounded(None);
+    let generics = ir.generics_bounded();
     let (generics_impl, generics_type, generics_where) = generics.split_for_impl();
     let packed = ir.ident_packed();
     let unpacked = ir.ident_unpacked();

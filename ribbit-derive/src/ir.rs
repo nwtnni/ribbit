@@ -22,101 +22,104 @@ use crate::r#type::Tight;
 use crate::r#type::Type;
 use crate::Spanned;
 
-pub(crate) fn new<'input>(item: &'input input::Item) -> darling::Result<Ir<'input>> {
-    let type_params = item.generics.declared_type_params();
-    let mut bounds = Punctuated::new();
-
-    let data = match &item.data {
-        darling::ast::Data::Enum(variants) => {
-            let Some(size) = item.opt.size.map(Spanned::from) else {
-                bail!(Span::call_site()=> crate::Error::TopLevelSize);
-            };
-
-            let tight = match Tight::from_size(
-                item.opt.nonzero.map(|value| *value).unwrap_or(false),
-                *size,
-            ) {
-                Ok(tight) => tight,
-                // FIXME: span
-                Err(error) => bail!(item.opt.nonzero.unwrap()=> error),
-            };
-
-            // FIXME: support arbitrary discriminant
-            let size_discriminant = variants.len().next_power_of_two().trailing_zeros() as usize;
-
-            let variants = variants
-                .iter()
-                // FIXME: support arbitrary discriminant
-                .enumerate()
-                .map(|(discriminant, variant)| {
-                    let r#struct = Struct::new(
-                        &type_params,
-                        &mut bounds,
-                        &variant.opt,
-                        &variant.attrs,
-                        &variant.ident,
-                        &variant.fields,
-                    )?;
-
-                    if r#struct.r#type.as_tight().size() > (*size - size_discriminant) {
-                        bail!(variant=> crate::Error::VariantSize {
-                            variant: r#struct.r#type.as_tight().size(),
-                            r#enum: *size,
-                            discriminant: size_discriminant,
-                        });
-                    }
-
-                    Ok(Variant {
-                        extract: variant.extract,
-                        discriminant,
-                        r#struct,
-                    })
-                })
-                .collect::<darling::Result<Vec<_>>>()?;
-
-            let unpacked = &item.ident;
-            let r#enum = Enum {
-                opt: &item.opt,
-                attrs: &item.attrs,
-                packed: format_ident!("_{}Packed", item.ident),
-                unpacked,
-                r#type: Type::User {
-                    path: parse_quote!(#unpacked),
-                    uses: Default::default(),
-                    tight,
-                },
-                variants,
-            };
-
-            Data::Enum(r#enum)
-        }
-        darling::ast::Data::Struct(r#struct) => Struct::new(
-            &type_params,
-            &mut bounds,
-            &item.opt,
-            &item.attrs,
-            &item.ident,
-            r#struct,
-        )
-        .map(Data::Struct)?,
-    };
-
-    Ok(Ir {
-        vis: &item.vis,
-        generics: &item.generics,
-        bounds,
-        data,
-    })
-}
-
 pub(crate) struct Ir<'input> {
     pub(crate) vis: &'input syn::Visibility,
     generics: &'input syn::Generics,
-    bounds: Punctuated<syn::WherePredicate, syn::Token![,]>,
+    generics_bounded: syn::Generics,
     pub(crate) data: Data<'input>,
 }
 
-impl Ir<'_> {
+impl<'input> Ir<'input> {
+    pub(crate) fn new(item: &'input input::Item) -> darling::Result<Self> {
+        let type_params = item.generics.declared_type_params();
+
+        let mut generics_bounded = item.generics.clone();
+        let generics_where = generics_bounded.make_where_clause();
+
+        let data = match &item.data {
+            darling::ast::Data::Enum(variants) => {
+                let Some(size) = item.opt.size.map(Spanned::from) else {
+                    bail!(Span::call_site()=> crate::Error::TopLevelSize);
+                };
+
+                let tight = match Tight::from_size(
+                    item.opt.nonzero.map(|value| *value).unwrap_or(false),
+                    *size,
+                ) {
+                    Ok(tight) => tight,
+                    // FIXME: span
+                    Err(error) => bail!(item.opt.nonzero.unwrap()=> error),
+                };
+
+                // FIXME: support arbitrary discriminant
+                let size_discriminant =
+                    variants.len().next_power_of_two().trailing_zeros() as usize;
+
+                let variants = variants
+                    .iter()
+                    // FIXME: support arbitrary discriminant
+                    .enumerate()
+                    .map(|(discriminant, variant)| {
+                        let r#struct = Struct::new(
+                            &type_params,
+                            &mut generics_where.predicates,
+                            &variant.opt,
+                            &variant.attrs,
+                            &variant.ident,
+                            &variant.fields,
+                        )?;
+
+                        if r#struct.r#type.as_tight().size() > (*size - size_discriminant) {
+                            bail!(variant=> crate::Error::VariantSize {
+                                variant: r#struct.r#type.as_tight().size(),
+                                r#enum: *size,
+                                discriminant: size_discriminant,
+                            });
+                        }
+
+                        Ok(Variant {
+                            extract: variant.extract,
+                            discriminant,
+                            r#struct,
+                        })
+                    })
+                    .collect::<darling::Result<Vec<_>>>()?;
+
+                let unpacked = &item.ident;
+                let r#enum = Enum {
+                    opt: &item.opt,
+                    attrs: &item.attrs,
+                    packed: format_ident!("_{}Packed", item.ident),
+                    unpacked,
+                    r#type: Type::User {
+                        path: parse_quote!(#unpacked),
+                        uses: Default::default(),
+                        tight,
+                    },
+                    variants,
+                };
+
+                Data::Enum(r#enum)
+            }
+            darling::ast::Data::Struct(r#struct) => Struct::new(
+                &type_params,
+                &mut generics_where.predicates,
+                &item.opt,
+                &item.attrs,
+                &item.ident,
+                r#struct,
+            )
+            .map(Data::Struct)?,
+        };
+
+        Ok(Ir {
+            vis: &item.vis,
+            generics: &item.generics,
+            generics_bounded,
+            data,
+        })
+    }
+
     pub(crate) fn generics(&self) -> &syn::Generics {
         self.generics
     }
@@ -156,19 +159,8 @@ impl Ir<'_> {
         }
     }
 
-    pub(crate) fn generics_bounded(&self, extra: Option<syn::TypeParamBound>) -> syn::Generics {
-        let mut generics = self.generics().clone();
-        let r#where = generics.make_where_clause();
-
-        for mut bound in self.bounds.clone() {
-            if let (syn::WherePredicate::Type(ty), Some(extra)) = (&mut bound, &extra) {
-                ty.bounds.push(extra.clone());
-            };
-
-            r#where.predicates.push(bound);
-        }
-
-        generics
+    pub(crate) fn generics_bounded(&self) -> &syn::Generics {
+        &self.generics_bounded
     }
 }
 
@@ -252,21 +244,14 @@ impl Struct<'_> {
         let fields = fields
             .iter()
             .enumerate()
-            .map(|(index, field)| Field::new(opt, type_params, &mut bits, newtype, index, field))
+            .map(|(index, field)| {
+                Field::new(opt, type_params, bounds, &mut bits, newtype, index, field)
+            })
             .collect::<Result<Vec<_>, _>>()?;
 
         if tight.is_nonzero() && fields.iter().all(|field| !field.r#type.is_nonzero()) {
             bail!(opt.nonzero.unwrap()=> crate::Error::StructNonZero);
         }
-
-        bounds.extend(
-            fields
-                .iter()
-                .map(|field| &field.r#type)
-                .filter(|ty| ty.is_user())
-                .filter(|ty| ty.size_expected() != 0)
-                .map(|ty| -> syn::WherePredicate { parse_quote!(#ty: ::ribbit::Pack) }),
-        );
 
         let unpacked = ident;
         Ok(Struct {
@@ -320,6 +305,7 @@ impl<'input> Field<'input> {
     fn new(
         opt: &StructOpt,
         type_params: &darling::usage::IdentSet,
+        bounds: &mut Punctuated<syn::WherePredicate, syn::Token![,]>,
         bits: &mut BitBox,
         newtype: bool,
         index: usize,
@@ -327,6 +313,12 @@ impl<'input> Field<'input> {
     ) -> darling::Result<Self> {
         let r#type = Type::parse(newtype, opt, &field.opt, type_params, field.ty.clone())?;
         let size = r#type.size_expected();
+
+        // Gather trait bounds for generic type parameters
+        if r#type.is_generic() {
+            let r#type = &field.ty;
+            bounds.push(parse_quote!(#r#type: ::ribbit::Pack));
+        }
 
         // Avoid erroring on `bits.first_zero()` for ZST fields
         if size == 0 {

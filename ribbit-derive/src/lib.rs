@@ -48,7 +48,7 @@ fn pack_impl(
     input.attrs.push(parse_quote!(#[ribbit(#attr)]));
 
     let input = input::Item::from_derive_input(&input)?;
-    let ir = ir::new(&input)?;
+    let ir = Ir::new(&input)?;
     pack_item(&ir, output)
 }
 
@@ -68,7 +68,7 @@ fn pack_item(ir: &Ir, output: &mut TokenStream) -> Result<(), darling::Error> {
     let eq = gen::eq(ir);
     let ord = gen::ord(ir);
 
-    let generics = ir.generics_bounded(None);
+    let generics = ir.generics_bounded();
     let (generics_impl, generics_type, generics_where) = generics.split_for_impl();
     let packed_ident = ir.ident_packed();
 

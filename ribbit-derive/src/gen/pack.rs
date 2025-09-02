@@ -52,7 +52,7 @@ pub(crate) fn pack(ir: &ir::Ir) -> TokenStream {
         }
     };
 
-    let generics = ir.generics_bounded(None);
+    let generics = ir.generics_bounded();
     let (generics_impl, generics_type, generics_where) = generics.split_for_impl();
 
     quote! {
