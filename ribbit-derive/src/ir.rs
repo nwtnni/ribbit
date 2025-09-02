@@ -18,9 +18,9 @@ use syn::punctuated::Punctuated;
 use crate::error::bail;
 use crate::gen;
 use crate::input;
-use crate::ty;
-use crate::ty::Tight;
-use crate::ty::Type;
+use crate::r#type;
+use crate::r#type::Tight;
+use crate::r#type::Type;
 use crate::Spanned;
 
 pub(crate) fn new<'input>(item: &'input input::Item) -> darling::Result<Ir<'input>> {
@@ -312,7 +312,7 @@ pub(crate) struct Field<'input> {
     pub(crate) attrs: &'input [syn::Attribute],
     pub(crate) vis: &'input syn::Visibility,
     pub(crate) ident: FieldIdent<'input>,
-    pub(crate) ty: Spanned<ty::Type>,
+    pub(crate) ty: Spanned<r#type::Type>,
     pub(crate) offset: usize,
 }
 
@@ -325,7 +325,7 @@ impl<'input> Field<'input> {
         index: usize,
         field: &'input SpannedValue<input::Field>,
     ) -> darling::Result<Self> {
-        let ty = ty::Type::parse(newtype, opt, &field.opt, ty_params, field.ty.clone())?;
+        let ty = r#type::Type::parse(newtype, opt, &field.opt, ty_params, field.ty.clone())?;
 
         let size = ty.size_expected();
 

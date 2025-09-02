@@ -5,7 +5,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use quote::ToTokens;
 
-use crate::ty::Tight;
+use crate::r#type::Tight;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum Loose {

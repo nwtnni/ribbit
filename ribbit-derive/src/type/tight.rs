@@ -5,8 +5,8 @@ use quote::format_ident;
 use quote::quote;
 use quote::ToTokens;
 
-use crate::ty::Arbitrary;
-use crate::ty::Loose;
+use crate::r#type::Arbitrary;
+use crate::r#type::Loose;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Tight {

@@ -5,9 +5,9 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use quote::ToTokens;
 
-use crate::ty::Loose;
-use crate::ty::Tight;
-use crate::ty::Type;
+use crate::r#type::Loose;
+use crate::r#type::Tight;
+use crate::r#type::Type;
 
 #[derive(Debug)]
 pub(crate) enum Expr<'ir> {

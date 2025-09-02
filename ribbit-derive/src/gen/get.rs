@@ -3,7 +3,7 @@ use quote::quote;
 
 use crate::ir;
 use crate::lift;
-use crate::ty::Type;
+use crate::r#type::Type;
 use crate::Or;
 
 pub(crate) fn get<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 'ir {

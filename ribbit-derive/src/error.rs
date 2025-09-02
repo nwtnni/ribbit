@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::ty;
+use crate::r#type;
 
 #[derive(Debug)]
 pub enum Error {
@@ -19,7 +19,7 @@ pub enum Error {
     StructNonZero,
     OpaqueSize,
     WrongSize {
-        ty: ty::Tight,
+        ty: r#type::Tight,
         expected: usize,
         actual: usize,
     },
