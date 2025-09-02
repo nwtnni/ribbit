@@ -30,8 +30,6 @@ pub(crate) fn new<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
             let discriminant = r#enum.discriminant();
 
             Or::R(variants.iter().map(move |variant| {
-                assert!(!variant.extract, "TODO");
-
                 let new = format_ident!(
                     "{}_{}",
                     new,

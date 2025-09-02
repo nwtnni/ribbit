@@ -24,8 +24,6 @@ pub(crate) struct Variant {
     #[darling(flatten)]
     pub(crate) opt: ir::StructOpt,
     pub(crate) attrs: Vec<syn::Attribute>,
-    #[darling(default)]
-    pub(crate) extract: bool,
     pub(crate) ident: syn::Ident,
     pub(crate) fields: Fields<SpannedValue<Field>>,
     pub(crate) discriminant: Option<syn::Expr>,

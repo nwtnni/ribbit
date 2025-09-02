@@ -19,8 +19,6 @@ pub(crate) fn pack(ir: &ir::Ir) -> TokenStream {
         }
         ir::Data::Enum(r#enum) => {
             let variants = r#enum.variants.iter().map(|variant| {
-                assert!(!variant.extract, "TODO");
-
                 let patterns = variant
                     .r#struct
                     .fields

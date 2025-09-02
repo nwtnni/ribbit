@@ -27,8 +27,6 @@ pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
             let discriminant = r#enum.discriminant();
 
             let variants = r#enum.variants.iter().map(|variant| {
-                assert!(!variant.extract, "TODO");
-
                 let fields = variant.r#struct.fields.iter().map(|field| {
                     let name = &field.ident;
                     let value = field.r#type.unpack(crate::gen::get::get_field(

@@ -12,7 +12,6 @@ pub(crate) fn pre(ir: &ir::Ir) -> TokenStream {
             r#enum
                 .variants
                 .iter()
-                .filter(|variant| !variant.extract)
                 .flat_map(|variant| extract_assertions(&variant.r#struct)),
         ),
     };

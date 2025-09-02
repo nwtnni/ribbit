@@ -17,8 +17,6 @@ pub(crate) fn unpacked<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream
         ))),
         ir::Data::Enum(r#enum) => {
             let variants = r#enum.variants.iter().map(|variant| {
-                assert!(!variant.extract, "TODO");
-
                 let attrs = &variant.r#struct.attrs;
                 let ident = &variant.r#struct.unpacked;
                 let fields = unpacked_fields(&variant.r#struct);

@@ -78,7 +78,6 @@ impl<'input> Ir<'input> {
                         current_discriminant = discriminant + 1;
 
                         Ok(Variant {
-                            extract: variant.extract,
                             discriminant,
                             r#struct,
                         })
@@ -232,7 +231,6 @@ pub(crate) struct Discriminant {
 }
 
 pub(crate) struct Variant<'input> {
-    pub(crate) extract: bool,
     pub(crate) discriminant: usize,
     pub(crate) r#struct: Struct<'input>,
 }
