@@ -28,6 +28,7 @@ pub(crate) struct Variant {
     pub(crate) extract: bool,
     pub(crate) ident: syn::Ident,
     pub(crate) fields: Fields<SpannedValue<Field>>,
+    pub(crate) discriminant: Option<syn::Expr>,
 }
 
 #[derive(FromField, Clone, Debug)]

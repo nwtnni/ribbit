@@ -51,15 +51,11 @@ impl<'input> Ir<'input> {
                     Err(error) => bail!(item.opt.nonzero.unwrap()=> error),
                 };
 
-                // FIXME: support arbitrary discriminant
-                let size_discriminant =
-                    variants.len().next_power_of_two().trailing_zeros() as usize;
+                let mut current_discriminant = 0;
 
-                let variants = variants
+                let variants_ir = variants
                     .iter()
-                    // FIXME: support arbitrary discriminant
-                    .enumerate()
-                    .map(|(discriminant, variant)| {
+                    .map(|variant| {
                         let r#struct = Struct::new(
                             &type_params,
                             &mut generics_where.predicates,
@@ -69,13 +65,20 @@ impl<'input> Ir<'input> {
                             &variant.fields,
                         )?;
 
-                        if r#struct.r#type.as_tight().size() > (*size - size_discriminant) {
-                            bail!(variant=> crate::Error::VariantSize {
-                                variant: r#struct.r#type.as_tight().size(),
-                                r#enum: *size,
-                                discriminant: size_discriminant,
-                            });
-                        }
+                        // FIXME: support arbitrary expression
+                        let discriminant = if let Some(syn::Expr::Lit(syn::ExprLit {
+                            attrs: _,
+                            lit: syn::Lit::Int(int),
+                        })) = &variant.discriminant
+                        {
+                            int.base10_parse()?
+                        } else if variant.discriminant.is_some() {
+                            bail!(variant=> crate::Error::VariantDiscriminant);
+                        } else {
+                            current_discriminant
+                        };
+
+                        current_discriminant = discriminant + 1;
 
                         Ok(Variant {
                             extract: variant.extract,
@@ -84,6 +87,37 @@ impl<'input> Ir<'input> {
                         })
                     })
                     .collect::<darling::Result<Vec<_>>>()?;
+
+                if item.opt.nonzero.is_some_and(|nonzero| *nonzero) {
+                    if let Some((variant, span)) = variants_ir
+                        .iter()
+                        .zip(variants)
+                        .find(|(variant, _)| variant.discriminant == 0)
+                    {
+                        if variant.r#struct.opt.nonzero.is_none_or(|nonzero| !*nonzero) {
+                            bail!(span=> crate::Error::VariantNonZero);
+                        }
+                    }
+                }
+
+                let size_discriminant = variants_ir
+                    .iter()
+                    .map(|variant| variant.discriminant + 1)
+                    .max()
+                    .unwrap_or(0)
+                    .next_power_of_two()
+                    .trailing_zeros() as usize;
+
+                for (variant, span) in variants_ir.iter().zip(variants) {
+                    let size_variant = variant.r#struct.r#type.as_tight().size();
+                    if size_variant + size_discriminant > *size {
+                        bail!(span=> crate::Error::VariantSize {
+                            variant: r#variant.r#struct.r#type.as_tight().size(),
+                            r#enum: *size,
+                            discriminant: size_discriminant,
+                        });
+                    }
+                }
 
                 let unpacked = &item.ident;
                 let r#enum = Enum {
@@ -96,7 +130,7 @@ impl<'input> Ir<'input> {
                         uses: Default::default(),
                         tight,
                     },
-                    variants,
+                    variants: variants_ir,
                 };
 
                 Data::Enum(r#enum)

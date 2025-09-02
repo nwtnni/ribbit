@@ -33,6 +33,8 @@ pub enum Error {
         r#enum: usize,
         discriminant: usize,
     },
+    VariantDiscriminant,
+    VariantNonZero,
 }
 
 macro_rules! bail {
@@ -97,6 +99,18 @@ impl Display for Error {
                 write!(
                     f,
                     "Variant of size {variant} does not fit in enum of size {enum} with discriminant of size {discriminant}",
+                )
+            }
+            Error::VariantDiscriminant => {
+                write!(
+                    f,
+                    "Only literal integers are currently supported for variant discriminant",
+                )
+            }
+            Error::VariantNonZero => {
+                write!(
+                    f,
+                    "Non-zero enum requires either all non-zero discriminants *or* variant with discriminant 0 to be non-zero",
                 )
             }
         }
