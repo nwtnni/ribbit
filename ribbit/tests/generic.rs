@@ -3,7 +3,7 @@ use ribbit::u7;
 use ribbit::Pack as _;
 use ribbit::Unpack as _;
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 #[ribbit::pack(size = 48)]
 struct Versioned<T> {
     version: u16,
@@ -11,11 +11,11 @@ struct Versioned<T> {
     inner: T,
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 #[ribbit::pack(size = 32)]
 struct A(u32);
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 #[ribbit::pack(size = 32)]
 struct B {
     hi: u16,
@@ -71,7 +71,7 @@ fn compose() {
 
 #[test]
 fn r#enum_newtype() {
-    #[derive(Clone, Debug, PartialEq, Eq)]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     #[ribbit::pack(size = 8, debug, eq)]
     enum Either<T> {
         #[ribbit(size = 7)]
@@ -98,7 +98,7 @@ fn r#enum_newtype() {
 
 #[test]
 fn r#enum_named() {
-    #[derive(Clone, Debug, PartialEq, Eq)]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     #[ribbit::pack(size = 8, debug, eq)]
     enum Either<T> {
         #[ribbit(size = 7, debug, from)]
@@ -131,11 +131,11 @@ fn r#enum_named() {
 
 #[test]
 fn relax() {
-    #[derive(Clone, Debug)]
+    #[derive(Copy, Clone, Debug)]
     #[ribbit::pack(size = 3, debug, eq)]
     struct Small(u3);
 
-    #[derive(Clone)]
+    #[derive(Copy, Clone)]
     #[ribbit::pack(size = 24, debug)]
     struct Large<T> {
         #[ribbit(size = 16)]

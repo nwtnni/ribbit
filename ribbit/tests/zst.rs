@@ -6,11 +6,11 @@ use ribbit::Unpack as _;
 
 #[test]
 fn custom_zst() {
-    #[derive(Clone)]
+    #[derive(Copy, Clone)]
     #[ribbit::pack(size = 0)]
     struct Foo;
 
-    #[derive(Clone)]
+    #[derive(Copy, Clone)]
     #[ribbit::pack(size = 64)]
     struct S {
         a: u64,
@@ -37,12 +37,11 @@ fn phantom() {
         foo: PhantomData<A>,
     }
 
+    impl<A> Copy for Phantom<A> {}
+
     impl<A> Clone for Phantom<A> {
         fn clone(&self) -> Self {
-            Self {
-                a: self.a,
-                foo: self.foo,
-            }
+            *self
         }
     }
 
@@ -64,12 +63,11 @@ fn phantom_nonzero() {
         foo: PhantomData<A>,
     }
 
+    impl<A> Copy for Phantom<A> {}
+
     impl<A> Clone for Phantom<A> {
         fn clone(&self) -> Self {
-            Self {
-                a: self.a,
-                foo: self.foo,
-            }
+            *self
         }
     }
 
@@ -84,7 +82,7 @@ fn phantom_nonzero() {
 
 #[test]
 fn pack_zst() {
-    #[derive(Clone, Debug)]
+    #[derive(Copy, Clone, Debug)]
     #[ribbit::pack(size = 0, debug, eq)]
     struct Foo;
 
@@ -99,15 +97,15 @@ fn pack_zst() {
 
 #[test]
 fn pack_zst_large() {
-    #[derive(Clone, Debug, PartialEq, Eq)]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     #[ribbit::pack(size = 0)]
     struct Zst;
 
-    #[derive(Clone, Debug)]
+    #[derive(Copy, Clone, Debug)]
     #[ribbit::pack(size = 32)]
     struct Hole(#[ribbit(size = 0)] Zst);
 
     let zst = Zst;
-    let hole = Hole(zst.clone()).pack();
+    let hole = Hole(zst).pack();
     assert_eq!(zst, hole._0().unpack());
 }

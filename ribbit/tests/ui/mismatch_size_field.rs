@@ -1,5 +1,5 @@
 #[ribbit::pack(size = 16)]
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 struct A {
     #[ribbit(size = 3)]
     lo: u8,

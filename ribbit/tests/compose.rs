@@ -6,13 +6,13 @@ use core::num::NonZeroU16;
 
 #[test]
 fn basic() {
-    #[derive(Clone)]
+    #[derive(Copy, Clone)]
     #[ribbit::pack(size = 32)]
     struct Low {
         a: u32,
     }
 
-    #[derive(Clone)]
+    #[derive(Copy, Clone)]
     #[ribbit::pack(size = 64)]
     struct Whole {
         #[ribbit(size = 32)]
@@ -23,13 +23,13 @@ fn basic() {
 
 #[test]
 fn nonzero() {
-    #[derive(Clone)]
+    #[derive(Copy, Clone)]
     #[ribbit::pack(size = 16, nonzero)]
     struct Low {
         a: NonZeroU16,
     }
 
-    #[derive(Clone)]
+    #[derive(Copy, Clone)]
     #[ribbit::pack(size = 48)]
     struct Whole {
         #[ribbit(size = 16, nonzero)]
@@ -40,13 +40,13 @@ fn nonzero() {
 
 #[test]
 fn option_nonzero() {
-    #[derive(Clone)]
+    #[derive(Copy, Clone)]
     #[ribbit::pack(size = 16, nonzero)]
     struct Low {
         a: NonZeroU16,
     }
 
-    #[derive(Clone)]
+    #[derive(Copy, Clone)]
     #[ribbit::pack(size = 48)]
     struct Whole {
         #[ribbit(size = 16)]
@@ -72,7 +72,7 @@ fn relax() {
     struct Small(u7);
 
     // Pack a smaller type into a larger hole
-    #[derive(Clone)]
+    #[derive(Copy, Clone)]
     #[ribbit::pack(size = 30)]
     struct Large(#[ribbit(size = 7)] Small);
 

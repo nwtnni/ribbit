@@ -7,7 +7,7 @@ use ribbit::Pack as _;
 
 #[test]
 fn basic() {
-    #[derive(Clone)]
+    #[derive(Copy, Clone)]
     #[ribbit::pack(size = 64)]
     struct Half {
         a: u32,
@@ -27,7 +27,7 @@ fn basic() {
 
 #[test]
 fn arbitrary_field() {
-    #[derive(Clone)]
+    #[derive(Copy, Clone)]
     #[ribbit::pack(size = 64)]
     struct Half {
         a: u40,
@@ -47,7 +47,7 @@ fn arbitrary_field() {
 
 #[test]
 fn arbitrary_repr() {
-    #[derive(Clone)]
+    #[derive(Copy, Clone)]
     #[ribbit::pack(size = 9)]
     struct Half {
         a: u1,
@@ -65,7 +65,7 @@ fn arbitrary_repr() {
 
 #[test]
 fn set_bit() {
-    #[derive(Clone)]
+    #[derive(Copy, Clone)]
     #[ribbit::pack(size = 2)]
     struct Bits {
         a: u1,
@@ -94,7 +94,7 @@ fn set_bit() {
 
 #[test]
 fn set_clobber() {
-    #[derive(Clone)]
+    #[derive(Copy, Clone)]
     #[ribbit::pack(size = 2)]
     struct Clobber {
         value: u2,
@@ -113,7 +113,7 @@ fn set_clobber() {
 
 #[test]
 fn nonzero() {
-    #[derive(Clone)]
+    #[derive(Copy, Clone)]
     #[ribbit::pack(size = 16, nonzero)]
     struct NonZero {
         nonzero: NonZeroU16,
@@ -122,7 +122,7 @@ fn nonzero() {
 
 #[test]
 fn explicit() {
-    #[derive(Clone)]
+    #[derive(Copy, Clone)]
     #[ribbit::pack(size = 18)]
     struct Mix {
         #[ribbit(offset = 2)]
@@ -149,7 +149,7 @@ fn explicit() {
 
 #[test]
 fn underflow() {
-    #[derive(Clone)]
+    #[derive(Copy, Clone)]
     #[ribbit::pack(size = 8)]
     struct Zst;
 
@@ -159,7 +159,7 @@ fn underflow() {
 
 #[test]
 fn type_path() {
-    #[derive(Clone)]
+    #[derive(Copy, Clone)]
     #[ribbit::pack(size = 32, nonzero)]
     struct Path {
         a: ::std::num::NonZeroU8,
@@ -177,22 +177,22 @@ fn type_path() {
 
 #[test]
 fn u128() {
-    #[derive(Clone)]
+    #[derive(Copy, Clone)]
     #[ribbit::pack(size = 128)]
     struct Tuple(u32, u32, u64);
 
-    #[derive(Clone)]
+    #[derive(Copy, Clone)]
     #[ribbit::pack(size = 128, nonzero)]
     struct NonZero(NonZeroU128);
 
-    #[derive(Clone)]
+    #[derive(Copy, Clone)]
     #[ribbit::pack(size = 99)]
     struct Arbitrary(u99);
 }
 
 #[test]
 fn basic_signed() {
-    #[derive(Clone)]
+    #[derive(Copy, Clone)]
     #[ribbit::pack(size = 40)]
     struct Half {
         a: i32,
@@ -211,7 +211,7 @@ fn basic_signed() {
 
 #[test]
 fn arbitrary_signed() {
-    #[derive(Clone)]
+    #[derive(Copy, Clone)]
     #[ribbit::pack(size = 64)]
     struct Half {
         a: i40,
@@ -230,7 +230,7 @@ fn arbitrary_signed() {
 
 #[test]
 fn nonzero_signed() {
-    #[derive(Clone)]
+    #[derive(Copy, Clone)]
     #[ribbit::pack(size = 64)]
     struct Half {
         a: NonZeroI32,

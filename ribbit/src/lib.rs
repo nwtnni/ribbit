@@ -29,7 +29,7 @@ macro_rules! Pack {
 /// # Safety
 ///
 /// This trait should only be implemented by the `pack` macro.
-pub unsafe trait Pack: Clone {
+pub unsafe trait Pack: Copy {
     type Packed: Unpack<Unpacked = Self>;
 
     fn pack(self) -> Self::Packed;

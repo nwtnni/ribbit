@@ -2,8 +2,9 @@ use core::num::NonZeroU8;
 
 use ribbit::u2;
 use ribbit::Pack as _;
+use ribbit::Unpack as _;
 
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 #[ribbit::pack(size = 26, debug)]
 pub struct A {
     l: u16,
@@ -24,7 +25,7 @@ fn check() {
 
 #[test]
 fn tuple() {
-    #[derive(Clone, Debug)]
+    #[derive(Copy, Clone, Debug)]
     #[ribbit::pack(size = 5, debug)]
     struct C(bool, #[ribbit(offset = 3)] u2);
 
@@ -32,31 +33,33 @@ fn tuple() {
     assert_eq!(format!("{c:?}"), "C(true, 3)");
 }
 
-// #[test]
-// fn r#enum() {
-//     #[ribbit::pack(size = 32, debug)]
-//     enum Enum {
-//         Foo,
-//         Bar(u64),
-//         #[ribbit(size = 26)]
-//         Baz(A),
-//     }
-//
-//     assert_eq!(
-//         format!("{:?}", Enum::new(<unpack![Enum]>::Foo)),
-//         "Enum::Foo"
-//     );
-//
-//     assert_eq!(
-//         format!("{:?}", Enum::new(<unpack![Enum]>::Bar(5))),
-//         "Enum::Bar(5)"
-//     );
-//
-//     assert_eq!(
-//         format!(
-//             "{:?}",
-//             Enum::new(<unpack![Enum]>::Baz(A::new(2, NonZeroU8::MIN, u2::new(3))))
-//         ),
-//         "Enum::Baz(A { l: 2, m: 1, c: 3 })"
-//     );
-// }
+#[test]
+fn r#enum() {
+    #[derive(Copy, Clone, Debug)]
+    #[ribbit::pack(size = 32, debug)]
+    enum Enum {
+        #[ribbit(size = 0)]
+        Foo,
+        #[ribbit(size = 8)]
+        Bar(u8),
+        #[ribbit(size = 26)]
+        Baz(A),
+    }
+
+    assert_eq!(format!("{:?}", Enum::Foo.pack().unpack()), "Foo");
+    assert_eq!(format!("{:?}", Enum::Bar(5).pack().unpack()), "Bar(5)");
+    assert_eq!(
+        format!(
+            "{:?}",
+            <ribbit::Pack![Enum]>::new_baz(
+                A {
+                    l: 2,
+                    m: NonZeroU8::MIN,
+                    c: u2::new(3)
+                }
+                .pack()
+            )
+        ),
+        "Baz(A { l: 2, m: 1, c: 3 })"
+    );
+}

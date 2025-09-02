@@ -1,7 +1,7 @@
 use ribbit::Pack as _;
 use ribbit::Unpack as _;
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 #[ribbit::pack(size = 16)]
 enum SingleNamed {
     #[ribbit(size = 16)]
@@ -17,11 +17,11 @@ fn single_named() {
     }
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 #[ribbit::pack(size = 8)]
 struct Byte(u8);
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 #[ribbit::pack(size = 8)]
 enum SingleNewtype {
     #[ribbit(size = 8)]
@@ -37,7 +37,7 @@ fn single_newtype() {
     }
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 #[ribbit::pack(size = 8)]
 enum SingleUnit {
     #[ribbit(size = 0)]
@@ -53,8 +53,8 @@ fn single_unit() {
     }
 }
 
-#[derive(Clone)]
-#[ribbit::pack(size = 34)]
+#[derive(Copy, Clone, Debug)]
+#[ribbit::pack(size = 34, eq, debug)]
 enum Mixed {
     #[ribbit(size = 16)]
     X { a: u16 },
@@ -66,29 +66,29 @@ enum Mixed {
 
 #[test]
 fn mixed() {
-    let mut x = Mixed::X { a: 3 }.pack();
-
+    let mut x = <ribbit::Pack![Mixed]>::new_x(3);
+    assert_eq!(x, Mixed::X { a: 3 }.pack());
     match x.unpack() {
         Mixed::X { a } => assert_eq!(a, 3),
         _ => unreachable!(),
     }
 
-    x = Mixed::Y(5).pack();
-
+    x = <ribbit::Pack![Mixed]>::new_y(5);
+    assert_eq!(x, Mixed::Y(5).pack());
     match x.unpack() {
         Mixed::Y(y) => assert_eq!(y, 5),
         _ => unreachable!(),
     }
 
-    x = Mixed::Z.pack();
-
+    x = <ribbit::Pack![Mixed]>::new_z();
+    assert_eq!(x, Mixed::Z.pack());
     match x.unpack() {
         Mixed::Z => (),
         _ => unreachable!(),
     }
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 #[ribbit::pack(size = 8)]
 enum Wrapper {
     #[ribbit(size = 8)]
@@ -103,34 +103,3 @@ fn wrapper() {
         Wrapper::Byte(b) => assert_eq!(b, 3),
     }
 }
-
-// #[test]
-// fn from() {
-//     #[ribbit::pack(size = 8, debug, from, eq)]
-//     enum Outer {
-//         #[ribbit(size = 8, debug, from, eq)]
-//         Inner { value: u8 },
-//     }
-//
-//     let a = Outer::from(Inner::new(0u8));
-//     let b = OuterUnpacked::from(Inner::new(0u8));
-//     let c = Outer::from(b);
-//
-//     assert_eq!(a, c);
-// }
-//
-//
-// #[test]
-// fn unpack_macro() {
-//     #[ribbit::pack(size = 8, debug, from, eq)]
-//     enum Outer {
-//         #[ribbit(size = 8, debug, from, eq)]
-//         Inner { value: u8 },
-//     }
-//
-//     let a = Outer::from(Inner::new(0u8));
-//     let b = <ribbit::unpack![Outer]>::from(Inner::new(0u8));
-//     let c = Outer::from(b);
-//
-//     assert_eq!(a, c);
-// }

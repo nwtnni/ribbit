@@ -8,7 +8,7 @@ use ribbit::u9;
 fn aligned() {
     use ribbit::atomic::Atomic32;
 
-    #[derive(Clone, Debug, PartialEq, Eq)]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     #[ribbit::pack(size = 32, debug, eq)]
     struct Foo {
         lo: u16,
@@ -35,7 +35,7 @@ fn aligned() {
 fn unaligned() {
     use ribbit::atomic::Atomic32;
 
-    #[derive(Clone, Debug, PartialEq, Eq)]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     #[ribbit::pack(size = 32, debug, eq)]
     struct Foo {
         lo: u9,
@@ -80,7 +80,7 @@ fn unaligned() {
 fn undersized() {
     use ribbit::atomic::Atomic64;
 
-    #[derive(Clone, Debug, PartialEq, Eq)]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     #[ribbit::pack(size = 64, debug, eq)]
     struct Foo {
         lo: u9,
@@ -125,7 +125,7 @@ fn undersized() {
 fn unique() {
     use ribbit::atomic::Atomic64;
 
-    #[derive(Clone, Debug, PartialEq, Eq)]
+    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
     #[ribbit::pack(size = 64, debug, eq)]
     struct Foo {
         lo: u9,
