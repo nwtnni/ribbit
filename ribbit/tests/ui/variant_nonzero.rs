@@ -1,4 +1,4 @@
-#[ribbit::pack(size = 16, nonzero = true)]
+#[ribbit::pack(size = 16, nonzero)]
 #[derive(Copy, Clone)]
 enum Foo {
     #[ribbit(size = 8)]

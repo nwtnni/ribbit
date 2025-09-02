@@ -42,10 +42,7 @@ impl<'input> Ir<'input> {
                     bail!(Span::call_site()=> crate::Error::TopLevelSize);
                 };
 
-                let tight = match Tight::from_size(
-                    item.opt.nonzero.map(|value| *value).unwrap_or(false),
-                    *size,
-                ) {
+                let tight = match Tight::from_size(item.opt.nonzero.is_some(), *size) {
                     Ok(tight) => tight,
                     // FIXME: span
                     Err(error) => bail!(item.opt.nonzero.unwrap()=> error),
@@ -88,13 +85,13 @@ impl<'input> Ir<'input> {
                     })
                     .collect::<darling::Result<Vec<_>>>()?;
 
-                if item.opt.nonzero.is_some_and(|nonzero| *nonzero) {
+                if item.opt.nonzero.is_some() {
                     if let Some((variant, span)) = variants_ir
                         .iter()
                         .zip(variants)
                         .find(|(variant, _)| variant.discriminant == 0)
                     {
-                        if variant.r#struct.opt.nonzero.is_none_or(|nonzero| !*nonzero) {
+                        if variant.r#struct.opt.nonzero.is_none() {
                             bail!(span=> crate::Error::VariantNonZero);
                         }
                     }
@@ -264,8 +261,7 @@ impl Struct<'_> {
             bail!(Span::call_site()=> crate::Error::TopLevelSize);
         };
 
-        let tight = match Tight::from_size(opt.nonzero.map(|value| *value).unwrap_or(false), *size)
-        {
+        let tight = match Tight::from_size(opt.nonzero.is_some(), *size) {
             Ok(tight) => tight,
             // FIXME: span
             Err(error) => bail!(opt.nonzero.unwrap()=> error),
@@ -316,7 +312,7 @@ impl Struct<'_> {
 #[derive(FromMeta, Clone, Debug)]
 pub(crate) struct StructOpt {
     pub(crate) size: Option<SpannedValue<usize>>,
-    pub(crate) nonzero: Option<SpannedValue<bool>>,
+    pub(crate) nonzero: Option<SpannedValue<()>>,
 
     #[darling(default)]
     pub(crate) new: gen::new::StructOpt,
@@ -406,7 +402,7 @@ impl<'input> Field<'input> {
 
 #[derive(FromMeta, Clone, Debug, Default)]
 pub(crate) struct FieldOpt {
-    pub(crate) nonzero: Option<SpannedValue<bool>>,
+    pub(crate) nonzero: Option<SpannedValue<()>>,
     pub(crate) size: Option<SpannedValue<usize>>,
     pub(crate) offset: Option<SpannedValue<usize>>,
 }

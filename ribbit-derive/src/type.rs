@@ -79,7 +79,7 @@ impl Type {
             bail!(span=> Error::OpaqueSize);
         };
 
-        let tight = Tight::from_size(nonzero.as_deref().copied().unwrap_or(false), *size);
+        let tight = Tight::from_size(nonzero.is_some(), *size);
 
         let tight = match tight {
             Ok(tight) => tight,

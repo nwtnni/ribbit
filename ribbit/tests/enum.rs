@@ -142,7 +142,7 @@ fn explicit_discriminant() {
 #[test]
 fn explicit_discriminant_nonzero() {
     #[derive(Copy, Clone, Debug)]
-    #[ribbit::pack(size = 64, eq, debug, nonzero = true)]
+    #[ribbit::pack(size = 64, eq, debug, nonzero)]
     enum Mixed {
         #[ribbit(size = 16)]
         X { a: u16 } = 3,
