@@ -20,8 +20,7 @@ macro_rules! atomic {
 
         impl<T> Debug for $name<T>
         where
-            T: Pack,
-            T::Packed: Debug,
+            T: Pack + Debug,
         {
             fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
                 self.load(Ordering::Relaxed).fmt(f)
@@ -30,8 +29,7 @@ macro_rules! atomic {
 
         impl<T> Display for $name<T>
         where
-            T: Pack,
-            T::Packed: Display,
+            T: Pack + Display,
         {
             fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
                 self.load(Ordering::Relaxed).fmt(f)
@@ -44,7 +42,12 @@ macro_rules! atomic {
         {
             const INVARIANT: () = assert!(<<T as Pack>::Packed as Unpack>::BITS <= $size);
 
-            pub const fn new(value: T::Packed) -> Self {
+            pub fn new(value: T) -> Self {
+                const { Self::INVARIANT }
+                Self::from_packed(value.pack())
+            }
+
+            pub const fn from_packed(value: T::Packed) -> Self {
                 const { Self::INVARIANT }
                 Self {
                     value: <$atomic>::new(Self::loosen(value)),
@@ -52,23 +55,51 @@ macro_rules! atomic {
                 }
             }
 
-            pub fn load(&self, ordering: Ordering) -> T::Packed {
+            pub fn load(&self, ordering: Ordering) -> T {
+                self.load_packed(ordering).unpack()
+            }
+
+            pub fn load_packed(&self, ordering: Ordering) -> T::Packed {
                 Self::pack(self.value.load(ordering))
             }
 
-            pub fn store(&self, value: T::Packed, ordering: Ordering) {
+            pub fn store(&self, value: T, ordering: Ordering) {
+                self.store_packed(value.pack(), ordering)
+            }
+
+            pub fn store_packed(&self, value: T::Packed, ordering: Ordering) {
                 self.value.store(Self::loosen(value), ordering)
             }
 
-            pub fn get(&mut self) -> T::Packed {
+            pub fn get(&mut self) -> T {
+                self.get_packed().unpack()
+            }
+
+            pub fn get_packed(&mut self) -> T::Packed {
                 Self::pack(*self.value.get_mut())
             }
 
-            pub fn set(&mut self, value: T::Packed) {
+            pub fn set(&mut self, value: T) {
+                self.set_packed(value.pack())
+            }
+
+            pub fn set_packed(&mut self, value: T::Packed) {
                 *self.value.get_mut() = Self::loosen(value);
             }
 
             pub fn compare_exchange(
+                &self,
+                old: T,
+                new: T,
+                success: Ordering,
+                failure: Ordering,
+            ) -> Result<T, T> {
+                self.compare_exchange_packed(old.pack(), new.pack(), success, failure)
+                    .map(Unpack::unpack)
+                    .map_err(Unpack::unpack)
+            }
+
+            pub fn compare_exchange_packed(
                 &self,
                 old: T::Packed,
                 new: T::Packed,
@@ -83,6 +114,18 @@ macro_rules! atomic {
 
             pub fn compare_exchange_weak(
                 &self,
+                old: T,
+                new: T,
+                success: Ordering,
+                failure: Ordering,
+            ) -> Result<T, T> {
+                self.compare_exchange_weak_packed(old.pack(), new.pack(), success, failure)
+                    .map(Unpack::unpack)
+                    .map_err(Unpack::unpack)
+            }
+
+            pub fn compare_exchange_weak_packed(
+                &self,
                 old: T::Packed,
                 new: T::Packed,
                 success: Ordering,
@@ -94,7 +137,11 @@ macro_rules! atomic {
                     .map_err(Self::pack)
             }
 
-            pub fn swap(&self, value: T::Packed, ordering: Ordering) -> T::Packed {
+            pub fn swap(&self, value: T, ordering: Ordering) -> T {
+                self.swap_packed(value.pack(), ordering).unpack()
+            }
+
+            pub fn swap_packed(&self, value: T::Packed, ordering: Ordering) -> T::Packed {
                 Self::pack(self.value.swap(Self::loosen(value), ordering))
             }
 
