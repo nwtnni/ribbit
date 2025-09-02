@@ -1,6 +1,6 @@
 mod arbitrary;
 mod loose;
-pub(crate) mod tight;
+mod tight;
 
 pub(crate) use arbitrary::Arbitrary;
 use darling::usage::CollectTypeParams as _;

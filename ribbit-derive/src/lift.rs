@@ -7,7 +7,7 @@ use quote::ToTokens;
 
 use crate::r#type::Loose;
 use crate::r#type::Tight;
-use crate::r#type::Type;
+use crate::Type;
 
 #[derive(Debug)]
 pub(crate) enum Expr<'ir> {
@@ -203,7 +203,7 @@ impl<'ir> ToTokens for Canonical<'ir> {
         let r#final = &self.r#type;
         let loose = self.expr.unify(r#final.to_loose());
 
-        // Short circuit if
+        // Short circuit if no conversion through loose is necessary
         match &self.expr {
             Expr::Value { value, r#type } if TypeRef::from(*r#type) == *r#final => {
                 return value.to_tokens(tokens)

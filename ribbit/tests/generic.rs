@@ -144,7 +144,7 @@ fn relax() {
     }
 
     let a = Small(u3::new(3));
-    let b = Large { a: a.clone(), b: 7 }.pack();
+    let b = Large { a, b: 7 }.pack();
 
     assert_eq!(b.a(), a.pack());
     assert_eq!(b.b(), 7);

@@ -11,6 +11,7 @@ use core::ops::DerefMut;
 use darling::util::SpannedValue;
 
 pub(crate) use error::Error;
+pub(crate) use r#type::Type;
 
 use darling::FromDeriveInput as _;
 use ir::Ir;

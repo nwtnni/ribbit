@@ -19,8 +19,8 @@ use crate::error::bail;
 use crate::gen;
 use crate::input;
 use crate::r#type::Tight;
-use crate::r#type::Type;
 use crate::Spanned;
+use crate::Type;
 
 pub(crate) struct Ir<'input> {
     pub(crate) vis: &'input syn::Visibility,

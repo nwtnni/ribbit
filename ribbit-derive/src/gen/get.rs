@@ -3,8 +3,8 @@ use quote::quote;
 
 use crate::ir;
 use crate::lift;
-use crate::r#type::Type;
 use crate::Or;
+use crate::Type;
 
 pub(crate) fn get<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 'ir {
     let ir::Data::Struct(r#struct) = &ir.data else {
