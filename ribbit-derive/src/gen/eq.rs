@@ -12,12 +12,13 @@ pub(crate) fn eq(ir: &ir::Ir) -> TokenStream {
         return TokenStream::new();
     }
 
-    let (r#impl, ty, r#where) = ir.generics().split_for_impl();
-    let ident = ir.ident_packed();
+    let (generics_impl, generics_type, generics_where) = ir.generics().split_for_impl();
+    let packed = ir.ident_packed();
 
     quote!(
-        impl #r#impl Eq for #ident #ty #r#where {}
-        impl #r#impl PartialEq for #ident #ty #r#where {
+        impl #generics_impl Eq for #packed #generics_type #generics_where {}
+
+        impl #generics_impl PartialEq for #packed #generics_type #generics_where {
             #[inline]
             fn eq(&self, other: &Self) -> bool {
                 self.value.eq(&other.value)

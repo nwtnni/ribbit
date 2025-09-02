@@ -18,15 +18,15 @@ pub(crate) fn debug(ir: &ir::Ir) -> TokenStream {
 
     // Add Unpacked: Debug clause to where bound
     let mut generics = ir.generics_bounded(None).clone();
-    let (_, generics_ty, _) = ir.generics().split_for_impl();
+    let (_, generics_type, _) = ir.generics().split_for_impl();
     generics
         .make_where_clause()
         .predicates
-        .push(parse_quote!(#unpacked #generics_ty: ::core::fmt::Debug));
-    let (generics_impl, generics_ty, generics_where) = generics.split_for_impl();
+        .push(parse_quote!(#unpacked #generics_type: ::core::fmt::Debug));
+    let (generics_impl, generics_type, generics_where) = generics.split_for_impl();
 
     quote! {
-        impl #generics_impl ::core::fmt::Debug for #packed #generics_ty #generics_where {
+        impl #generics_impl ::core::fmt::Debug for #packed #generics_type #generics_where {
             fn fmt(&self, f: &mut ::core::fmt::Formatter) -> ::core::fmt::Result {
                 ::ribbit::Unpack::unpack(*self).fmt(f)
             }

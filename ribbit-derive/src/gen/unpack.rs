@@ -5,8 +5,6 @@ use crate::ir;
 use crate::lift;
 
 pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
-    let ty_struct = ir.r#type();
-
     let unpacked = ir.ident_unpacked();
     let packed = ir.ident_packed();
 
@@ -15,7 +13,7 @@ pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
             let fields = r#struct.iter().map(|field| {
                 let unescaped = &field.ident;
                 let escaped = field.ident.escaped();
-                let value = field.ty.unpack(quote!(self.#escaped()));
+                let value = field.r#type.unpack(quote!(self.#escaped()));
                 quote!(#unescaped: #value)
             });
 
@@ -33,8 +31,8 @@ pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
 
                 let fields = variant.r#struct.fields.iter().map(|field| {
                     let name = &field.ident;
-                    let value = field.ty.unpack(crate::gen::get::get_field(
-                        ty_struct,
+                    let value = field.r#type.unpack(crate::gen::get::get_field(
+                        &r#enum.r#type,
                         field,
                         (discriminant.size + field.offset) as u8,
                     ));
@@ -42,7 +40,8 @@ pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
                     quote!(#name: #value)
                 });
 
-                let discriminant = ty_struct
+                let discriminant = r#enum
+                    .r#type
                     .as_tight()
                     .to_loose()
                     .literal(variant.discriminant as u128);
@@ -52,9 +51,9 @@ pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
                 quote!(#discriminant => #unpacked::#ident { #(#fields ,)* })
             });
 
-            let discriminant = lift::Expr::value_self(ty_struct)
+            let discriminant = lift::Expr::value_self(&r#enum.r#type)
                 .and(discriminant.mask)
-                .compile(ty_struct.to_loose());
+                .compile(r#enum.r#type.to_loose());
 
             quote! {
                 match #discriminant {
@@ -68,19 +67,19 @@ pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
     };
 
     let generics = ir.generics_bounded(None);
-    let (generics_impl, generics_ty, generics_where) = generics.split_for_impl();
+    let (generics_impl, generics_type, generics_where) = generics.split_for_impl();
 
     let tight = ir.r#type().as_tight();
     let size = tight.size();
     let loose = tight.to_loose();
 
     quote! {
-        unsafe impl #generics_impl ::ribbit::Unpack for #packed #generics_ty #generics_where {
+        unsafe impl #generics_impl ::ribbit::Unpack for #packed #generics_type #generics_where {
             const BITS: usize = #size;
-            type Unpacked = #unpacked #generics_ty;
+            type Unpacked = #unpacked #generics_type;
             type Loose = #loose;
             #[inline]
-            fn unpack(self) -> #unpacked #generics_ty {
+            fn unpack(self) -> #unpacked #generics_type {
                 #unpack
             }
         }

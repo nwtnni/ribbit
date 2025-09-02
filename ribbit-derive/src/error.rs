@@ -1,6 +1,6 @@
 use std::fmt::Display;
 
-use crate::r#type;
+use crate::r#type::Tight;
 
 #[derive(Debug)]
 pub enum Error {
@@ -19,7 +19,7 @@ pub enum Error {
     StructNonZero,
     OpaqueSize,
     WrongSize {
-        ty: r#type::Tight,
+        tight: Tight,
         expected: usize,
         actual: usize,
     },
@@ -68,13 +68,13 @@ impl Display for Error {
                 )
             }
             Error::WrongSize {
-                ty,
+                tight,
                 expected,
                 actual,
             } => {
                 write!(
                     f,
-                    "Size attribute #[ribbit(size = {expected})] does not match size of {ty}: {actual}",
+                    "Size attribute #[ribbit(size = {expected})] does not match size of {tight}: {actual}",
                 )
             }
             Error::ArbitraryNonZero => {

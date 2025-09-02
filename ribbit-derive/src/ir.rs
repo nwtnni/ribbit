@@ -18,13 +18,12 @@ use syn::punctuated::Punctuated;
 use crate::error::bail;
 use crate::gen;
 use crate::input;
-use crate::r#type;
 use crate::r#type::Tight;
 use crate::r#type::Type;
 use crate::Spanned;
 
 pub(crate) fn new<'input>(item: &'input input::Item) -> darling::Result<Ir<'input>> {
-    let ty_params = item.generics.declared_type_params();
+    let type_params = item.generics.declared_type_params();
     let mut bounds = Punctuated::new();
 
     let data = match &item.data {
@@ -51,7 +50,7 @@ pub(crate) fn new<'input>(item: &'input input::Item) -> darling::Result<Ir<'inpu
                 .enumerate()
                 .map(|(discriminant, variant)| {
                     let r#struct = Struct::new(
-                        &ty_params,
+                        &type_params,
                         &mut bounds,
                         &variant.opt,
                         &variant.attrs,
@@ -92,7 +91,7 @@ pub(crate) fn new<'input>(item: &'input input::Item) -> darling::Result<Ir<'inpu
             Data::Enum(r#enum)
         }
         darling::ast::Data::Struct(r#struct) => Struct::new(
-            &ty_params,
+            &type_params,
             &mut bounds,
             &item.opt,
             &item.attrs,
@@ -228,7 +227,7 @@ pub(crate) struct Struct<'input> {
 
 impl Struct<'_> {
     fn new<'input>(
-        ty_params: &darling::usage::IdentSet,
+        type_params: &darling::usage::IdentSet,
         bounds: &mut Punctuated<syn::WherePredicate, syn::Token![,]>,
         opt: &'input StructOpt,
         attrs: &'input [syn::Attribute],
@@ -253,17 +252,17 @@ impl Struct<'_> {
         let fields = fields
             .iter()
             .enumerate()
-            .map(|(index, field)| Field::new(opt, ty_params, &mut bits, newtype, index, field))
+            .map(|(index, field)| Field::new(opt, type_params, &mut bits, newtype, index, field))
             .collect::<Result<Vec<_>, _>>()?;
 
-        if tight.is_nonzero() && fields.iter().all(|field| !field.ty.is_nonzero()) {
+        if tight.is_nonzero() && fields.iter().all(|field| !field.r#type.is_nonzero()) {
             bail!(opt.nonzero.unwrap()=> crate::Error::StructNonZero);
         }
 
         bounds.extend(
             fields
                 .iter()
-                .map(|field| &field.ty)
+                .map(|field| &field.r#type)
                 .filter(|ty| ty.is_user())
                 .filter(|ty| ty.size_expected() != 0)
                 .map(|ty| -> syn::WherePredicate { parse_quote!(#ty: ::ribbit::Pack) }),
@@ -286,7 +285,8 @@ impl Struct<'_> {
     }
 
     pub(crate) fn iter_nonzero(&self) -> impl Iterator<Item = &Field> {
-        self.iter().filter(|field| field.ty.size_expected() != 0)
+        self.iter()
+            .filter(|field| field.r#type.size_expected() != 0)
     }
 
     pub(crate) fn iter(&self) -> impl Iterator<Item = &Field> {
@@ -312,30 +312,29 @@ pub(crate) struct Field<'input> {
     pub(crate) attrs: &'input [syn::Attribute],
     pub(crate) vis: &'input syn::Visibility,
     pub(crate) ident: FieldIdent<'input>,
-    pub(crate) ty: Spanned<r#type::Type>,
+    pub(crate) r#type: Spanned<Type>,
     pub(crate) offset: usize,
 }
 
 impl<'input> Field<'input> {
     fn new(
         opt: &StructOpt,
-        ty_params: &darling::usage::IdentSet,
+        type_params: &darling::usage::IdentSet,
         bits: &mut BitBox,
         newtype: bool,
         index: usize,
         field: &'input SpannedValue<input::Field>,
     ) -> darling::Result<Self> {
-        let ty = r#type::Type::parse(newtype, opt, &field.opt, ty_params, field.ty.clone())?;
+        let r#type = Type::parse(newtype, opt, &field.opt, type_params, field.ty.clone())?;
+        let size = r#type.size_expected();
 
-        let size = ty.size_expected();
-
-        // Special-case ZSTs
+        // Avoid erroring on `bits.first_zero()` for ZST fields
         if size == 0 {
             return Ok(Self {
                 attrs: &field.attrs,
                 vis: &field.vis,
                 ident: FieldIdent::new(index, field.ident.as_ref()),
-                ty,
+                r#type,
                 offset: 0,
             });
         }
@@ -373,7 +372,7 @@ impl<'input> Field<'input> {
             attrs: &field.attrs,
             vis: &field.vis,
             ident: FieldIdent::new(index, field.ident.as_ref()),
-            ty,
+            r#type,
             offset: *offset,
         })
     }

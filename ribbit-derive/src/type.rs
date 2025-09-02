@@ -37,7 +37,7 @@ impl Type {
         newtype: bool,
         opt_struct: &ir::StructOpt,
         opt_field: &ir::FieldOpt,
-        ty_params: &IdentSet,
+        type_params: &IdentSet,
         ty: syn::Type,
     ) -> darling::Result<Spanned<Self>> {
         let syn::Type::Path(path) = ty else {
@@ -51,7 +51,7 @@ impl Type {
                 bail!(span=> Error::WrongSize {
                     expected: *expected,
                     actual: tight.size(),
-                    ty: tight,
+                    tight,
                 });
             }
 
@@ -87,7 +87,7 @@ impl Type {
         };
 
         let uses = std::iter::once(&path)
-            .collect_type_params_cloned(&darling::usage::Purpose::Declare.into(), ty_params);
+            .collect_type_params_cloned(&darling::usage::Purpose::Declare.into(), type_params);
 
         Ok(Spanned::new(Self::User { path, uses, tight }, span))
     }

@@ -11,15 +11,14 @@ pub(crate) fn get<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
         return Or::L(core::iter::empty());
     };
 
-    let ty_struct = ir.r#type();
     let precondition = crate::gen::pre::precondition();
 
     Or::R({
         r#struct.iter().map(move |field| {
-            let value = get_field(ty_struct, field, field.offset as u8);
+            let value = get_field(&r#struct.r#type, field, field.offset as u8);
             let vis = field.vis;
             let get = field.ident.escaped();
-            let r#type = field.ty.packed();
+            let r#type = field.r#type.packed();
 
             quote! {
                 #[inline]
@@ -35,9 +34,9 @@ pub(crate) fn get<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
 pub(crate) fn get_field(r#type: &Type, field: &ir::Field, offset: u8) -> TokenStream {
     let expr = lift::Expr::value_self(r#type).shift_right(offset);
 
-    match field.ty.is_loose() {
+    match field.r#type.is_loose() {
         true => expr,
-        false => expr.and(field.ty.mask()),
+        false => expr.and(field.r#type.mask()),
     }
-    .compile(&*field.ty)
+    .compile(&*field.r#type)
 }

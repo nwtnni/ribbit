@@ -12,18 +12,18 @@ pub(crate) fn ord(ir: &ir::Ir) -> TokenStream {
         return TokenStream::new();
     }
 
-    let (r#impl, ty, r#where) = ir.generics().split_for_impl();
-    let ident = ir.ident_packed();
+    let (generics_impl, generics_type, generics_where) = ir.generics().split_for_impl();
+    let packed = ir.ident_packed();
 
     quote! {
-        impl #r#impl PartialOrd for #ident #ty #r#where {
+        impl #generics_impl PartialOrd for #packed #generics_type #generics_where {
             #[inline]
             fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
                 Some(self.cmp(other))
             }
         }
 
-        impl #r#impl Ord for #ident #ty #r#where {
+        impl #generics_impl Ord for #packed #generics_type #generics_where {
             #[inline]
             fn cmp(&self, other: &Self) -> std::cmp::Ordering {
                 self.value.cmp(&other.value)

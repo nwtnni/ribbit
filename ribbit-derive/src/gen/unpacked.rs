@@ -29,7 +29,7 @@ pub(crate) fn unpacked<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream
                 }
             });
 
-            let (generics_impl, generics_ty, generics_where) = generics.split_for_impl();
+            let (generics_impl, generics_type, generics_where) = generics.split_for_impl();
 
             let nonzero = r#enum
                 .opt
@@ -37,13 +37,13 @@ pub(crate) fn unpacked<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream
                 .filter(|nonzero| **nonzero)
                 .map(|_| quote! {
                     #[automatically_derived]
-                    unsafe impl #generics_impl ::ribbit::NonZero for #ident #generics_ty #generics_where {}
+                    unsafe impl #generics_impl ::ribbit::NonZero for #ident #generics_type #generics_where {}
                 })
                 .into_iter();
 
             Or::R(core::iter::once(quote! {
                 #(#attrs)*
-                #vis enum #ident #generics_ty #generics_where {
+                #vis enum #ident #generics_type #generics_where {
                     #(#variants,)*
                 }
 
@@ -62,7 +62,7 @@ fn unpacked_struct(
 ) -> TokenStream {
     let fields = unpacked_fields(r#struct);
 
-    let (generics_impl, generics_ty, generics_where) = generics.split_for_impl();
+    let (generics_impl, generics_type, generics_where) = generics.split_for_impl();
 
     let fields = match r#struct.shape {
         Shape::Unit => quote! { #generics_where ; },
@@ -76,13 +76,13 @@ fn unpacked_struct(
         .filter(|nonzero| **nonzero)
         .map(|_| quote! {
             #[automatically_derived]
-            unsafe impl #generics_impl ::ribbit::NonZero for #ident #generics_ty #generics_where {}
+            unsafe impl #generics_impl ::ribbit::NonZero for #ident #generics_type #generics_where {}
         })
         .into_iter();
 
     quote! {
         #(#attrs)*
-        #vis struct #ident #generics_ty #fields
+        #vis struct #ident #generics_type #fields
 
         #(#nonzero)*
     }
@@ -93,7 +93,7 @@ fn unpacked_fields(r#struct: &ir::Struct) -> TokenStream {
         |ir::Field {
              attrs,
              ident,
-             ty,
+             r#type,
              vis,
              ..
          }| {
@@ -101,7 +101,7 @@ fn unpacked_fields(r#struct: &ir::Struct) -> TokenStream {
 
             quote! {
                 #(#attrs)*
-                #vis #( #ident: )* #ty
+                #vis #( #ident: )* #r#type
             }
         },
     );

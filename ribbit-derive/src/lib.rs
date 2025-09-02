@@ -69,7 +69,7 @@ fn pack_item(ir: &Ir, output: &mut TokenStream) -> Result<(), darling::Error> {
     let ord = gen::ord(ir);
 
     let generics = ir.generics_bounded(None);
-    let (generics_impl, generics_ty, generics_where) = generics.split_for_impl();
+    let (generics_impl, generics_type, generics_where) = generics.split_for_impl();
     let packed_ident = ir.ident_packed();
 
     output.append_all(quote! {
@@ -81,7 +81,7 @@ fn pack_item(ir: &Ir, output: &mut TokenStream) -> Result<(), darling::Error> {
 
         #unpack
 
-        impl #generics_impl #packed_ident #generics_ty #generics_where {
+        impl #generics_impl #packed_ident #generics_type #generics_where {
             #pre
 
             #(#new)*

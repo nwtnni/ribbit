@@ -13,21 +13,21 @@ pub(crate) fn from(ir: &ir::Ir) -> TokenStream {
     };
 
     let generics = ir.generics_bounded(None);
-    let (generics_impl, generics_ty, generics_where) = generics.split_for_impl();
+    let (generics_impl, generics_type, generics_where) = generics.split_for_impl();
     let packed = ir.ident_packed();
     let unpacked = ir.ident_unpacked();
 
     quote! {
-        impl #generics_impl From<#unpacked #generics_ty> for #packed #generics_ty #generics_where {
+        impl #generics_impl From<#unpacked #generics_type> for #packed #generics_type #generics_where {
             #[inline]
-            fn from(unpacked: #unpacked #generics_ty) -> Self {
+            fn from(unpacked: #unpacked #generics_type) -> Self {
                 unpacked.pack()
             }
         }
 
-        impl #generics_impl From<#packed #generics_ty> for #unpacked #generics_ty #generics_where {
+        impl #generics_impl From<#packed #generics_type> for #unpacked #generics_type #generics_where {
             #[inline]
-            fn from(packed: #packed #generics_ty) -> Self {
+            fn from(packed: #packed #generics_type) -> Self {
                 packed.unpack()
             }
         }

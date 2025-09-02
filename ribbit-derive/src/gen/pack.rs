@@ -13,7 +13,7 @@ pub(crate) fn pack(ir: &ir::Ir) -> TokenStream {
         ir::Data::Struct(r#struct) => {
             let arguments = r#struct
                 .iter_nonzero()
-                .map(|ir::Field { ident, ty, .. }| ty.pack(quote!(self.#ident)));
+                .map(|ir::Field { ident, r#type, .. }| r#type.pack(quote!(self.#ident)));
 
             quote!(#packed::new(#(#arguments),*))
         }
@@ -35,12 +35,12 @@ pub(crate) fn pack(ir: &ir::Ir) -> TokenStream {
 
                 let arguments = variant.r#struct.fields.iter().map(|field| {
                     let name = field.ident.escaped();
-                    field.ty.pack(quote!(#name))
+                    field.r#type.pack(quote!(#name))
                 });
 
-                let ident = &variant.r#struct.unpacked;
+                let variant = &variant.r#struct.unpacked;
                 quote! {
-                    Self::#ident { #(#patterns ,)* } => #packed::#new( #(#arguments ,)* )
+                    Self::#variant { #(#patterns ,)* } => #packed::#new( #(#arguments ,)* )
                 }
             });
 
@@ -53,13 +53,13 @@ pub(crate) fn pack(ir: &ir::Ir) -> TokenStream {
     };
 
     let generics = ir.generics_bounded(None);
-    let (generics_impl, generics_ty, generics_where) = generics.split_for_impl();
+    let (generics_impl, generics_type, generics_where) = generics.split_for_impl();
 
     quote! {
-        unsafe impl #generics_impl ::ribbit::Pack for #unpacked #generics_ty #generics_where {
-            type Packed = #packed #generics_ty;
+        unsafe impl #generics_impl ::ribbit::Pack for #unpacked #generics_type #generics_where {
+            type Packed = #packed #generics_type;
             #[inline]
-            fn pack(self) -> #packed #generics_ty {
+            fn pack(self) -> #packed #generics_type {
                 #pack
             }
         }

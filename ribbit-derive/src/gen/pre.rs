@@ -35,7 +35,7 @@ fn extract_assertions<'ir>(r#struct: &'ir ir::Struct) -> impl Iterator<Item = To
     let fields = r#struct
         .fields
         .iter()
-        .map(|field| &field.ty)
+        .map(|field| &field.r#type)
         // Only need to check user-defined types
         .filter(|r#type| r#type.is_user());
 

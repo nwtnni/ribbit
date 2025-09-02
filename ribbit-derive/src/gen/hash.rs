@@ -12,11 +12,11 @@ pub(crate) fn hash(ir: &ir::Ir) -> TokenStream {
         return TokenStream::new();
     }
 
-    let (r#impl, ty, r#where) = ir.generics().split_for_impl();
-    let ident = ir.ident_packed();
+    let (generics_impl, generics_type, generics_where) = ir.generics().split_for_impl();
+    let packed = ir.ident_packed();
 
     quote!(
-        impl #r#impl ::core::hash::Hash for #ident #ty #r#where {
+        impl #generics_impl ::core::hash::Hash for #packed #generics_type #generics_where {
             #[inline]
             fn hash<H: ::core::hash::Hasher>(&self, state: &mut H) {
                 self.value.hash(state);
