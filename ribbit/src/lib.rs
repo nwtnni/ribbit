@@ -15,12 +15,8 @@ pub use ribbit_derive::pack;
 
 pub mod atomic;
 
-#[macro_export]
-macro_rules! Pack {
-    [$unpacked:ty] => {
-        <$unpacked as $crate::Pack>::Packed
-    };
-}
+pub type Packed<T> = <T as Pack>::Packed;
+pub type Unpacked<T> = <T as Unpack>::Unpacked;
 
 /// Marks a type that can be packed into `BITS`.
 ///

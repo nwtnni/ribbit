@@ -66,21 +66,21 @@ fn mixed() {
         Z,
     }
 
-    let mut x = <ribbit::Pack![Mixed]>::new_x(3);
+    let mut x = ribbit::Packed::<Mixed>::new_x(3);
     assert_eq!(x, Mixed::X { a: 3 }.pack());
     match x.unpack() {
         Mixed::X { a } => assert_eq!(a, 3),
         _ => unreachable!(),
     }
 
-    x = <ribbit::Pack![Mixed]>::new_y(5);
+    x = ribbit::Packed::<Mixed>::new_y(5);
     assert_eq!(x, Mixed::Y(5).pack());
     match x.unpack() {
         Mixed::Y(y) => assert_eq!(y, 5),
         _ => unreachable!(),
     }
 
-    x = <ribbit::Pack![Mixed]>::new_z();
+    x = ribbit::Packed::<Mixed>::new_z();
     assert_eq!(x, Mixed::Z.pack());
     match x.unpack() {
         Mixed::Z => (),
@@ -117,21 +117,21 @@ fn explicit_discriminant() {
         Z = 2,
     }
 
-    let mut x = <ribbit::Pack![Mixed]>::new_x(3);
+    let mut x = ribbit::Packed::<Mixed>::new_x(3);
     assert_eq!(x, Mixed::X { a: 3 }.pack());
     match x.unpack() {
         Mixed::X { a } => assert_eq!(a, 3),
         _ => unreachable!(),
     }
 
-    x = <ribbit::Pack![Mixed]>::new_y(5);
+    x = ribbit::Packed::<Mixed>::new_y(5);
     assert_eq!(x, Mixed::Y(5).pack());
     match x.unpack() {
         Mixed::Y(y) => assert_eq!(y, 5),
         _ => unreachable!(),
     }
 
-    x = <ribbit::Pack![Mixed]>::new_z();
+    x = ribbit::Packed::<Mixed>::new_z();
     assert_eq!(x, Mixed::Z.pack());
     match x.unpack() {
         Mixed::Z => (),
@@ -153,25 +153,25 @@ fn explicit_discriminant_nonzero() {
     }
 
     assert_eq!(
-        core::mem::size_of::<ribbit::Pack![Mixed]>(),
-        core::mem::size_of::<ribbit::Pack![Option<Mixed>]>()
+        core::mem::size_of::<ribbit::Packed::<Mixed>>(),
+        core::mem::size_of::<ribbit::Packed::<Option<Mixed>>>()
     );
 
-    let mut x = Some(<ribbit::Pack![Mixed]>::new_x(3));
+    let mut x = Some(ribbit::Packed::<Mixed>::new_x(3));
     assert_eq!(x, Some(Mixed::X { a: 3 }.pack()));
     match x.unpack() {
         Some(Mixed::X { a }) => assert_eq!(a, 3),
         _ => unreachable!(),
     }
 
-    x = Some(<ribbit::Pack![Mixed]>::new_y(5));
+    x = Some(ribbit::Packed::<Mixed>::new_y(5));
     assert_eq!(x, Some(Mixed::Y(5).pack()));
     match x.unpack() {
         Some(Mixed::Y(y)) => assert_eq!(y, 5),
         _ => unreachable!(),
     }
 
-    x = Some(<ribbit::Pack![Mixed]>::new_z());
+    x = Some(ribbit::Packed::<Mixed>::new_z());
     assert_eq!(x, Some(Mixed::Z.pack()));
     match x.unpack() {
         Some(Mixed::Z) => (),

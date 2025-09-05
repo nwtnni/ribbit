@@ -51,7 +51,7 @@ fn r#enum() {
     assert_eq!(
         format!(
             "{:?}",
-            <ribbit::Pack![Enum]>::new_baz(
+            ribbit::Packed::<Enum>::new_baz(
                 A {
                     l: 2,
                     m: NonZeroU8::MIN,
