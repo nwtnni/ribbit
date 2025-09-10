@@ -194,6 +194,9 @@ mod atomic_128 {
     #[repr(transparent)]
     pub(super) struct AtomicU128(UnsafeCell<__m128i>);
 
+    unsafe impl Send for AtomicU128 {}
+    unsafe impl Sync for AtomicU128 {}
+
     impl AtomicU128 {
         #[inline]
         pub(super) const fn new(value: u128) -> Self {
