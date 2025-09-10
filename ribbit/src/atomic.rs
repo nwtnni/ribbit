@@ -293,9 +293,9 @@ mod atomic_128 {
 
                 core::hint::assert_unchecked(success == 0 || success == 1);
                 if success == 0 {
-                    Ok(out)
-                } else {
                     Err(out)
+                } else {
+                    Ok(out)
                 }
             }
         }
