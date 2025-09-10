@@ -207,7 +207,7 @@ mod atomic_128 {
 
         #[inline]
         pub(super) const fn get_mut(&mut self) -> &mut u128 {
-            unsafe { core::mem::transmute(&mut self.0) }
+            unsafe { core::mem::transmute(self.0.get_mut()) }
         }
 
         // https://github.com/taiki-e/portable-atomic/blob/d118cf01f852ef4cc1fa4e0a08f80f5e2a5c8f41/src/imp/atomic128/x86_64.rs#L158-L175
@@ -234,7 +234,7 @@ mod atomic_128 {
                     Ordering::Relaxed | Ordering::Release => {
                         asm!(
                             "vmovdqa xmmword ptr [{address}], {input}",
-                            address = in(reg) self,
+                            address = in(reg) self.0.get(),
                             input = in(xmm_reg) input,
                             options(nostack, preserves_flags),
                         );
@@ -244,7 +244,7 @@ mod atomic_128 {
                         asm!(
                             concat!("vmovdqa xmmword ptr [{address}], {input}"),
                             concat!("xchg qword ptr [{uninit}], {any}"),
-                            address = in(reg) self,
+                            address = in(reg) self.0.get(),
                             input = in(xmm_reg) input,
                             uninit = inout(reg) uninit.as_mut_ptr() => _,
                             any = lateout(reg) _,
@@ -281,7 +281,7 @@ mod atomic_128 {
                     in("rcx") new.pair.hi,
                     inout("rax") old.pair.lo => lo,
                     inout("rdx") old.pair.hi => hi,
-                    in("rdi") self,
+                    in("rdi") self.0.get(),
                     lateout("cl") success,
                     options(nostack),
                 );
@@ -331,7 +331,7 @@ mod atomic_128 {
                     in("rcx") value.pair.hi,
                     out("rax") lo,
                     out("rdx") hi,
-                    in("rdi") self,
+                    in("rdi") self.0.get(),
                     options(nostack),
                 );
 
