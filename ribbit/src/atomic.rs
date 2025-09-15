@@ -36,6 +36,15 @@ macro_rules! atomic {
             }
         }
 
+        impl<T> Default for $name<T>
+        where
+            T: Pack + Default,
+        {
+            fn default() -> Self {
+                Self::new(T::default())
+            }
+        }
+
         impl<T> $name<T>
         where
             T: Pack,
