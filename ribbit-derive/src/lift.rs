@@ -16,7 +16,10 @@ pub(crate) enum Expr<'ir> {
         value: TokenStream,
         r#type: &'ir Type,
     },
-    ValueSelf(&'ir Tight),
+    ValueTight {
+        value: TokenStream,
+        tight: &'ir Tight,
+    },
 
     And {
         expr: Box<Self>,
@@ -42,7 +45,14 @@ impl<'ir> Expr<'ir> {
     }
 
     pub(crate) fn value_self(r#type: &'ir Type) -> Self {
-        Self::ValueSelf(r#type.as_tight())
+        Self::ValueTight {
+            value: quote!(self.value),
+            tight: r#type.as_tight(),
+        }
+    }
+
+    pub(crate) fn value_tight(value: TokenStream, tight: &'ir Tight) -> Self {
+        Self::ValueTight { value, tight }
     }
 
     pub(crate) fn constant(value: u128) -> Self {
@@ -90,7 +100,7 @@ impl<'ir> Expr<'ir> {
     fn unify(&self, loose: Loose) -> Loose {
         match self {
             Expr::Constant(_) => loose,
-            Expr::ValueSelf(tight) => tight.to_loose().max(loose),
+            Expr::ValueTight { tight, .. } => tight.to_loose().max(loose),
             Expr::Value { r#type, .. } => r#type.to_loose().max(loose),
             Expr::And { expr, .. } | Expr::Shift { expr, .. } => expr.unify(loose),
             Expr::Or(exprs) => exprs
@@ -106,7 +116,7 @@ impl<'ir> Expr<'ir> {
             Self::Constant(value) => loose.literal(*value),
 
             Self::Value { value, r#type } => value.clone().convert(*r#type, loose),
-            Self::ValueSelf(tight) => quote!(self.value).convert(*tight, loose),
+            Self::ValueTight { value, tight } => value.clone().convert(*tight, loose),
 
             Self::And { expr, mask } => {
                 let expr = expr.compile_intermediate(loose);
@@ -208,8 +218,8 @@ impl<'ir> ToTokens for Canonical<'ir> {
             Expr::Value { value, r#type } if TypeRef::from(*r#type) == *r#final => {
                 return value.to_tokens(tokens)
             }
-            Expr::ValueSelf(tight) if TypeRef::from(*tight) == *r#final => {
-                return quote!(self.value).to_tokens(tokens)
+            Expr::ValueTight { value, tight } if TypeRef::from(*tight) == *r#final => {
+                return value.to_tokens(tokens)
             }
             _ => (),
         }

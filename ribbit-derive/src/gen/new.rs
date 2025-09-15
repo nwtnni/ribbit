@@ -1,3 +1,5 @@
+use core::iter;
+
 use darling::FromMeta;
 use heck::ToSnakeCase as _;
 use proc_macro2::TokenStream;
@@ -17,32 +19,52 @@ pub(crate) struct StructOpt {
 
 pub(crate) fn new<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 'ir {
     let vis = ir.opt().new.vis();
-    let new = ir.opt().new.name();
+
     let tight = ir.r#type().as_tight();
 
     match &ir.data {
-        ir::Data::Struct(r#struct) => {
-            Or::L(core::iter::once(new_struct(&vis, &new, r#struct, |expr| {
-                expr.compile(tight)
-            })))
-        }
+        ir::Data::Struct(r#struct) => Or::L(
+            iter::once(new_struct(
+                &vis,
+                &ir.opt().new.name(None),
+                r#struct,
+                |expr| expr.compile(tight),
+            ))
+            .chain(iter::once(new_struct_unchecked(
+                &vis,
+                &ir.opt().new.name_unchecked(None),
+                r#struct,
+                |expr| expr.compile(tight),
+            ))),
+        ),
         ir::Data::Enum(r#enum @ ir::Enum { variants, .. }) => {
             let discriminant = r#enum.discriminant();
 
-            Or::R(variants.iter().map(move |variant| {
-                let new = format_ident!(
-                    "{}_{}",
-                    new,
-                    variant.r#struct.unpacked.to_string().to_snake_case(),
-                );
+            Or::R(variants.iter().flat_map(move |variant| {
+                let name = variant.r#struct.unpacked.to_string().to_snake_case();
 
-                new_struct(&vis, &new, &variant.r#struct, |expr| {
+                let compile = |expr: lift::Expr| {
                     lift::Expr::or([
                         lift::Expr::constant(variant.discriminant as u128),
                         expr.shift_left(discriminant.size as u8),
                     ])
                     .compile(tight)
-                })
+                };
+
+                [
+                    new_struct(
+                        &vis,
+                        &ir.opt().new.name(Some(&name)),
+                        &variant.r#struct,
+                        compile,
+                    ),
+                    new_struct_unchecked(
+                        &vis,
+                        &ir.opt().new.name_unchecked(Some(&name)),
+                        &variant.r#struct,
+                        compile,
+                    ),
+                ]
             }))
         }
     }
@@ -80,6 +102,28 @@ fn new_struct<'ir, F: FnOnce(lift::Expr<'ir>) -> TokenStream>(
     }
 }
 
+fn new_struct_unchecked<'ir, F: FnOnce(lift::Expr<'ir>) -> TokenStream>(
+    vis: &syn::Visibility,
+    new_unchecked: &syn::Ident,
+    r#struct: &'ir ir::Struct,
+    compile: F,
+) -> TokenStream {
+    let precondition = crate::gen::pre::precondition();
+    let r#type = r#struct.r#type.as_tight();
+    let value = compile(lift::Expr::value_tight(quote!(value), r#type));
+
+    quote! {
+        #[inline]
+        #vis const unsafe fn #new_unchecked(value: #r#type) -> Self {
+            #precondition
+            Self {
+                value: #value,
+                r#type: ::ribbit::private::PhantomData,
+            }
+        }
+    }
+}
+
 impl StructOpt {
     fn vis(&self) -> syn::Visibility {
         self.vis
@@ -87,7 +131,19 @@ impl StructOpt {
             .unwrap_or(syn::Visibility::Public(parse_quote!(pub)))
     }
 
-    pub(crate) fn name(&self) -> syn::Ident {
-        self.rename.clone().unwrap_or_else(|| format_ident!("new"))
+    pub(crate) fn name(&self, variant: Option<&str>) -> syn::Ident {
+        let new = self.rename.clone().unwrap_or_else(|| format_ident!("new"));
+        match variant {
+            Some(variant) => format_ident!("{}_{}", new, variant),
+            None => new,
+        }
+    }
+
+    pub(crate) fn name_unchecked(&self, variant: Option<&str>) -> syn::Ident {
+        let new = self.name(None);
+        match variant {
+            Some(variant) => format_ident!("{}_{}_unchecked", new, variant),
+            None => format_ident!("{}_unchecked", new),
+        }
     }
 }

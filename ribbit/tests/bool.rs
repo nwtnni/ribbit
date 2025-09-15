@@ -1,3 +1,4 @@
+use ribbit::u2;
 use ribbit::Pack as _;
 
 #[derive(Copy, Clone)]
@@ -19,4 +20,11 @@ fn multiple() {
     let b = B(true, false).pack();
     assert!(b._0());
     assert!(!b._1());
+}
+
+#[test]
+fn unchecked() {
+    let b = unsafe { ribbit::Packed::<B>::new_unchecked(u2::new(0b10)) };
+    assert!(!b._0());
+    assert!(b._1());
 }
