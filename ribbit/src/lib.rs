@@ -61,7 +61,9 @@ pub unsafe trait Unpack: Copy {
 //
 // Used internally for `const`-compatible conversions between packed
 // and tight types.
-unsafe trait Loose: Copy {}
+unsafe trait Loose: Copy {
+    const ZERO: Self;
+}
 
 /// Implements `const`-compatible conversions between packed and loose representations.
 pub mod convert {
@@ -108,10 +110,15 @@ pub mod convert {
     pub const fn loose_to_loose<F: Loose, I: Loose>(from: F) -> I {
         // SAFETY: `Loose` is only implemented for native integer types.
         unsafe {
-            // Required to avoid reading uninitialized memory
-            let mut zeroed = core::mem::zeroed::<Convert<F, I>>();
-            zeroed.from = from;
-            zeroed.into
+            let mut uninit = MaybeUninit::<Convert<F, I>>::uninit();
+
+            // Both writes are required to avoid reading uninitialized
+            // padding bytes when `into` is a larger size than `from`.
+            if core::mem::size_of::<I>() > core::mem::size_of::<F>() {
+                uninit.write(Convert { into: I::ZERO });
+            }
+
+            uninit.write(Convert { from }).into
         }
     }
 }
@@ -130,7 +137,9 @@ macro_rules! impl_pack {
 #[rustfmt::skip]
 macro_rules! impl_impl_number {
     ($name:ident, $unsigned_loose:ty, $signed_loose:ty, $loose_bits:expr, $dollar:tt) => {
-        unsafe impl Loose for $unsigned_loose {}
+        unsafe impl Loose for $unsigned_loose {
+            const ZERO: Self = 0;
+        }
 
         unsafe impl Unpack for $unsigned_loose {
             const BITS: usize = $loose_bits;
