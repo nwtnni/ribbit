@@ -12,10 +12,16 @@ pub(crate) fn get<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
     };
 
     let precondition = crate::gen::pre::precondition();
+    let max_offset = r#struct
+        .fields
+        .iter()
+        .map(|field| field.offset)
+        .max()
+        .unwrap_or(0);
 
     Or::R({
         r#struct.iter().map(move |field| {
-            let value = get_field(&r#struct.r#type, field, field.offset as u8);
+            let value = get_field(&r#struct.r#type, field, max_offset, field.offset as u8);
             let vis = field.vis;
             let get = field.ident.escaped();
             let r#type = field.r#type.packed();
@@ -31,10 +37,19 @@ pub(crate) fn get<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
     })
 }
 
-pub(crate) fn get_field(r#type: &Type, field: &ir::Field, offset: u8) -> TokenStream {
+pub(crate) fn get_field(
+    r#type: &Type,
+    field: &ir::Field,
+    max_offset: usize,
+    offset: u8,
+) -> TokenStream {
     let expr = lift::Expr::value_self(r#type).shift_right(offset);
 
-    match field.r#type.is_loose() {
+    // Loose type will be implicitly truncated by `as` cast
+    match field.r#type.is_loose()
+        // No other fields to mask
+        || offset as usize == max_offset
+    {
         true => expr,
         false => expr.and(field.r#type.mask()),
     }
