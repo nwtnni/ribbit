@@ -18,9 +18,16 @@ error[E0080]: evaluation of constant value failed
   --> tests/ui/mismatch_size.rs:11:8
    |
 11 |     a: A,
-   |        ^ evaluation panicked: Annotated size 1 of type "A" does not match actual size 16
+   |        ^ evaluation panicked: Annotated size does not equal actual size
    |
-   = note: this error originates in the macro `$crate::concat_panic` which comes from the expansion of the macro `::ribbit::private::concat_assert` (in Nightly builds, run with -Z macro-backtrace for more info)
+note: inside `assert_size_eq::<A>`
+  --> src/lib.rs
+   |
+   | /         assert!(
+   | |             expected == <T::Packed as crate::Unpack>::BITS,
+   | |             "Annotated size does not equal actual size",
+   | |         )
+   | |_________^ the failure occurred here
 
 note: erroneous constant encountered
  --> tests/ui/mismatch_size.rs:7:10

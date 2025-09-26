@@ -442,26 +442,49 @@ where
 }
 
 #[doc(hidden)]
-#[rustfmt::skip]
 pub mod private {
     pub use ::core::primitive::bool;
     pub type Unit = ();
 
-    pub use ::core::num::NonZeroU8;
+    pub use ::core::num::NonZeroU128;
     pub use ::core::num::NonZeroU16;
     pub use ::core::num::NonZeroU32;
     pub use ::core::num::NonZeroU64;
-    pub use ::core::num::NonZeroU128;
+    pub use ::core::num::NonZeroU8;
 
-    pub use ::core::num::NonZeroI8;
+    pub use ::core::num::NonZeroI128;
     pub use ::core::num::NonZeroI16;
     pub use ::core::num::NonZeroI32;
     pub use ::core::num::NonZeroI64;
-    pub use ::core::num::NonZeroI128;
+    pub use ::core::num::NonZeroI8;
 
-    pub use ::arbitrary_int::*;
-    pub use ::const_panic::concat_assert;
+    pub use ::arbitrary_int::prelude::*;
     pub use ::core::marker::PhantomData;
 
-    pub const fn assert_nonzero<T>() where T: crate::Pack, T::Packed: crate::NonZero {}
+    pub const fn assert_nonzero<T>()
+    where
+        T: crate::Pack,
+        T::Packed: crate::NonZero,
+    {
+    }
+
+    pub const fn assert_size_eq<T>(expected: usize)
+    where
+        T: crate::Pack,
+    {
+        assert!(
+            expected == <T::Packed as crate::Unpack>::BITS,
+            "Annotated size does not equal actual size",
+        )
+    }
+
+    pub const fn assert_size_ge<T>(expected: usize)
+    where
+        T: crate::Pack,
+    {
+        assert!(
+            expected >= <T::Packed as crate::Unpack>::BITS,
+            "Annotated size is less than actual size",
+        )
+    }
 }

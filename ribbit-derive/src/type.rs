@@ -162,12 +162,7 @@ impl Type {
         }
     }
 
-    pub(crate) fn size_actual(&self) -> TokenStream {
-        let packed = self.packed();
-        quote!(<#packed as ::ribbit::Unpack>::BITS)
-    }
-
-    pub(crate) fn size_expected(&self) -> usize {
+    pub(crate) fn size(&self) -> usize {
         self.as_tight().size()
     }
 

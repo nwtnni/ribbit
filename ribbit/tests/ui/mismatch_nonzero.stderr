@@ -17,5 +17,8 @@ error[E0277]: the trait bound `APacked: ribbit::NonZero` is not satisfied
 note: required by a bound in `assert_nonzero`
  --> src/lib.rs
   |
-  |     pub const fn assert_nonzero<T>() where T: crate::Pack, T::Packed: crate::NonZero {}
-  |                                                                       ^^^^^^^^^^^^^^ required by this bound in `assert_nonzero`
+  |     pub const fn assert_nonzero<T>()
+  |                  -------------- required by a bound in this function
+...
+  |         T::Packed: crate::NonZero,
+  |                    ^^^^^^^^^^^^^^ required by this bound in `assert_nonzero`

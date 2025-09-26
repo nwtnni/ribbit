@@ -272,8 +272,7 @@ impl Struct<'_> {
     }
 
     pub(crate) fn iter_nonzero(&self) -> impl Iterator<Item = &Field> {
-        self.iter()
-            .filter(|field| field.r#type.size_expected() != 0)
+        self.iter().filter(|field| field.r#type.size() != 0)
     }
 
     pub(crate) fn iter(&self) -> impl Iterator<Item = &Field> {
@@ -316,7 +315,7 @@ impl<'input> Field<'input> {
         field: &'input SpannedValue<input::Field>,
     ) -> darling::Result<Self> {
         let r#type = Type::parse(newtype, opt, &field.opt, type_params, field.ty.clone())?;
-        let size = r#type.size_expected();
+        let size = r#type.size();
 
         // Gather trait bounds for generic type parameters
         if r#type.is_generic() {
