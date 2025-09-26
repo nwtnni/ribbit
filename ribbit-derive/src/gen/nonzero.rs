@@ -4,7 +4,7 @@ use quote::quote;
 use crate::ir;
 
 pub(crate) fn nonzero<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 'ir {
-    let ident = &ir.ident_unpacked();
+    let ident = &ir.ident_packed();
     let generics = ir.generics();
     let (generics_impl, generics_type, generics_where) = generics.split_for_impl();
 

@@ -420,7 +420,8 @@ impl_nonzero!(NonZeroU128, NonZeroI128, u128, 128);
 
 unsafe impl<T> Pack for Option<T>
 where
-    T: Pack + NonZero,
+    T: Pack,
+    T::Packed: NonZero,
 {
     type Packed = Option<T::Packed>;
     fn pack(self) -> Self::Packed {
@@ -430,8 +431,7 @@ where
 
 unsafe impl<T> Unpack for Option<T>
 where
-    T: Unpack,
-    T::Unpacked: NonZero,
+    T: Unpack + NonZero,
 {
     const BITS: usize = T::BITS;
     type Unpacked = Option<T::Unpacked>;
@@ -463,5 +463,5 @@ pub mod private {
     pub use ::const_panic::concat_assert;
     pub use ::core::marker::PhantomData;
 
-    pub const fn assert_nonzero<T: crate::NonZero>() {}
+    pub const fn assert_nonzero<T>() where T: crate::Pack, T::Packed: crate::NonZero {}
 }
