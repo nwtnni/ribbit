@@ -12,16 +12,15 @@ pub(crate) fn get<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
     };
 
     let precondition = crate::gen::pre::precondition();
-    let max_offset = r#struct
-        .fields
-        .iter()
-        .map(|field| field.offset)
-        .max()
-        .unwrap_or(0);
 
     Or::R({
         r#struct.iter().map(move |field| {
-            let value = get_field(&r#struct.r#type, field, max_offset, field.offset as u8);
+            let value = get_field(
+                &r#struct.r#type,
+                field,
+                r#struct.max_offset,
+                field.offset as u8,
+            );
             let vis = field.vis;
             let get = field.ident.escaped();
             let r#type = field.r#type.packed();

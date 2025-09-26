@@ -25,21 +25,12 @@ pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
         }
         ir::Data::Enum(r#enum) => {
             let variants = r#enum.variants.iter().map(|variant| {
-                let max_offset = r#enum.discriminant.size
-                    + variant
-                        .r#struct
-                        .fields
-                        .iter()
-                        .map(|field| field.offset)
-                        .max()
-                        .unwrap_or(0);
-
                 let fields = variant.r#struct.fields.iter().map(|field| {
                     let name = &field.ident;
                     let value = field.r#type.unpack(crate::gen::get::get_field(
                         &r#enum.r#type,
                         field,
-                        max_offset,
+                        r#enum.discriminant.size + variant.r#struct.max_offset,
                         (r#enum.discriminant.size + field.offset) as u8,
                     ));
 

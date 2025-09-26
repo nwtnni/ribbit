@@ -220,6 +220,7 @@ pub(crate) struct Struct<'input> {
     pub(crate) r#type: Type,
     pub(crate) opt: &'input StructOpt,
 
+    pub(crate) max_offset: usize,
     pub(crate) fields: Vec<Field<'input>>,
 }
 
@@ -265,6 +266,7 @@ impl Struct<'_> {
                 tight,
             },
             opt,
+            max_offset: fields.iter().map(|field| field.offset).max().unwrap_or(0),
             fields,
         })
     }
