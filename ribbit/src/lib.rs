@@ -460,7 +460,8 @@ pub mod private {
     pub use ::core::num::NonZeroI128;
 
     pub use ::arbitrary_int::*;
-    pub use ::static_assertions::assert_impl_all;
     pub use ::const_panic::concat_assert;
     pub use ::core::marker::PhantomData;
+
+    pub const fn assert_nonzero<T: crate::NonZero>() {}
 }

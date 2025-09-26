@@ -159,7 +159,6 @@ dependencies = [
  "arbitrary-int",
  "const_panic",
  "ribbit-derive",
- "static_assertions",
  "trybuild",
 ]
 
@@ -220,12 +219,6 @@ checksum = "79e674e01f999af37c49f70a6ede167a8a60b2503e56c5599532a65baa5969a0"
 dependencies = [
  "serde",
 ]
-
-[[package]]
-name = "static_assertions"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "strsim"
