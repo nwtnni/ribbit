@@ -1,7 +1,6 @@
+use core::ops::Not as _;
 use std::borrow::Cow;
 
-use bitvec::bitbox;
-use bitvec::boxed::BitBox;
 use darling::usage::GenericsExt;
 use darling::util::SpannedValue;
 use darling::FromMeta;
@@ -242,7 +241,7 @@ impl Struct<'_> {
             Err(error) => bail!(opt.nonzero.unwrap()=> error),
         };
 
-        let mut bits = bitbox![0; *size];
+        let mut bits = 1u128.unbounded_shl(tight.size() as u32).wrapping_sub(1);
         let newtype = fields.len() == 1;
 
         let fields = fields
@@ -309,7 +308,7 @@ impl<'input> Field<'input> {
         opt: &StructOpt,
         type_params: &darling::usage::IdentSet,
         bounds: &mut Punctuated<syn::WherePredicate, syn::Token![,]>,
-        bits: &mut BitBox,
+        bits: &mut u128,
         newtype: bool,
         index: usize,
         field: &'input SpannedValue<input::Field>,
@@ -323,26 +322,13 @@ impl<'input> Field<'input> {
             bounds.push(parse_quote!(#r#type: ::ribbit::Pack));
         }
 
-        // Avoid erroring on `bits.first_zero()` for ZST fields
-        if size == 0 {
-            return Ok(Self {
-                vis: &field.vis,
-                ident: FieldIdent::new(index, field.ident.as_ref()),
-                r#type,
-                offset: 0,
-            });
-        }
-
         let offset = match field.opt.offset {
-            None => match bits.first_zero() {
-                Some(offset) => Spanned::new(offset, field.span()),
-                None => bail!(field => crate::Error::Overflow {
-                    offset: 0,
-                    available: 0,
-                    required: size
-                }),
-            },
-            Some(offset) => match *offset >= bits.len() {
+            None => Spanned::new(
+                // First set bit
+                ((*bits as i128) & -(*bits as i128)).trailing_zeros() as usize,
+                field.span(),
+            ),
+            Some(offset) => match *offset > 128 {
                 false => offset.into(),
                 true => bail!(field => crate::Error::Overflow {
                     offset: *offset,
@@ -352,15 +338,22 @@ impl<'input> Field<'input> {
             },
         };
 
-        let hole = &mut bits[*offset..];
-        match hole.first_one().unwrap_or_else(|| hole.len()) {
-            len if len < size => bail!(offset=> crate::Error::Overflow {
+        // Contiguous set bits starting at `offset`
+        let hole = bits.unbounded_shr(*offset as u32).trailing_ones() as usize;
+        if hole < size {
+            bail!(offset=> crate::Error::Overflow {
                 offset: *offset,
-                available: len,
+                available: hole,
                 required: size
-            }),
-            _ => hole[..size].fill(true),
+            });
         }
+
+        // Remove `size` bits starting at `offset`
+        *bits &= 1u128
+            .unbounded_shl(size as u32)
+            .wrapping_sub(1)
+            .unbounded_shl(*offset as u32)
+            .not();
 
         Ok(Self {
             vis: &field.vis,
