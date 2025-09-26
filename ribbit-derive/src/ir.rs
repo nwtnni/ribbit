@@ -3,7 +3,6 @@ use std::borrow::Cow;
 use bitvec::bitbox;
 use bitvec::boxed::BitBox;
 use darling::usage::GenericsExt;
-use darling::util::AsShape as _;
 use darling::util::SpannedValue;
 use darling::FromMeta;
 use proc_macro2::Literal;
@@ -57,7 +56,6 @@ impl<'input> Ir<'input> {
                             &type_params,
                             &mut generics_where.predicates,
                             &variant.opt,
-                            &variant.attrs,
                             &variant.ident,
                             &variant.fields,
                         )?;
@@ -118,7 +116,6 @@ impl<'input> Ir<'input> {
                 let unpacked = &item.ident;
                 let r#enum = Enum {
                     opt: &item.opt,
-                    attrs: &item.attrs,
                     packed: item.opt.packed.name(unpacked),
                     unpacked,
                     r#type: Type::User {
@@ -135,7 +132,6 @@ impl<'input> Ir<'input> {
                 &type_params,
                 &mut generics_where.predicates,
                 &item.opt,
-                &item.attrs,
                 &item.ident,
                 r#struct,
             )
@@ -168,13 +164,6 @@ impl<'input> Ir<'input> {
         }
     }
 
-    pub(crate) fn attrs(&self) -> &[syn::Attribute] {
-        match &self.data {
-            Data::Enum(r#enum) => r#enum.attrs,
-            Data::Struct(r#struct) => r#struct.attrs,
-        }
-    }
-
     pub(crate) fn opt(&self) -> &StructOpt {
         match &self.data {
             Data::Enum(r#enum) => r#enum.opt,
@@ -201,7 +190,6 @@ pub(crate) enum Data<'input> {
 
 pub(crate) struct Enum<'input> {
     pub(crate) opt: &'input StructOpt,
-    pub(crate) attrs: &'input [syn::Attribute],
     pub(crate) unpacked: &'input syn::Ident,
     pub(crate) packed: syn::Ident,
     pub(crate) r#type: Type,
@@ -236,13 +224,11 @@ pub(crate) struct Variant<'input> {
 }
 
 pub(crate) struct Struct<'input> {
-    pub(crate) attrs: &'input [syn::Attribute],
     pub(crate) unpacked: &'input syn::Ident,
     pub(crate) packed: syn::Ident,
     pub(crate) r#type: Type,
     pub(crate) opt: &'input StructOpt,
 
-    pub(crate) shape: darling::util::Shape,
     pub(crate) fields: Vec<Field<'input>>,
 }
 
@@ -251,7 +237,6 @@ impl Struct<'_> {
         type_params: &darling::usage::IdentSet,
         bounds: &mut Punctuated<syn::WherePredicate, syn::Token![,]>,
         opt: &'input StructOpt,
-        attrs: &'input [syn::Attribute],
         unpacked: &'input syn::Ident,
         fields: &'input darling::ast::Fields<SpannedValue<input::Field>>,
     ) -> darling::Result<Struct<'input>> {
@@ -268,7 +253,6 @@ impl Struct<'_> {
         let mut bits = bitbox![0; *size];
         let newtype = fields.len() == 1;
 
-        let shape = fields.as_shape();
         let fields = fields
             .iter()
             .enumerate()
@@ -282,7 +266,6 @@ impl Struct<'_> {
         }
 
         Ok(Struct {
-            attrs,
             packed: opt.packed.name(unpacked),
             unpacked,
             r#type: Type::User {
@@ -291,7 +274,6 @@ impl Struct<'_> {
                 tight,
             },
             opt,
-            shape,
             fields,
         })
     }
@@ -324,7 +306,6 @@ pub(crate) struct StructOpt {
 }
 
 pub(crate) struct Field<'input> {
-    pub(crate) attrs: &'input [syn::Attribute],
     pub(crate) vis: &'input syn::Visibility,
     pub(crate) ident: FieldIdent<'input>,
     pub(crate) r#type: Spanned<Type>,
@@ -353,7 +334,6 @@ impl<'input> Field<'input> {
         // Avoid erroring on `bits.first_zero()` for ZST fields
         if size == 0 {
             return Ok(Self {
-                attrs: &field.attrs,
                 vis: &field.vis,
                 ident: FieldIdent::new(index, field.ident.as_ref()),
                 r#type,
@@ -391,7 +371,6 @@ impl<'input> Field<'input> {
         }
 
         Ok(Self {
-            attrs: &field.attrs,
             vis: &field.vis,
             ident: FieldIdent::new(index, field.ident.as_ref()),
             r#type,
@@ -417,10 +396,6 @@ impl<'input> FieldIdent<'input> {
         ident
             .map(FieldIdent::Named)
             .unwrap_or_else(|| FieldIdent::Unnamed(index))
-    }
-
-    pub(crate) fn is_named(&self) -> bool {
-        matches!(self, Self::Named(_))
     }
 
     pub(crate) fn pattern(&self) -> TokenStream {

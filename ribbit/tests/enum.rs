@@ -3,8 +3,8 @@ use ribbit::Unpack as _;
 
 #[test]
 fn single_named() {
-    #[derive(Copy, Clone)]
-    #[ribbit::pack(size = 16)]
+    #[derive(ribbit::Pack, Copy, Clone)]
+    #[ribbit(size = 16)]
     enum SingleNamed {
         #[ribbit(size = 16)]
         A { a: u16 },
@@ -19,12 +19,12 @@ fn single_named() {
 
 #[test]
 fn single_newtype() {
-    #[derive(Copy, Clone)]
-    #[ribbit::pack(size = 8)]
+    #[derive(ribbit::Pack, Copy, Clone)]
+    #[ribbit(size = 8)]
     struct Byte(u8);
 
-    #[derive(Copy, Clone)]
-    #[ribbit::pack(size = 8)]
+    #[derive(ribbit::Pack, Copy, Clone)]
+    #[ribbit(size = 8)]
     enum SingleNewtype {
         #[ribbit(size = 8)]
         Byte(Byte),
@@ -39,8 +39,8 @@ fn single_newtype() {
 
 #[test]
 fn single_unit() {
-    #[derive(Copy, Clone)]
-    #[ribbit::pack(size = 8)]
+    #[derive(ribbit::Pack, Copy, Clone)]
+    #[ribbit(size = 8)]
     enum SingleUnit {
         #[ribbit(size = 0)]
         Unit,
@@ -55,8 +55,8 @@ fn single_unit() {
 
 #[test]
 fn mixed() {
-    #[derive(Copy, Clone, Debug)]
-    #[ribbit::pack(size = 34, eq, debug)]
+    #[derive(ribbit::Pack, Copy, Clone, Debug)]
+    #[ribbit(size = 34, eq, debug)]
     enum Mixed {
         #[ribbit(size = 16)]
         X { a: u16 },
@@ -90,8 +90,8 @@ fn mixed() {
 
 #[test]
 fn wrapper() {
-    #[derive(Copy, Clone)]
-    #[ribbit::pack(size = 8)]
+    #[derive(ribbit::Pack, Copy, Clone)]
+    #[ribbit(size = 8)]
     enum Wrapper {
         #[ribbit(size = 8)]
         Byte(u8),
@@ -106,8 +106,9 @@ fn wrapper() {
 
 #[test]
 fn explicit_discriminant() {
-    #[derive(Copy, Clone, Debug)]
-    #[ribbit::pack(size = 48, eq, debug)]
+    #[repr(u8)]
+    #[derive(ribbit::Pack, Copy, Clone, Debug)]
+    #[ribbit(size = 48, eq, debug)]
     enum Mixed {
         #[ribbit(size = 16)]
         X { a: u16 } = 3,
@@ -141,8 +142,9 @@ fn explicit_discriminant() {
 
 #[test]
 fn explicit_discriminant_nonzero() {
-    #[derive(Copy, Clone, Debug)]
-    #[ribbit::pack(size = 64, eq, debug, nonzero)]
+    #[repr(u8)]
+    #[derive(ribbit::Pack, Copy, Clone, Debug)]
+    #[ribbit(size = 64, eq, debug, nonzero)]
     enum Mixed {
         #[ribbit(size = 16)]
         X { a: u16 } = 3,

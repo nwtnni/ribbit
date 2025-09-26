@@ -1,9 +1,9 @@
-#[ribbit::pack(size = 16)]
-#[derive(Copy, Clone)]
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 16)]
 struct A(u16);
 
-#[ribbit::pack(size = 32)]
-#[derive(Copy, Clone)]
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 32)]
 struct B {
     #[ribbit(size = 16, nonzero)]
     a: A,

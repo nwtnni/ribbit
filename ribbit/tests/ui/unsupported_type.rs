@@ -1,5 +1,5 @@
-#[ribbit::pack(size = 24)]
-#[derive(Copy, Clone)]
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 24)]
 struct Bad {
     a: (u8, u16),
 }

@@ -6,14 +6,14 @@ use core::num::NonZeroU16;
 
 #[test]
 fn basic() {
-    #[derive(Copy, Clone)]
-    #[ribbit::pack(size = 32)]
+    #[derive(ribbit::Pack, Copy, Clone)]
+    #[ribbit(size = 32)]
     struct Low {
         a: u32,
     }
 
-    #[derive(Copy, Clone)]
-    #[ribbit::pack(size = 64)]
+    #[derive(ribbit::Pack, Copy, Clone)]
+    #[ribbit(size = 64)]
     struct Whole {
         #[ribbit(size = 32)]
         low: Low,
@@ -23,14 +23,14 @@ fn basic() {
 
 #[test]
 fn nonzero() {
-    #[derive(Copy, Clone)]
-    #[ribbit::pack(size = 16, nonzero)]
+    #[derive(ribbit::Pack, Copy, Clone)]
+    #[ribbit(size = 16, nonzero)]
     struct Low {
         a: NonZeroU16,
     }
 
-    #[derive(Copy, Clone)]
-    #[ribbit::pack(size = 48)]
+    #[derive(ribbit::Pack, Copy, Clone)]
+    #[ribbit(size = 48)]
     struct Whole {
         #[ribbit(size = 16, nonzero)]
         low: Low,
@@ -40,14 +40,14 @@ fn nonzero() {
 
 #[test]
 fn option_nonzero() {
-    #[derive(Copy, Clone)]
-    #[ribbit::pack(size = 16, nonzero)]
+    #[derive(ribbit::Pack, Copy, Clone)]
+    #[ribbit(size = 16, nonzero)]
     struct Low {
         a: NonZeroU16,
     }
 
-    #[derive(Copy, Clone)]
-    #[ribbit::pack(size = 48)]
+    #[derive(ribbit::Pack, Copy, Clone)]
+    #[ribbit(size = 48)]
     struct Whole {
         #[ribbit(size = 16)]
         low: Option<Low>,
@@ -67,13 +67,13 @@ fn option_nonzero() {
 
 #[test]
 fn relax() {
-    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-    #[ribbit::pack(size = 7)]
+    #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
+    #[ribbit(size = 7)]
     struct Small(u7);
 
     // Pack a smaller type into a larger hole
-    #[derive(Copy, Clone)]
-    #[ribbit::pack(size = 30)]
+    #[derive(ribbit::Pack, Copy, Clone)]
+    #[ribbit(size = 30)]
     struct Large(#[ribbit(size = 7)] Small);
 
     let a = Small(u7::new(5));

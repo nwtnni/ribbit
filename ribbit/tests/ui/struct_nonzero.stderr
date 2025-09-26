@@ -1,5 +1,5 @@
 error: At least one field must be non-zero for struct to be non-zero
- --> tests/ui/struct_nonzero.rs:1:27
+ --> tests/ui/struct_nonzero.rs:2:21
   |
-1 | #[ribbit::pack(size = 32, nonzero)]
-  |                           ^^^^^^^
+2 | #[ribbit(size = 32, nonzero)]
+  |                     ^^^^^^^

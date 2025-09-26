@@ -1,5 +1,6 @@
-#[ribbit::pack(size = 16, nonzero)]
-#[derive(Copy, Clone)]
+#[repr(u8)]
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 16, nonzero)]
 enum Foo {
     #[ribbit(size = 8)]
     Bar(u8) = 1,

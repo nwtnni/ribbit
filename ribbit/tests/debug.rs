@@ -4,8 +4,8 @@ use ribbit::u2;
 use ribbit::Pack as _;
 use ribbit::Unpack as _;
 
-#[derive(Copy, Clone, Debug)]
-#[ribbit::pack(size = 26, debug)]
+#[derive(ribbit::Pack, Copy, Clone, Debug)]
+#[ribbit(size = 26, debug)]
 pub struct A {
     l: u16,
     m: NonZeroU8,
@@ -25,8 +25,8 @@ fn check() {
 
 #[test]
 fn tuple() {
-    #[derive(Copy, Clone, Debug)]
-    #[ribbit::pack(size = 5, debug)]
+    #[derive(ribbit::Pack, Copy, Clone, Debug)]
+    #[ribbit(size = 5, debug)]
     struct C(bool, #[ribbit(offset = 3)] u2);
 
     let c = C(true, u2::new(3)).pack();
@@ -35,8 +35,8 @@ fn tuple() {
 
 #[test]
 fn r#enum() {
-    #[derive(Copy, Clone, Debug)]
-    #[ribbit::pack(size = 32, debug)]
+    #[derive(ribbit::Pack, Copy, Clone, Debug)]
+    #[ribbit(size = 32, debug)]
     enum Enum {
         #[ribbit(size = 0)]
         Foo,

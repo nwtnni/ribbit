@@ -1,5 +1,5 @@
-#[ribbit::pack(size = 64)]
-#[derive(Copy, Clone)]
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 64)]
 struct Foo {
     a: u32,
     b: u64,

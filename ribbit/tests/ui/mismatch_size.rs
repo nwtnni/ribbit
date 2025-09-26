@@ -1,11 +1,11 @@
 use ribbit::u15;
 
-#[ribbit::pack(size = 16)]
-#[derive(Copy, Clone)]
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 16)]
 struct A(u16);
 
-#[ribbit::pack(size = 16)]
-#[derive(Copy, Clone)]
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 16)]
 struct B {
     #[ribbit(size = 1)]
     a: A,

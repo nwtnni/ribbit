@@ -1,8 +1,8 @@
 use ribbit::u2;
 use ribbit::Pack as _;
 
-#[derive(Copy, Clone)]
-#[ribbit::pack(size = 1)]
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 1)]
 struct A(bool);
 
 #[test]
@@ -11,8 +11,8 @@ fn single() {
     assert!(a._0());
 }
 
-#[derive(Copy, Clone)]
-#[ribbit::pack(size = 2)]
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 2)]
 struct B(bool, bool);
 
 #[test]

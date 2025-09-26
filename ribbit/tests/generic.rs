@@ -3,20 +3,20 @@ use ribbit::u7;
 use ribbit::Pack as _;
 use ribbit::Unpack as _;
 
-#[derive(Copy, Clone)]
-#[ribbit::pack(size = 48)]
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 48)]
 struct Versioned<T> {
     version: u16,
     #[ribbit(size = 32)]
     inner: T,
 }
 
-#[derive(Copy, Clone)]
-#[ribbit::pack(size = 32)]
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 32)]
 struct A(u32);
 
-#[derive(Copy, Clone)]
-#[ribbit::pack(size = 32)]
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 32)]
 struct B {
     hi: u16,
     lo: u16,
@@ -71,8 +71,8 @@ fn compose() {
 
 #[test]
 fn r#enum_newtype() {
-    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-    #[ribbit::pack(size = 8, debug, eq)]
+    #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
+    #[ribbit(size = 8, debug, eq)]
     enum Either<T> {
         #[ribbit(size = 7)]
         Left(T),
@@ -98,8 +98,8 @@ fn r#enum_newtype() {
 
 #[test]
 fn r#enum_named() {
-    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-    #[ribbit::pack(size = 8, debug, eq)]
+    #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
+    #[ribbit(size = 8, debug, eq)]
     enum Either<T> {
         #[ribbit(size = 7, debug, from)]
         Left {
@@ -131,12 +131,12 @@ fn r#enum_named() {
 
 #[test]
 fn relax() {
-    #[derive(Copy, Clone, Debug)]
-    #[ribbit::pack(size = 3, debug, eq)]
+    #[derive(ribbit::Pack, Copy, Clone, Debug)]
+    #[ribbit(size = 3, debug, eq)]
     struct Small(u3);
 
-    #[derive(Copy, Clone)]
-    #[ribbit::pack(size = 24, debug)]
+    #[derive(ribbit::Pack, Copy, Clone)]
+    #[ribbit(size = 24, debug)]
     struct Large<T> {
         #[ribbit(size = 16)]
         a: T,
@@ -160,7 +160,8 @@ fn associated() {
         type Bar = u64;
     }
 
-    #[ribbit::pack(size = 64)]
+    #[derive(ribbit::Pack)]
+    #[ribbit(size = 64)]
     struct Wrapper<A>(<A as Foo>::Bar)
     where
         A: Foo;

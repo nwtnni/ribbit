@@ -1,18 +1,18 @@
 error[E0308]: mismatched types
- --> tests/ui/mismatch_size.rs:7:1
+ --> tests/ui/mismatch_size.rs:7:10
   |
-7 | #[ribbit::pack(size = 16)]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^
-  | |
-  | expected `u16`, found `u8`
-  | arguments to this function are incorrect
+7 | #[derive(ribbit::Pack, Copy, Clone)]
+  |          ^^^^^^^^^^^^
+  |          |
+  |          expected `u16`, found `u8`
+  |          arguments to this function are incorrect
   |
 note: function defined here
  --> src/lib.rs
   |
   |     pub const unsafe fn loose_to_packed<T: Unpack>(loose: T::Loose) -> T {
   |                         ^^^^^^^^^^^^^^^
-  = note: this error originates in the attribute macro `ribbit::pack` (in Nightly builds, run with -Z macro-backtrace for more info)
+  = note: this error originates in the derive macro `ribbit::Pack` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 error[E0080]: evaluation of constant value failed
   --> tests/ui/mismatch_size.rs:11:8
@@ -23,9 +23,9 @@ error[E0080]: evaluation of constant value failed
    = note: this error originates in the macro `$crate::concat_panic` which comes from the expansion of the macro `::ribbit::private::concat_assert` (in Nightly builds, run with -Z macro-backtrace for more info)
 
 note: erroneous constant encountered
- --> tests/ui/mismatch_size.rs:7:1
+ --> tests/ui/mismatch_size.rs:7:10
   |
-7 | #[ribbit::pack(size = 16)]
-  | ^^^^^^^^^^^^^^^^^^^^^^^^^^
+7 | #[derive(ribbit::Pack, Copy, Clone)]
+  |          ^^^^^^^^^^^^
   |
-  = note: this note originates in the attribute macro `ribbit::pack` (in Nightly builds, run with -Z macro-backtrace for more info)
+  = note: this note originates in the derive macro `ribbit::Pack` (in Nightly builds, run with -Z macro-backtrace for more info)

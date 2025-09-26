@@ -11,7 +11,7 @@ use core::num::NonZeroU64;
 use core::num::NonZeroU8;
 
 pub use arbitrary_int::*;
-pub use ribbit_derive::pack;
+pub use ribbit_derive::Pack;
 
 pub mod atomic;
 

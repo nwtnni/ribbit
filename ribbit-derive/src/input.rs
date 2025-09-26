@@ -11,7 +11,6 @@ use crate::ir;
 pub struct Item {
     #[darling(flatten)]
     pub(crate) opt: ir::StructOpt,
-    pub(crate) attrs: Vec<syn::Attribute>,
     pub(crate) vis: syn::Visibility,
     pub(crate) ident: syn::Ident,
     pub(crate) generics: syn::Generics,
@@ -23,7 +22,6 @@ pub struct Item {
 pub(crate) struct Variant {
     #[darling(flatten)]
     pub(crate) opt: ir::StructOpt,
-    pub(crate) attrs: Vec<syn::Attribute>,
     pub(crate) ident: syn::Ident,
     pub(crate) fields: Fields<SpannedValue<Field>>,
     pub(crate) discriminant: Option<syn::Expr>,
@@ -34,7 +32,6 @@ pub(crate) struct Variant {
 pub(crate) struct Field {
     #[darling(flatten)]
     pub(crate) opt: ir::FieldOpt,
-    pub(crate) attrs: Vec<syn::Attribute>,
     pub(crate) vis: syn::Visibility,
     pub(crate) ident: Option<syn::Ident>,
     pub(crate) ty: syn::Type,

@@ -6,14 +6,14 @@ use ribbit::Unpack as _;
 
 #[test]
 fn custom_zst() {
-    #[derive(Copy, Clone)]
-    #[ribbit::pack(size = 0)]
+    #[derive(ribbit::Pack, Copy, Clone)]
+    #[ribbit(size = 0)]
     struct Foo;
 
     assert_eq!(core::mem::size_of::<ribbit::Packed<Foo>>(), 0);
 
-    #[derive(Copy, Clone)]
-    #[ribbit::pack(size = 64)]
+    #[derive(ribbit::Pack, Copy, Clone)]
+    #[ribbit(size = 64)]
     struct S {
         a: u64,
         #[expect(unused)]
@@ -32,7 +32,8 @@ fn custom_zst() {
 
 #[test]
 fn phantom() {
-    #[ribbit::pack(size = 64)]
+    #[derive(ribbit::Pack)]
+    #[ribbit(size = 64)]
     struct Phantom<A> {
         a: u64,
         #[ribbit(size = 0)]
@@ -58,7 +59,8 @@ fn phantom() {
 
 #[test]
 fn phantom_nonzero() {
-    #[ribbit::pack(size = 64, nonzero)]
+    #[derive(ribbit::Pack)]
+    #[ribbit(size = 64, nonzero)]
     struct Phantom<A> {
         a: NonZeroU64,
         #[ribbit(size = 0)]
@@ -84,8 +86,8 @@ fn phantom_nonzero() {
 
 #[test]
 fn pack_zst() {
-    #[derive(Copy, Clone, Debug)]
-    #[ribbit::pack(size = 0, debug, eq)]
+    #[derive(ribbit::Pack, Copy, Clone, Debug)]
+    #[ribbit(size = 0, debug, eq)]
     struct Foo;
 
     assert_eq!(core::mem::size_of::<ribbit::Packed<Foo>>(), 0);
@@ -101,12 +103,12 @@ fn pack_zst() {
 
 #[test]
 fn pack_zst_large() {
-    #[derive(Copy, Clone, Debug, PartialEq, Eq)]
-    #[ribbit::pack(size = 0)]
+    #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
+    #[ribbit(size = 0)]
     struct Zst;
 
-    #[derive(Copy, Clone, Debug)]
-    #[ribbit::pack(size = 32)]
+    #[derive(ribbit::Pack, Copy, Clone, Debug)]
+    #[ribbit(size = 32)]
     struct Hole(#[ribbit(size = 0)] Zst);
 
     let zst = Zst;

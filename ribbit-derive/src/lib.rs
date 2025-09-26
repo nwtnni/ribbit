@@ -22,16 +22,12 @@ use quote::quote_spanned;
 use quote::ToTokens;
 use quote::TokenStreamExt as _;
 use syn::parse_macro_input;
-use syn::parse_quote;
 
-#[proc_macro_attribute]
-pub fn pack(
-    attr: proc_macro::TokenStream,
-    item: proc_macro::TokenStream,
-) -> proc_macro::TokenStream {
+#[proc_macro_derive(Pack, attributes(ribbit))]
+pub fn pack(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = parse_macro_input!(item as syn::DeriveInput);
     let mut output = TokenStream::new();
-    match pack_impl(attr.into(), input, &mut output) {
+    match pack_impl(input, &mut output) {
         Ok(()) => output,
         Err(error) => error.write_errors(),
     }
@@ -40,34 +36,23 @@ pub fn pack(
 
 // Outer function (1) converts between proc_macro::TokenStream and proc_macro2::TokenStream and
 // (2) handles errors by writing them out.
-fn pack_impl(
-    attr: TokenStream,
-    mut input: syn::DeriveInput,
-    output: &mut TokenStream,
-) -> Result<(), darling::Error> {
-    // Integrate with darling's attribute filter (namespace `ribbit` instead of `ribbit::pack`).
-    input.attrs.push(parse_quote!(#[ribbit(#attr)]));
-
+fn pack_impl(input: syn::DeriveInput, output: &mut TokenStream) -> Result<(), darling::Error> {
     let input = input::Item::from_derive_input(&input)?;
     let ir = Ir::new(&input)?;
-    pack_item(&ir, output)
-}
 
-// Generate code for a single item.
-fn pack_item(ir: &Ir, output: &mut TokenStream) -> Result<(), darling::Error> {
-    let pre = gen::pre(ir);
-    let new = gen::new(ir);
-    let unpacked = gen::unpacked(ir);
-    let pack = gen::pack(ir);
-    let packed = gen::packed(ir);
-    let unpack = gen::unpack(ir);
-    let get = gen::get(ir);
-    let set = gen::set(ir);
-    let from = gen::from(ir);
-    let debug = gen::debug(ir);
-    let hash = gen::hash(ir);
-    let eq = gen::eq(ir);
-    let ord = gen::ord(ir);
+    let pre = gen::pre(&ir);
+    let new = gen::new(&ir);
+    let unpacked = gen::unpacked(&ir);
+    let pack = gen::pack(&ir);
+    let packed = gen::packed(&ir);
+    let unpack = gen::unpack(&ir);
+    let get = gen::get(&ir);
+    let set = gen::set(&ir);
+    let from = gen::from(&ir);
+    let debug = gen::debug(&ir);
+    let hash = gen::hash(&ir);
+    let eq = gen::eq(&ir);
+    let ord = gen::ord(&ir);
 
     let generics = ir.generics_bounded();
     let (generics_impl, generics_type, generics_where) = generics.split_for_impl();

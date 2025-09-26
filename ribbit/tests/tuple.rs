@@ -4,8 +4,8 @@ use ribbit::Pack as _;
 
 #[test]
 fn one_native() {
-    #[derive(Copy, Clone)]
-    #[ribbit::pack(size = 32)]
+    #[derive(ribbit::Pack, Copy, Clone)]
+    #[ribbit(size = 32)]
     pub struct OneNative(u32);
 
     let native = OneNative(5).pack();
@@ -16,8 +16,8 @@ fn one_native() {
 
 #[test]
 fn one_non_zero() {
-    #[derive(Copy, Clone)]
-    #[ribbit::pack(size = 64, nonzero)]
+    #[derive(ribbit::Pack, Copy, Clone)]
+    #[ribbit(size = 64, nonzero)]
     pub struct OneNonZero(NonZeroU64);
 
     let non_zero = OneNonZero(NonZeroU64::MIN).pack();

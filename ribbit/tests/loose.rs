@@ -3,8 +3,8 @@ use std::collections::HashSet;
 
 use ribbit::Pack as _;
 
-#[derive(Copy, Clone, Debug)]
-#[ribbit::pack(size = 32, hash, debug, eq, ord)]
+#[derive(ribbit::Pack, Copy, Clone, Debug)]
+#[ribbit(size = 32, hash, debug, eq, ord)]
 struct Wrap<T> {
     #[ribbit(size = 32)]
     inner: T,
@@ -34,8 +34,8 @@ fn ord() {
 
 #[test]
 fn loose_derive() {
-    #[derive(Copy, Clone)]
-    #[ribbit::pack(size = 32)]
+    #[derive(ribbit::Pack, Copy, Clone)]
+    #[ribbit(size = 32)]
     struct Inner {
         lo: u16,
         hi: u16,
