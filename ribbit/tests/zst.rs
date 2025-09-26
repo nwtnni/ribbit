@@ -10,6 +10,8 @@ fn custom_zst() {
     #[ribbit::pack(size = 0)]
     struct Foo;
 
+    assert_eq!(core::mem::size_of::<ribbit::Packed<Foo>>(), 0);
+
     #[derive(Copy, Clone)]
     #[ribbit::pack(size = 64)]
     struct S {
@@ -85,6 +87,8 @@ fn pack_zst() {
     #[derive(Copy, Clone, Debug)]
     #[ribbit::pack(size = 0, debug, eq)]
     struct Foo;
+
+    assert_eq!(core::mem::size_of::<ribbit::Packed<Foo>>(), 0);
 
     let zst = Foo.pack();
 
