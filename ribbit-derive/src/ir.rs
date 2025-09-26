@@ -119,7 +119,7 @@ impl<'input> Ir<'input> {
                 let r#enum = Enum {
                     opt: &item.opt,
                     attrs: &item.attrs,
-                    packed: format_ident!("_{}Packed", item.ident),
+                    packed: item.opt.packed.name(unpacked),
                     unpacked,
                     r#type: Type::User {
                         path: parse_quote!(#unpacked),
@@ -252,7 +252,7 @@ impl Struct<'_> {
         bounds: &mut Punctuated<syn::WherePredicate, syn::Token![,]>,
         opt: &'input StructOpt,
         attrs: &'input [syn::Attribute],
-        ident: &'input syn::Ident,
+        unpacked: &'input syn::Ident,
         fields: &'input darling::ast::Fields<SpannedValue<input::Field>>,
     ) -> darling::Result<Struct<'input>> {
         let Some(size) = opt.size.map(Spanned::from) else {
@@ -281,10 +281,9 @@ impl Struct<'_> {
             bail!(opt.nonzero.unwrap()=> crate::Error::StructNonZero);
         }
 
-        let unpacked = ident;
         Ok(Struct {
             attrs,
-            packed: format_ident!("_{}Packed", ident),
+            packed: opt.packed.name(unpacked),
             unpacked,
             r#type: Type::User {
                 path: parse_quote!(#unpacked),
@@ -311,6 +310,9 @@ impl Struct<'_> {
 pub(crate) struct StructOpt {
     pub(crate) size: Option<SpannedValue<usize>>,
     pub(crate) nonzero: Option<SpannedValue<()>>,
+
+    #[darling(default)]
+    pub(crate) packed: gen::packed::StructOpt,
 
     #[darling(default)]
     pub(crate) new: gen::new::StructOpt,

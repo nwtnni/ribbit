@@ -1,5 +1,5 @@
 // Types
-mod packed;
+pub(crate) mod packed;
 mod unpacked;
 
 pub(crate) use packed::packed;
