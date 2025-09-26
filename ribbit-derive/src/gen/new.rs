@@ -38,15 +38,13 @@ pub(crate) fn new<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
             ))),
         ),
         ir::Data::Enum(r#enum @ ir::Enum { variants, .. }) => {
-            let discriminant = r#enum.discriminant();
-
             Or::R(variants.iter().flat_map(move |variant| {
                 let name = variant.r#struct.unpacked.to_string().to_snake_case();
 
                 let compile = |expr: lift::Expr| {
                     lift::Expr::or([
                         lift::Expr::constant(variant.discriminant as u128),
-                        expr.shift_left(discriminant.size as u8),
+                        expr.shift_left(r#enum.discriminant.size as u8),
                     ])
                     .compile(tight)
                 };

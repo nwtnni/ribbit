@@ -96,8 +96,10 @@ impl<'input> Ir<'input> {
 
                 let size_discriminant = variants_ir
                     .iter()
-                    .map(|variant| variant.discriminant + 1)
+                    .map(|variant| variant.discriminant)
                     .max()
+                    // Size must fit values 0..=discriminant
+                    .map(|discriminant| discriminant + 1)
                     .unwrap_or(0)
                     .next_power_of_two()
                     .trailing_zeros() as usize;
@@ -122,6 +124,10 @@ impl<'input> Ir<'input> {
                         path: parse_quote!(#unpacked),
                         uses: Default::default(),
                         tight,
+                    },
+                    discriminant: Discriminant {
+                        size: size_discriminant,
+                        mask: crate::mask(size_discriminant),
                     },
                     variants: variants_ir,
                 };
@@ -193,23 +199,8 @@ pub(crate) struct Enum<'input> {
     pub(crate) unpacked: &'input syn::Ident,
     pub(crate) packed: syn::Ident,
     pub(crate) r#type: Type,
+    pub(crate) discriminant: Discriminant,
     pub(crate) variants: Vec<Variant<'input>>,
-}
-
-impl Enum<'_> {
-    pub(crate) fn discriminant(&self) -> Discriminant {
-        let size = self
-            .variants
-            .iter()
-            .map(|variant| variant.discriminant)
-            .max()
-            .unwrap_or(0);
-
-        Discriminant {
-            size,
-            mask: crate::mask(size),
-        }
-    }
 }
 
 #[derive(Debug)]

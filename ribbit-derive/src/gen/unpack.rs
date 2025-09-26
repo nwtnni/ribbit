@@ -24,10 +24,8 @@ pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
             }
         }
         ir::Data::Enum(r#enum) => {
-            let discriminant = r#enum.discriminant();
-
             let variants = r#enum.variants.iter().map(|variant| {
-                let max_offset = discriminant.size
+                let max_offset = r#enum.discriminant.size
                     + variant
                         .r#struct
                         .fields
@@ -42,7 +40,7 @@ pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
                         &r#enum.r#type,
                         field,
                         max_offset,
-                        (discriminant.size + field.offset) as u8,
+                        (r#enum.discriminant.size + field.offset) as u8,
                     ));
 
                     quote!(#name: #value)
@@ -60,7 +58,7 @@ pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
             });
 
             let discriminant = lift::Expr::value_self(&r#enum.r#type)
-                .and(discriminant.mask)
+                .and(r#enum.discriminant.mask)
                 .compile(r#enum.r#type.to_loose());
 
             quote! {
