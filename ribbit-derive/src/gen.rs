@@ -1,9 +1,6 @@
 // Types
 pub(crate) mod packed;
-mod unpacked;
-
 pub(crate) use packed::packed;
-pub(crate) use unpacked::unpacked;
 
 // Methods
 mod get;
@@ -21,6 +18,7 @@ pub(crate) mod debug;
 pub(crate) mod eq;
 pub(crate) mod from;
 pub(crate) mod hash;
+mod nonzero;
 pub(crate) mod ord;
 mod pack;
 mod unpack;
@@ -29,6 +27,7 @@ pub(crate) use debug::debug;
 pub(crate) use eq::eq;
 pub(crate) use from::from;
 pub(crate) use hash::hash;
+pub(crate) use nonzero::nonzero;
 pub(crate) use ord::ord;
 pub(crate) use pack::pack;
 pub(crate) use unpack::unpack;

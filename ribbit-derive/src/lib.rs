@@ -42,7 +42,7 @@ fn pack_impl(input: syn::DeriveInput, output: &mut TokenStream) -> Result<(), da
 
     let pre = gen::pre(&ir);
     let new = gen::new(&ir);
-    let unpacked = gen::unpacked(&ir);
+    let nonzero = gen::nonzero(&ir);
     let pack = gen::pack(&ir);
     let packed = gen::packed(&ir);
     let unpack = gen::unpack(&ir);
@@ -59,7 +59,7 @@ fn pack_impl(input: syn::DeriveInput, output: &mut TokenStream) -> Result<(), da
     let packed_ident = ir.ident_packed();
 
     output.append_all(quote! {
-        #(#unpacked)*
+        #(#nonzero)*
 
         #pack
 
