@@ -33,7 +33,7 @@ pub(crate) fn with<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 
             .filter(|field| !field.opt.with.0.skip)
             .map(move |field| {
                 let value = lift::Expr::or([
-                    lift::Expr::value(field.ident.escaped(), &field.r#type)
+                    lift::Expr::value(field.ident.escape(), &field.r#type)
                         .shift_left(field.offset as u8),
                     lift::Expr::value_self(&r#struct.r#type).and(
                         !(field.r#type.mask() << field.offset) & r#struct.r#type.as_tight().mask(),
@@ -43,7 +43,7 @@ pub(crate) fn with<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 
 
                 let vis = field.opt.with.0.vis(field.vis);
                 let with = FieldOpt::name(field);
-                let name = field.ident.escaped();
+                let name = field.ident.escape();
                 let r#type = field.r#type.packed();
                 let precondition = crate::gen::pre::precondition();
 

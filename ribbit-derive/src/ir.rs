@@ -394,7 +394,7 @@ impl<'input> FieldIdent<'input> {
         match self {
             FieldIdent::Named(_) => quote!(#self),
             FieldIdent::Unnamed(_) => {
-                let escaped = self.escaped();
+                let escaped = self.escape();
                 quote!(#self: #escaped)
             }
         }
@@ -409,7 +409,7 @@ impl<'input> FieldIdent<'input> {
         }
     }
 
-    pub(crate) fn escaped(&self) -> Cow<syn::Ident> {
+    pub(crate) fn escape(&self) -> Cow<syn::Ident> {
         match self {
             FieldIdent::Named(named) => Cow::Borrowed(*named),
             FieldIdent::Unnamed(unnamed) => Cow::Owned(format_ident!("_{}", unnamed)),

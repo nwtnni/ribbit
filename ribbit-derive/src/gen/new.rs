@@ -76,13 +76,13 @@ fn new_struct<'ir, F: FnOnce(lift::Expr<'ir>) -> TokenStream>(
     compile: F,
 ) -> TokenStream {
     let parameters = r#struct.iter_nonzero().map(|field| {
-        let ident = field.ident.escaped();
+        let ident = field.ident.escape();
         let r#type = field.r#type.packed();
         quote!(#ident: #r#type)
     });
 
     let value = compile(lift::Expr::or(r#struct.iter_nonzero().map(|field| {
-        lift::Expr::value(field.ident.escaped(), &field.r#type).shift_left(field.offset as u8)
+        lift::Expr::value(field.ident.escape(), &field.r#type).shift_left(field.offset as u8)
     })));
 
     let precondition = crate::gen::pre::precondition();

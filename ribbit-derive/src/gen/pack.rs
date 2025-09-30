@@ -28,7 +28,7 @@ pub(crate) fn pack(ir: &ir::Ir) -> TokenStream {
                 let new = ir.opt().new.name(Some(&suffix));
 
                 let arguments = variant.r#struct.fields.iter().map(|field| {
-                    let name = field.ident.escaped();
+                    let name = field.ident.escape();
                     field.r#type.pack(quote!(#name))
                 });
 

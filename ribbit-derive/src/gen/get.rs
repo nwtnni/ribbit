@@ -14,7 +14,7 @@ pub(crate) struct FieldOpt(ir::CommonOpt);
 
 impl FieldOpt {
     pub(crate) fn name<'ir>(field: &'ir ir::Field) -> Cow<'ir, syn::Ident> {
-        field.opt.get.0.rename_with(|| field.ident.escaped())
+        field.opt.get.0.rename_with(|| field.ident.escape())
     }
 }
 
