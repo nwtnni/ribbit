@@ -10,7 +10,7 @@ pub(crate) fn nonzero<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream>
 
     ir.opt()
         .nonzero
-        .map(|_| quote! {
+        .then(|| quote! {
             #[automatically_derived]
             unsafe impl #generics_impl ::ribbit::NonZero for #ident #generics_type #generics_where {}
         })

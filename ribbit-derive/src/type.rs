@@ -47,9 +47,9 @@ impl Type {
         let span = path.span();
 
         if let Some(tight) = Tight::from_path(&path) {
-            if let Some(expected) = opt_field.size.filter(|size| **size != tight.size()) {
+            if let Some(expected) = opt_field.size.filter(|size| *size != tight.size()) {
                 bail!(span=> Error::WrongSize {
-                    expected: *expected,
+                    expected,
                     actual: tight.size(),
                     tight,
                 });
@@ -66,20 +66,20 @@ impl Type {
 
         // For convenience, forward nonzero and size annotations
         // for newtype structs.
-        let nonzero = match (newtype, opt_field.nonzero) {
-            (false, nonzero) | (true, nonzero @ Some(_)) => nonzero,
-            (true, None) => opt_struct.nonzero,
+        let nonzero = match (newtype, *opt_field.nonzero) {
+            (false, nonzero) | (true, nonzero @ true) => nonzero,
+            (true, false) => *opt_struct.nonzero,
         };
-        let size = match (newtype, opt_field.size) {
+        let size = match (newtype, *opt_field.size) {
             (false, size) | (true, size @ Some(_)) => size,
-            (true, None) => opt_struct.size,
+            (true, None) => *opt_struct.size,
         };
 
         let Some(size) = size else {
             bail!(span=> Error::OpaqueSize);
         };
 
-        let tight = Tight::from_size(nonzero.is_some(), *size);
+        let tight = Tight::from_size(nonzero, size);
 
         let tight = match tight {
             Ok(tight) => tight,

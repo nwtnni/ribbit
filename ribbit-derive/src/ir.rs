@@ -39,10 +39,10 @@ impl<'input> Ir<'input> {
                     bail!(Span::call_site()=> crate::Error::TopLevelSize);
                 };
 
-                let tight = match Tight::from_size(item.opt.nonzero.is_some(), *size) {
+                let tight = match Tight::from_size(*item.opt.nonzero, *size) {
                     Ok(tight) => tight,
                     // FIXME: span
-                    Err(error) => bail!(item.opt.nonzero.unwrap()=> error),
+                    Err(error) => bail!(item.opt.size=> error),
                 };
 
                 let mut current_discriminant = 0;
@@ -80,13 +80,13 @@ impl<'input> Ir<'input> {
                     })
                     .collect::<darling::Result<Vec<_>>>()?;
 
-                if item.opt.nonzero.is_some() {
+                if *item.opt.nonzero {
                     if let Some((variant, span)) = variants_ir
                         .iter()
                         .zip(variants)
                         .find(|(variant, _)| variant.discriminant == 0)
                     {
-                        if variant.r#struct.opt.nonzero.is_none() {
+                        if !*variant.r#struct.opt.nonzero {
                             bail!(span=> crate::Error::VariantNonZero);
                         }
                     }
@@ -234,10 +234,10 @@ impl Struct<'_> {
             bail!(Span::call_site()=> crate::Error::TopLevelSize);
         };
 
-        let tight = match Tight::from_size(opt.nonzero.is_some(), *size) {
+        let tight = match Tight::from_size(*opt.nonzero, *size) {
             Ok(tight) => tight,
             // FIXME: span
-            Err(error) => bail!(opt.nonzero.unwrap()=> error),
+            Err(error) => bail!(opt.nonzero=> error),
         };
 
         let mut bits = 1u128.unbounded_shl(tight.size() as u32).wrapping_sub(1);
@@ -252,7 +252,7 @@ impl Struct<'_> {
             .collect::<Result<Vec<_>, _>>()?;
 
         if tight.is_nonzero() && fields.iter().all(|field| !field.r#type.is_nonzero()) {
-            bail!(opt.nonzero.unwrap()=> crate::Error::StructNonZero);
+            bail!(opt.nonzero=> crate::Error::StructNonZero);
         }
 
         Ok(Struct {
@@ -280,12 +280,12 @@ impl Struct<'_> {
 
 #[derive(FromMeta, Clone, Debug)]
 pub(crate) struct StructOpt {
-    pub(crate) size: Option<SpannedValue<usize>>,
-    pub(crate) nonzero: Option<SpannedValue<()>>,
-
+    #[darling(default)]
+    pub(crate) size: SpannedValue<Option<usize>>,
+    #[darling(default)]
+    pub(crate) nonzero: SpannedValue<bool>,
     #[darling(default)]
     pub(crate) packed: gen::packed::StructOpt,
-
     #[darling(default)]
     pub(crate) new: gen::new::StructOpt,
     pub(crate) debug: Option<gen::debug::StructOpt>,
@@ -322,16 +322,16 @@ impl<'input> Field<'input> {
             bounds.push(parse_quote!(#r#type: ::ribbit::Pack));
         }
 
-        let offset = match field.opt.offset {
+        let offset = match *field.opt.offset {
             None => Spanned::new(
                 // First set bit
                 ((*bits as i128) & -(*bits as i128)).trailing_zeros() as usize,
                 field.span(),
             ),
-            Some(offset) => match *offset > 128 {
-                false => offset.into(),
+            Some(offset) => match offset > 128 {
+                false => Spanned::new(offset, field.opt.offset.span()),
                 true => bail!(field => crate::Error::Overflow {
-                    offset: *offset,
+                    offset,
                     available: 0,
                     required: size,
                 }),
@@ -367,13 +367,14 @@ impl<'input> Field<'input> {
 
 #[derive(FromMeta, Clone, Debug, Default)]
 pub(crate) struct FieldOpt {
-    pub(crate) nonzero: Option<SpannedValue<()>>,
-    pub(crate) size: Option<SpannedValue<usize>>,
-    pub(crate) offset: Option<SpannedValue<usize>>,
-
+    #[darling(default)]
+    pub(crate) nonzero: SpannedValue<bool>,
+    #[darling(default)]
+    pub(crate) size: SpannedValue<Option<usize>>,
+    #[darling(default)]
+    pub(crate) offset: SpannedValue<Option<usize>>,
     #[darling(default)]
     pub(crate) get: gen::get::FieldOpt,
-
     #[darling(default)]
     pub(crate) with: gen::with::FieldOpt,
 }
