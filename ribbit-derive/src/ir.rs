@@ -431,6 +431,8 @@ impl ToTokens for FieldIdent<'_> {
 pub struct CommonOpt {
     vis: Option<syn::Visibility>,
     rename: Option<syn::Ident>,
+    #[darling(default)]
+    pub(crate) skip: bool,
 }
 
 impl CommonOpt {

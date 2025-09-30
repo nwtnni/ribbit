@@ -20,7 +20,8 @@ pub(crate) fn new<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
     let tight = ir.r#type().as_tight();
 
     match &ir.data {
-        ir::Data::Struct(r#struct) => Or::L(
+        ir::Data::Struct(_) if ir.opt().new.0.skip => Or::L(iter::empty()),
+        ir::Data::Struct(r#struct) => Or::R(Or::L(
             iter::once(new_struct(
                 vis,
                 &ir.opt().new.name(None),
@@ -33,35 +34,38 @@ pub(crate) fn new<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
                 r#struct,
                 |expr| expr.compile(tight),
             ))),
-        ),
-        ir::Data::Enum(r#enum @ ir::Enum { variants, .. }) => {
-            Or::R(variants.iter().flat_map(move |variant| {
-                let suffix = variant.r#struct.unpacked.to_string().to_snake_case();
+        )),
+        ir::Data::Enum(r#enum @ ir::Enum { variants, .. }) => Or::R(Or::R(
+            variants
+                .iter()
+                .filter(|variant| !variant.r#struct.opt.new.0.skip)
+                .flat_map(move |variant| {
+                    let suffix = variant.r#struct.unpacked.to_string().to_snake_case();
 
-                let compile = |expr: lift::Expr| {
-                    lift::Expr::or([
-                        lift::Expr::constant(variant.discriminant as u128),
-                        expr.shift_left(r#enum.discriminant.size as u8),
-                    ])
-                    .compile(tight)
-                };
+                    let compile = |expr: lift::Expr| {
+                        lift::Expr::or([
+                            lift::Expr::constant(variant.discriminant as u128),
+                            expr.shift_left(r#enum.discriminant.size as u8),
+                        ])
+                        .compile(tight)
+                    };
 
-                [
-                    new_struct(
-                        vis,
-                        &ir.opt().new.name(Some(&suffix)),
-                        &variant.r#struct,
-                        compile,
-                    ),
-                    new_struct_unchecked(
-                        vis,
-                        &ir.opt().new.name_unchecked(Some(&suffix)),
-                        &variant.r#struct,
-                        compile,
-                    ),
-                ]
-            }))
-        }
+                    [
+                        new_struct(
+                            vis,
+                            &ir.opt().new.name(Some(&suffix)),
+                            &variant.r#struct,
+                            compile,
+                        ),
+                        new_struct_unchecked(
+                            vis,
+                            &ir.opt().new.name_unchecked(Some(&suffix)),
+                            &variant.r#struct,
+                            compile,
+                        ),
+                    ]
+                }),
+        )),
     }
 }
 
