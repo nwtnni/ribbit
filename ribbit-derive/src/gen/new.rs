@@ -85,7 +85,7 @@ fn new_struct<'ir, F: FnOnce(lift::Expr<'ir>) -> TokenStream>(
         lift::Expr::value(field.ident.escape(), &field.r#type).shift_left(field.offset as u8)
     })));
 
-    let precondition = crate::gen::pre::precondition();
+    let precondition = crate::gen::precondition::assert();
 
     quote! {
         #[inline]
@@ -107,7 +107,7 @@ fn new_struct_unchecked<'ir, F: FnOnce(lift::Expr<'ir>) -> TokenStream>(
     r#struct: &'ir ir::Struct,
     compile: F,
 ) -> TokenStream {
-    let precondition = crate::gen::pre::precondition();
+    let precondition = crate::gen::precondition::assert();
     let r#type = r#struct.r#type.as_tight();
     let value = compile(lift::Expr::value_tight(quote!(value), r#type));
 

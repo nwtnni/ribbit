@@ -23,7 +23,7 @@ pub(crate) fn get<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
         return Or::L(core::iter::empty());
     };
 
-    let precondition = crate::gen::pre::precondition();
+    let precondition = crate::gen::precondition::assert();
 
     Or::R({
         r#struct

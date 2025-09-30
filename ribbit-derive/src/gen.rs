@@ -5,12 +5,12 @@ pub(crate) use packed::packed;
 // Methods
 pub(crate) mod get;
 pub(crate) mod new;
-pub(crate) mod pre;
+pub(crate) mod precondition;
 pub(crate) mod with;
 
 pub(crate) use get::get;
 pub(crate) use new::new;
-pub(crate) use pre::pre;
+pub(crate) use precondition::precondition;
 pub(crate) use with::with;
 
 // Traits

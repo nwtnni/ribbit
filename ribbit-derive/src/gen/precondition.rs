@@ -7,14 +7,20 @@ use quote::quote_spanned;
 use crate::ir;
 use crate::Or;
 
-pub(crate) fn pre(ir: &ir::Ir) -> TokenStream {
+pub(crate) fn assert() -> TokenStream {
+    quote! {
+        let _: () = Self::_RIBBIT_PRECONDITION;
+    }
+}
+
+pub(crate) fn precondition(ir: &ir::Ir) -> TokenStream {
     let assertions = match &ir.data {
-        ir::Data::Struct(r#struct) => Or::L(extract_assertions(r#struct)),
+        ir::Data::Struct(r#struct) => Or::L(precondition_struct(r#struct)),
         ir::Data::Enum(r#enum) => Or::R(
             r#enum
                 .variants
                 .iter()
-                .flat_map(|variant| extract_assertions(&variant.r#struct)),
+                .flat_map(|variant| precondition_struct(&variant.r#struct)),
         ),
     };
 
@@ -26,13 +32,7 @@ pub(crate) fn pre(ir: &ir::Ir) -> TokenStream {
     }
 }
 
-pub(crate) fn precondition() -> TokenStream {
-    quote! {
-        let _: () = Self::_RIBBIT_PRECONDITION;
-    }
-}
-
-fn extract_assertions<'ir>(r#struct: &'ir ir::Struct) -> impl Iterator<Item = TokenStream> + 'ir {
+fn precondition_struct<'ir>(r#struct: &'ir ir::Struct) -> impl Iterator<Item = TokenStream> + 'ir {
     let fields = r#struct
         .fields
         .iter()

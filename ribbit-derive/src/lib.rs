@@ -32,7 +32,7 @@ fn pack_impl(input: syn::DeriveInput, output: &mut TokenStream) -> Result<(), da
     let input = input::Item::from_derive_input(&input)?;
     let ir = Ir::new(&input)?;
 
-    let pre = gen::pre(&ir);
+    let precondition = gen::precondition(&ir);
     let new = gen::new(&ir);
     let nonzero = gen::nonzero(&ir);
     let pack = gen::pack(&ir);
@@ -60,7 +60,7 @@ fn pack_impl(input: syn::DeriveInput, output: &mut TokenStream) -> Result<(), da
         #unpack
 
         impl #generics_impl #packed_ident #generics_type #generics_where {
-            #pre
+            #precondition
 
             #(#new)*
 

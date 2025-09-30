@@ -45,7 +45,7 @@ pub(crate) fn with<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 
                 let with = FieldOpt::name(field);
                 let name = field.ident.escape();
                 let r#type = field.r#type.packed();
-                let precondition = crate::gen::pre::precondition();
+                let precondition = crate::gen::precondition::assert();
 
                 quote! {
                     #[inline]
