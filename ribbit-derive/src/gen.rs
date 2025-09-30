@@ -3,7 +3,7 @@ pub(crate) mod packed;
 pub(crate) use packed::packed;
 
 // Methods
-mod get;
+pub(crate) mod get;
 pub(crate) mod new;
 pub(crate) mod pre;
 mod set;

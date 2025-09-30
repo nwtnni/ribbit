@@ -1,3 +1,6 @@
+use std::borrow::Cow;
+
+use darling::FromMeta;
 use proc_macro2::TokenStream;
 use quote::quote;
 
@@ -5,6 +8,30 @@ use crate::ir;
 use crate::lift;
 use crate::Or;
 use crate::Type;
+
+#[derive(FromMeta, Clone, Debug, Default)]
+pub(crate) struct FieldOpt {
+    vis: Option<syn::Visibility>,
+    rename: Option<syn::Ident>,
+    #[darling(default)]
+    skip: bool,
+}
+
+impl FieldOpt {
+    fn vis(&self, default: &syn::Visibility) -> syn::Visibility {
+        self.vis.clone().unwrap_or_else(|| default.clone())
+    }
+
+    pub(crate) fn name<'ir>(field: &'ir ir::Field) -> Cow<'ir, syn::Ident> {
+        field
+            .opt
+            .get
+            .rename
+            .as_ref()
+            .map(Cow::Borrowed)
+            .unwrap_or_else(|| field.ident.escaped())
+    }
+}
 
 pub(crate) fn get<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 'ir {
     let ir::Data::Struct(r#struct) = &ir.data else {
@@ -14,25 +41,28 @@ pub(crate) fn get<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
     let precondition = crate::gen::pre::precondition();
 
     Or::R({
-        r#struct.iter().map(move |field| {
-            let value = get_field(
-                &r#struct.r#type,
-                field,
-                r#struct.max_offset,
-                field.offset as u8,
-            );
-            let vis = field.vis;
-            let get = field.ident.escaped();
-            let r#type = field.r#type.packed();
+        r#struct
+            .iter()
+            .filter(|field| !field.opt.get.skip)
+            .map(move |field| {
+                let value = get_field(
+                    &r#struct.r#type,
+                    field,
+                    r#struct.max_offset,
+                    field.offset as u8,
+                );
+                let vis = field.opt.get.vis(field.vis);
+                let name = FieldOpt::name(field);
+                let r#type = field.r#type.packed();
 
-            quote! {
-                #[inline]
-                #vis const fn #get(self) -> #r#type {
-                    #precondition
-                    #value
+                quote! {
+                    #[inline]
+                    #vis const fn #name(self) -> #r#type {
+                        #precondition
+                        #value
+                    }
                 }
-            }
-        })
+            })
     })
 }
 

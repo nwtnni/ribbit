@@ -246,3 +246,25 @@ fn nonzero_signed() {
     assert_eq!(h.a().get(), 0xead_beef);
     assert_eq!(h.b().get(), 0xd);
 }
+
+#[test]
+fn rename_get() {
+    #[derive(ribbit::Pack, Copy, Clone)]
+    #[ribbit(size = 64)]
+    struct Half {
+        #[ribbit(get(rename = "b"))]
+        a: u32,
+        #[ribbit(get(rename = "a"))]
+        b: u32,
+    }
+
+    let h = Half {
+        a: 0xdead_beef,
+        b: 0xbeef_dead,
+    }
+    .pack();
+
+    assert_eq!(h.value, 0xbeef_dead_dead_beef);
+    assert_eq!(h.b(), 0xdead_beef);
+    assert_eq!(h.a(), 0xbeef_dead);
+}

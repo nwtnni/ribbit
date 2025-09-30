@@ -5,7 +5,6 @@ use heck::ToSnakeCase as _;
 use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
-use syn::parse_quote;
 
 use crate::ir;
 use crate::lift;
@@ -18,7 +17,7 @@ pub(crate) struct StructOpt {
 }
 
 pub(crate) fn new<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 'ir {
-    let vis = ir.opt().new.vis();
+    let vis = ir.opt().new.vis(ir.vis);
 
     let tight = ir.r#type().as_tight();
 
@@ -123,10 +122,8 @@ fn new_struct_unchecked<'ir, F: FnOnce(lift::Expr<'ir>) -> TokenStream>(
 }
 
 impl StructOpt {
-    fn vis(&self) -> syn::Visibility {
-        self.vis
-            .clone()
-            .unwrap_or(syn::Visibility::Public(parse_quote!(pub)))
+    fn vis(&self, default: &syn::Visibility) -> syn::Visibility {
+        self.vis.clone().unwrap_or_else(|| default.clone())
     }
 
     pub(crate) fn name(&self, variant: Option<&str>) -> syn::Ident {

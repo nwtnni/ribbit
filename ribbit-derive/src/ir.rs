@@ -301,6 +301,7 @@ pub(crate) struct Field<'input> {
     pub(crate) ident: FieldIdent<'input>,
     pub(crate) r#type: Spanned<Type>,
     pub(crate) offset: usize,
+    pub(crate) opt: &'input FieldOpt,
 }
 
 impl<'input> Field<'input> {
@@ -360,6 +361,7 @@ impl<'input> Field<'input> {
             ident: FieldIdent::new(index, field.ident.as_ref()),
             r#type,
             offset: *offset,
+            opt: &field.opt,
         })
     }
 }
@@ -369,6 +371,9 @@ pub(crate) struct FieldOpt {
     pub(crate) nonzero: Option<SpannedValue<()>>,
     pub(crate) size: Option<SpannedValue<usize>>,
     pub(crate) offset: Option<SpannedValue<usize>>,
+
+    #[darling(default)]
+    pub(crate) get: gen::get::FieldOpt,
 }
 
 pub(crate) enum FieldIdent<'input> {
