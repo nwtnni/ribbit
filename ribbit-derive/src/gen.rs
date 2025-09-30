@@ -6,7 +6,7 @@ pub(crate) use packed::packed;
 pub(crate) mod get;
 pub(crate) mod new;
 pub(crate) mod pre;
-mod with;
+pub(crate) mod with;
 
 pub(crate) use get::get;
 pub(crate) use new::new;

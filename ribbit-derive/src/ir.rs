@@ -4,7 +4,6 @@ use std::borrow::Cow;
 use darling::usage::GenericsExt;
 use darling::util::SpannedValue;
 use darling::FromMeta;
-use proc_macro2::Literal;
 use proc_macro2::Span;
 use proc_macro2::TokenStream;
 use quote::format_ident;
@@ -374,18 +373,21 @@ pub(crate) struct FieldOpt {
 
     #[darling(default)]
     pub(crate) get: gen::get::FieldOpt,
+
+    #[darling(default)]
+    pub(crate) with: gen::with::FieldOpt,
 }
 
 pub(crate) enum FieldIdent<'input> {
     Named(&'input syn::Ident),
-    Unnamed(usize),
+    Unnamed(syn::Index),
 }
 
 impl<'input> FieldIdent<'input> {
     pub(crate) fn new(index: usize, ident: Option<&'input syn::Ident>) -> Self {
         ident
             .map(FieldIdent::Named)
-            .unwrap_or_else(|| FieldIdent::Unnamed(index))
+            .unwrap_or_else(|| FieldIdent::Unnamed(syn::Index::from(index)))
     }
 
     pub(crate) fn pattern(&self) -> TokenStream {
@@ -398,19 +400,13 @@ impl<'input> FieldIdent<'input> {
         }
     }
 
-    pub(crate) fn unescaped(&self, prefix: &'static str) -> TokenStream {
+    pub(crate) fn prefix(&self, prefix: &'static str) -> syn::Ident {
         match self {
-            FieldIdent::Named(named) if prefix.is_empty() => (*named).clone(),
-            FieldIdent::Unnamed(unnamed) if prefix.is_empty() => {
-                return Literal::usize_unsuffixed(*unnamed).to_token_stream()
-            }
-
             FieldIdent::Named(named) => format_ident!("{}_{}", prefix, named),
             FieldIdent::Unnamed(unnamed) => {
                 format_ident!("{}_{}", prefix, unnamed)
             }
         }
-        .to_token_stream()
     }
 
     pub(crate) fn escaped(&self) -> Cow<syn::Ident> {
@@ -423,7 +419,10 @@ impl<'input> FieldIdent<'input> {
 
 impl ToTokens for FieldIdent<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.unescaped("").to_tokens(tokens)
+        match self {
+            FieldIdent::Named(named) => named.to_tokens(tokens),
+            FieldIdent::Unnamed(unnamed) => unnamed.to_tokens(tokens),
+        }
     }
 }
 
