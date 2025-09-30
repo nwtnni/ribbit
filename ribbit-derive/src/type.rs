@@ -5,6 +5,7 @@ mod tight;
 pub(crate) use arbitrary::Arbitrary;
 use darling::usage::CollectTypeParams as _;
 use darling::usage::IdentSet;
+use darling::util::SpannedValue;
 pub(crate) use loose::Loose;
 use syn::TypePath;
 pub(crate) use tight::Tight;
@@ -17,7 +18,6 @@ use syn::spanned::Spanned as _;
 use crate::error::bail;
 use crate::ir;
 use crate::Error;
-use crate::Spanned;
 
 #[derive(Clone, Debug, Eq)]
 pub(crate) enum Type {
@@ -39,7 +39,7 @@ impl Type {
         opt_field: &ir::FieldOpt,
         type_params: &IdentSet,
         ty: syn::Type,
-    ) -> darling::Result<Spanned<Self>> {
+    ) -> darling::Result<SpannedValue<Self>> {
         let syn::Type::Path(path) = ty else {
             bail!(ty=> Error::UnsupportedType)
         };
@@ -55,7 +55,7 @@ impl Type {
                 });
             }
 
-            return Ok(Spanned::new(
+            return Ok(SpannedValue::new(
                 Self::Tight {
                     path: Some(path),
                     tight,
@@ -89,7 +89,7 @@ impl Type {
         let uses = std::iter::once(&path)
             .collect_type_params_cloned(&darling::usage::Purpose::Declare.into(), type_params);
 
-        Ok(Spanned::new(Self::User { path, uses, tight }, span))
+        Ok(SpannedValue::new(Self::User { path, uses, tight }, span))
     }
 
     pub(crate) fn is_user(&self) -> bool {

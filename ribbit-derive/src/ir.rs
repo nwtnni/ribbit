@@ -16,7 +16,6 @@ use crate::error::bail;
 use crate::gen;
 use crate::input;
 use crate::r#type::Tight;
-use crate::Spanned;
 use crate::Type;
 
 pub(crate) struct Ir<'input> {
@@ -35,11 +34,11 @@ impl<'input> Ir<'input> {
 
         let data = match &item.data {
             darling::ast::Data::Enum(variants) => {
-                let Some(size) = item.opt.size.map(Spanned::from) else {
+                let Some(size) = *item.opt.size else {
                     bail!(Span::call_site()=> crate::Error::TopLevelSize);
                 };
 
-                let tight = match Tight::from_size(*item.opt.nonzero, *size) {
+                let tight = match Tight::from_size(*item.opt.nonzero, size) {
                     Ok(tight) => tight,
                     // FIXME: span
                     Err(error) => bail!(item.opt.size=> error),
@@ -104,10 +103,10 @@ impl<'input> Ir<'input> {
 
                 for (variant, span) in variants_ir.iter().zip(variants) {
                     let size_variant = variant.r#struct.r#type.as_tight().size();
-                    if size_variant + size_discriminant > *size {
+                    if size_variant + size_discriminant > size {
                         bail!(span=> crate::Error::VariantSize {
                             variant: r#variant.r#struct.r#type.as_tight().size(),
-                            r#enum: *size,
+                            r#enum: size,
                             discriminant: size_discriminant,
                         });
                     }
@@ -230,11 +229,11 @@ impl Struct<'_> {
         unpacked: &'input syn::Ident,
         fields: &'input darling::ast::Fields<SpannedValue<input::Field>>,
     ) -> darling::Result<Struct<'input>> {
-        let Some(size) = opt.size.map(Spanned::from) else {
+        let Some(size) = *opt.size else {
             bail!(Span::call_site()=> crate::Error::TopLevelSize);
         };
 
-        let tight = match Tight::from_size(*opt.nonzero, *size) {
+        let tight = match Tight::from_size(*opt.nonzero, size) {
             Ok(tight) => tight,
             // FIXME: span
             Err(error) => bail!(opt.nonzero=> error),
@@ -298,7 +297,7 @@ pub(crate) struct StructOpt {
 pub(crate) struct Field<'input> {
     pub(crate) vis: &'input syn::Visibility,
     pub(crate) ident: FieldIdent<'input>,
-    pub(crate) r#type: Spanned<Type>,
+    pub(crate) r#type: SpannedValue<Type>,
     pub(crate) offset: usize,
     pub(crate) opt: &'input FieldOpt,
 }
@@ -323,13 +322,13 @@ impl<'input> Field<'input> {
         }
 
         let offset = match *field.opt.offset {
-            None => Spanned::new(
+            None => SpannedValue::new(
                 // First set bit
                 ((*bits as i128) & -(*bits as i128)).trailing_zeros() as usize,
                 field.span(),
             ),
             Some(offset) => match offset > 128 {
-                false => Spanned::new(offset, field.opt.offset.span()),
+                false => SpannedValue::new(offset, field.opt.offset.span()),
                 true => bail!(field => crate::Error::Overflow {
                     offset,
                     available: 0,

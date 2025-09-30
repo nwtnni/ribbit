@@ -1,3 +1,5 @@
+use core::ops::Deref as _;
+
 use proc_macro2::TokenStream;
 use quote::quote;
 use quote::quote_spanned;
@@ -42,7 +44,9 @@ fn extract_assertions<'ir>(r#struct: &'ir ir::Struct) -> impl Iterator<Item = To
         .clone()
         .filter(|r#type| r#type.is_nonzero())
         .map(|r#type| {
-            quote! {
+            let span = r#type.span();
+            let r#type = r#type.deref();
+            quote_spanned! {span=>
                 ::ribbit::private::assert_nonzero::<#r#type>();
             }
         });
@@ -53,8 +57,10 @@ fn extract_assertions<'ir>(r#struct: &'ir ir::Struct) -> impl Iterator<Item = To
             false => quote!(assert_size_eq),
         };
 
+        let span = r#type.span();
         let size = r#type.size();
-        quote_spanned! {r#type.span()=>
+        let r#type = r#type.deref();
+        quote_spanned! {span=>
             ::ribbit::private::#assert::<#r#type>(#size);
         }
     });
