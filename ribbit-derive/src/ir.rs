@@ -196,7 +196,7 @@ pub(crate) enum Data<'input> {
 pub(crate) struct Enum<'input> {
     pub(crate) opt: &'input StructOpt,
     pub(crate) unpacked: &'input syn::Ident,
-    pub(crate) packed: syn::Ident,
+    pub(crate) packed: Cow<'input, syn::Ident>,
     pub(crate) r#type: Type,
     pub(crate) discriminant: Discriminant,
     pub(crate) variants: Vec<Variant<'input>>,
@@ -215,7 +215,7 @@ pub(crate) struct Variant<'input> {
 
 pub(crate) struct Struct<'input> {
     pub(crate) unpacked: &'input syn::Ident,
-    pub(crate) packed: syn::Ident,
+    pub(crate) packed: Cow<'input, syn::Ident>,
     pub(crate) r#type: Type,
     pub(crate) opt: &'input StructOpt,
 
@@ -424,5 +424,27 @@ impl<'input> FieldIdent<'input> {
 impl ToTokens for FieldIdent<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         self.unescaped("").to_tokens(tokens)
+    }
+}
+
+#[derive(FromMeta, Clone, Debug, Default)]
+pub struct CommonOpt {
+    vis: Option<syn::Visibility>,
+    rename: Option<syn::Ident>,
+}
+
+impl CommonOpt {
+    pub(crate) fn vis<'ir>(&'ir self, default: &'ir syn::Visibility) -> &'ir syn::Visibility {
+        self.vis.as_ref().unwrap_or(default)
+    }
+
+    pub(crate) fn rename_with<'ir, F: FnOnce() -> Cow<'ir, syn::Ident>>(
+        &'ir self,
+        default: F,
+    ) -> Cow<'ir, syn::Ident> {
+        self.rename
+            .as_ref()
+            .map(Cow::Borrowed)
+            .unwrap_or_else(default)
     }
 }

@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use darling::FromMeta;
 use proc_macro2::TokenStream;
 use quote::format_ident;
@@ -6,25 +8,17 @@ use quote::quote;
 use crate::ir;
 
 #[derive(FromMeta, Clone, Debug, Default)]
-pub(crate) struct StructOpt {
-    vis: Option<syn::Visibility>,
-    rename: Option<syn::Ident>,
-}
+pub(crate) struct StructOpt(ir::CommonOpt);
 
 impl StructOpt {
-    pub(crate) fn name(&self, unpacked: &syn::Ident) -> syn::Ident {
-        self.rename
-            .clone()
-            .unwrap_or_else(|| format_ident!("{}Packed", unpacked))
-    }
-
-    fn vis(&self, unpacked: &syn::Visibility) -> syn::Visibility {
-        self.vis.clone().unwrap_or_else(|| unpacked.clone())
+    pub(crate) fn name<'ir>(&'ir self, unpacked: &'ir syn::Ident) -> Cow<'ir, syn::Ident> {
+        self.0
+            .rename_with(|| Cow::Owned(format_ident!("{}Packed", unpacked)))
     }
 }
 
 pub(crate) fn packed(ir: &ir::Ir) -> TokenStream {
-    let vis = ir.opt().packed.vis(ir.vis);
+    let vis = ir.opt().packed.0.vis(ir.vis);
     let packed = ir.ident_packed();
     let tight = ir.r#type().as_tight();
 

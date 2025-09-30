@@ -11,25 +11,15 @@ use crate::Type;
 
 #[derive(FromMeta, Clone, Debug, Default)]
 pub(crate) struct FieldOpt {
-    vis: Option<syn::Visibility>,
-    rename: Option<syn::Ident>,
+    #[darling(flatten)]
+    common: ir::CommonOpt,
     #[darling(default)]
     skip: bool,
 }
 
 impl FieldOpt {
-    fn vis(&self, default: &syn::Visibility) -> syn::Visibility {
-        self.vis.clone().unwrap_or_else(|| default.clone())
-    }
-
     pub(crate) fn name<'ir>(field: &'ir ir::Field) -> Cow<'ir, syn::Ident> {
-        field
-            .opt
-            .get
-            .rename
-            .as_ref()
-            .map(Cow::Borrowed)
-            .unwrap_or_else(|| field.ident.escaped())
+        field.opt.get.common.rename_with(|| field.ident.escaped())
     }
 }
 
@@ -51,7 +41,7 @@ pub(crate) fn get<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
                     r#struct.max_offset,
                     field.offset as u8,
                 );
-                let vis = field.opt.get.vis(field.vis);
+                let vis = field.opt.get.common.vis(field.vis);
                 let name = FieldOpt::name(field);
                 let r#type = field.r#type.packed();
 

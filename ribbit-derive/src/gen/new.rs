@@ -1,4 +1,5 @@
 use core::iter;
+use std::borrow::Cow;
 
 use darling::FromMeta;
 use heck::ToSnakeCase as _;
@@ -11,26 +12,23 @@ use crate::lift;
 use crate::Or;
 
 #[derive(FromMeta, Clone, Debug, Default)]
-pub(crate) struct StructOpt {
-    vis: Option<syn::Visibility>,
-    rename: Option<syn::Ident>,
-}
+pub(crate) struct StructOpt(ir::CommonOpt);
 
 pub(crate) fn new<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 'ir {
-    let vis = ir.opt().new.vis(ir.vis);
+    let vis = ir.opt().new.0.vis(ir.vis);
 
     let tight = ir.r#type().as_tight();
 
     match &ir.data {
         ir::Data::Struct(r#struct) => Or::L(
             iter::once(new_struct(
-                &vis,
+                vis,
                 &ir.opt().new.name(None),
                 r#struct,
                 |expr| expr.compile(tight),
             ))
             .chain(iter::once(new_struct_unchecked(
-                &vis,
+                vis,
                 &ir.opt().new.name_unchecked(None),
                 r#struct,
                 |expr| expr.compile(tight),
@@ -38,7 +36,7 @@ pub(crate) fn new<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
         ),
         ir::Data::Enum(r#enum @ ir::Enum { variants, .. }) => {
             Or::R(variants.iter().flat_map(move |variant| {
-                let name = variant.r#struct.unpacked.to_string().to_snake_case();
+                let suffix = variant.r#struct.unpacked.to_string().to_snake_case();
 
                 let compile = |expr: lift::Expr| {
                     lift::Expr::or([
@@ -50,14 +48,14 @@ pub(crate) fn new<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
 
                 [
                     new_struct(
-                        &vis,
-                        &ir.opt().new.name(Some(&name)),
+                        vis,
+                        &ir.opt().new.name(Some(&suffix)),
                         &variant.r#struct,
                         compile,
                     ),
                     new_struct_unchecked(
-                        &vis,
-                        &ir.opt().new.name_unchecked(Some(&name)),
+                        vis,
+                        &ir.opt().new.name_unchecked(Some(&suffix)),
                         &variant.r#struct,
                         compile,
                     ),
@@ -122,23 +120,20 @@ fn new_struct_unchecked<'ir, F: FnOnce(lift::Expr<'ir>) -> TokenStream>(
 }
 
 impl StructOpt {
-    fn vis(&self, default: &syn::Visibility) -> syn::Visibility {
-        self.vis.clone().unwrap_or_else(|| default.clone())
+    pub(crate) fn name<'ir>(&'ir self, suffix: Option<&'ir str>) -> Cow<'ir, syn::Ident> {
+        self.0.rename_with(|| {
+            Cow::Owned(match suffix {
+                Some(variant) => format_ident!("new_{}", variant),
+                None => format_ident!("new"),
+            })
+        })
     }
 
-    pub(crate) fn name(&self, variant: Option<&str>) -> syn::Ident {
-        let new = self.rename.clone().unwrap_or_else(|| format_ident!("new"));
-        match variant {
-            Some(variant) => format_ident!("{}_{}", new, variant),
-            None => new,
-        }
-    }
-
-    pub(crate) fn name_unchecked(&self, variant: Option<&str>) -> syn::Ident {
+    fn name_unchecked<'ir>(&'ir self, suffix: Option<&'ir str>) -> Cow<'ir, syn::Ident> {
         let new = self.name(None);
-        match variant {
+        Cow::Owned(match suffix {
             Some(variant) => format_ident!("{}_{}_unchecked", new, variant),
             None => format_ident!("{}_unchecked", new),
-        }
+        })
     }
 }
