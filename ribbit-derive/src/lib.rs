@@ -47,7 +47,7 @@ fn pack_impl(input: syn::DeriveInput, output: &mut TokenStream) -> Result<(), da
     let packed = gen::packed(&ir);
     let unpack = gen::unpack(&ir);
     let get = gen::get(&ir);
-    let set = gen::set(&ir);
+    let with = gen::with(&ir);
     let from = gen::from(&ir);
     let debug = gen::debug(&ir);
     let hash = gen::hash(&ir);
@@ -74,7 +74,7 @@ fn pack_impl(input: syn::DeriveInput, output: &mut TokenStream) -> Result<(), da
 
             #(#get)*
 
-            #(#set)*
+            #(#with)*
         }
 
         #from

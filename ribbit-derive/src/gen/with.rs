@@ -7,7 +7,7 @@ use crate::ir;
 use crate::lift;
 use crate::Or;
 
-pub(crate) fn set<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 'ir {
+pub(crate) fn with<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 'ir {
     let ir::Data::Struct(r#struct) = &ir.data else {
         return Or::L(iter::empty());
     };
