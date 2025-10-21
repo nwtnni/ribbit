@@ -99,6 +99,7 @@ pub mod convert {
         }
     }
 
+    #[repr(C)]
     union Convert<F: Loose, I: Loose> {
         from: F,
         into: I,
@@ -110,15 +111,35 @@ pub mod convert {
     pub const fn loose_to_loose<F: Loose, I: Loose>(from: F) -> I {
         // SAFETY: `Loose` is only implemented for native integer types.
         unsafe {
-            let mut uninit = MaybeUninit::<Convert<F, I>>::uninit();
+            let mut zeroed = MaybeUninit::<Convert<F, I>>::zeroed();
 
-            // Both writes are required to avoid reading uninitialized
-            // padding bytes when `into` is a larger size than `from`.
-            if core::mem::size_of::<I>() > core::mem::size_of::<F>() {
-                uninit.write(Convert { into: I::ZERO });
-            }
+            let size_from = core::mem::size_of::<F>();
+            let size_into = core::mem::size_of::<I>();
+            let size = if size_from > size_into {
+                size_from
+            } else {
+                size_into
+            };
 
-            uninit.write(Convert { from }).into
+            assert!(core::mem::size_of::<Convert<F, I>>() == size);
+            assert!(cfg!(target_endian = "little"));
+
+            // Need untyped copy to avoid clobbering with uninitialized padding.
+            // when `size_from` < `size_into`.
+            //
+            // https://google.github.io/learn_unsafe_rust/advanced_unsafety/uninitialized.html#padding
+            //
+            // FIXME: assumes const evaluation is little-endian
+            // Can't find a way to determine what endianness const
+            // evaluation uses, since `target_endian` is presumably
+            // for the target machine?
+            core::ptr::copy(
+                (&from as *const F).cast::<u8>(),
+                zeroed.as_mut_ptr().cast::<u8>(),
+                size_from,
+            );
+
+            zeroed.assume_init().into
         }
     }
 }
