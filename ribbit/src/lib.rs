@@ -111,34 +111,29 @@ pub mod convert {
     pub const fn loose_to_loose<F: Loose, I: Loose>(from: F) -> I {
         // SAFETY: `Loose` is only implemented for native integer types.
         unsafe {
+            let size_from = const { core::mem::size_of::<F>() };
+            let size_into = const { core::mem::size_of::<I>() };
+
+            // Easy case: not possible to read uninitialized memory
+            if size_from >= size_into {
+                return Convert { from }.into;
+            }
+
             let mut zeroed = MaybeUninit::<Convert<F, I>>::zeroed();
 
-            let size_from = core::mem::size_of::<F>();
-            let size_into = core::mem::size_of::<I>();
-            let size = if size_from > size_into {
-                size_from
+            // NOTE: assumes const evaluation is run with the target
+            // endianness--can't find info on whether this is true
+            let offset = if cfg!(target_endian = "little") {
+                0
             } else {
-                size_into
+                size_into - size_from
             };
 
-            assert!(core::mem::size_of::<Convert<F, I>>() == size);
-            assert!(cfg!(target_endian = "little"));
-
-            // Need untyped copy to avoid clobbering with uninitialized padding.
-            // when `size_from` < `size_into`.
+            // Need raw pointer write (as opposed to `zeroed.write(Convert { from })`)
+            // to avoid clobbering zeroed memory with uninitialized padding.
             //
             // https://google.github.io/learn_unsafe_rust/advanced_unsafety/uninitialized.html#padding
-            //
-            // FIXME: assumes const evaluation is little-endian
-            // Can't find a way to determine what endianness const
-            // evaluation uses, since `target_endian` is presumably
-            // for the target machine?
-            core::ptr::copy(
-                (&from as *const F).cast::<u8>(),
-                zeroed.as_mut_ptr().cast::<u8>(),
-                size_from,
-            );
-
+            zeroed.as_mut_ptr().byte_add(offset).cast::<F>().write(from);
             zeroed.assume_init().into
         }
     }

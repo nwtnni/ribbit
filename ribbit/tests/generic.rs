@@ -177,3 +177,26 @@ fn associated() {
 
     impl<A> Copy for Wrapper<A> where A: Foo {}
 }
+
+#[test]
+fn const_loose_to_loose() {
+    #[derive(Copy, Clone, Debug, PartialEq, Eq, ribbit::Pack)]
+    #[ribbit(size = 64)]
+    struct Outer64<T> {
+        other: u32,
+        #[ribbit(size = 32)]
+        data: T,
+    }
+
+    let outer = Outer64::<u7> {
+        data: u7::new(5),
+        other: 10,
+    };
+
+    const {
+        ribbit::Packed::<Outer64<u7>>::new(10, u7::new(5));
+    }
+
+    assert_eq!(outer.pack().unpack(), outer);
+    assert_eq!(outer.pack().data().value(), 5);
+}
