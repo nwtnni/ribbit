@@ -41,7 +41,7 @@ pub unsafe trait Pack: Copy {
 ///
 /// Implementer must ensure:
 /// - Type has size `BITS`
-/// - Size and alignment of `Self::Loose` >= `Self`
+/// - Size and alignment of `Self::Loose` is the same as `Self`
 pub unsafe trait Unpack: Copy {
     const BITS: usize;
 
@@ -61,7 +61,7 @@ pub unsafe trait Unpack: Copy {
 //
 // Used internally for `const`-compatible conversions between packed
 // and tight types.
-unsafe trait Loose: Copy {
+unsafe trait Loose: Copy + Sized {
     const ZERO: Self;
 }
 
@@ -433,6 +433,28 @@ impl_nonzero!(NonZeroU16, NonZeroI16, u16, 16);
 impl_nonzero!(NonZeroU32, NonZeroI32, u32, 32);
 impl_nonzero!(NonZeroU64, NonZeroI64, u64, 64);
 impl_nonzero!(NonZeroU128, NonZeroI128, u128, 128);
+
+/// Extension trait for cheaply constructing a `ribbit::Packed<Option<T>>`
+/// from the underlying integer type by reinterpreting the bits.
+pub trait OptionExt {
+    type Loose;
+    /// # SAFETY
+    ///
+    /// Caller must ensure `loose` contains a valid bit pattern for `Self`.
+    unsafe fn new_unchecked(loose: Self::Loose) -> Self;
+}
+
+impl<T> OptionExt for Option<T>
+where
+    T: Unpack + NonZero,
+{
+    type Loose = T::Loose;
+    #[inline(always)]
+    unsafe fn new_unchecked(loose: Self::Loose) -> Self {
+        // SAFETY: `T::Loose` has the same size and alignment as `Self`
+        core::mem::transmute_copy(&loose)
+    }
+}
 
 unsafe impl<T> Pack for Option<T>
 where

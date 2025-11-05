@@ -3,7 +3,9 @@ use core::num::NonZeroI32;
 use core::num::NonZeroI8;
 use core::num::NonZeroU128;
 use core::num::NonZeroU16;
+use ribbit::OptionExt as _;
 use ribbit::Pack as _;
+use ribbit::Unpack as _;
 
 #[test]
 fn basic() {
@@ -118,6 +120,26 @@ fn nonzero() {
     struct NonZero {
         nonzero: NonZeroU16,
     }
+}
+
+#[test]
+fn nonzero_new_unchecked() {
+    #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
+    #[ribbit(size = 16, nonzero)]
+    struct NonZero {
+        nonzero: NonZeroU16,
+    }
+
+    let non_zero = unsafe { ribbit::Packed::<Option<NonZero>>::new_unchecked(15) };
+    assert_eq!(
+        non_zero.unpack(),
+        Some(NonZero {
+            nonzero: NonZeroU16::new(15).unwrap()
+        })
+    );
+
+    let zero = unsafe { ribbit::Packed::<Option<NonZero>>::new_unchecked(0) };
+    assert_eq!(zero.unpack(), None);
 }
 
 #[test]
