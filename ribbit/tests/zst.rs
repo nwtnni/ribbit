@@ -115,3 +115,18 @@ fn pack_zst_large() {
     let hole = Hole(zst).pack();
     assert_eq!(zst, hole._0().unpack());
 }
+
+#[test]
+fn offset_eq_size() {
+    #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
+    #[ribbit(size = 0)]
+    struct Zst;
+
+    #[derive(ribbit::Pack, Copy, Clone, Debug)]
+    #[ribbit(size = 32)]
+    struct Hole<T>(#[ribbit(offset = 32, size = 0)] T);
+
+    let zst = Zst;
+    let hole = Hole(zst).pack();
+    assert_eq!(zst, hole._0().unpack());
+}

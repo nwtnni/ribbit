@@ -57,6 +57,14 @@ pub(crate) fn get_field(
     max_offset: usize,
     offset: u8,
 ) -> TokenStream {
+    // ZSTs can be at `offset == r#type.size()`, which causes
+    // the right-shift to error. Hack around this by setting
+    // the offset for ZSTs to 0.
+    let offset = match field.r#type.size() {
+        0 => 0,
+        _ => offset,
+    };
+
     let expr = lift::Expr::value_self(r#type).shift_right(offset);
 
     // Loose type will be implicitly truncated by `as` cast
