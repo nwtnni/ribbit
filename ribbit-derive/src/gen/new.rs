@@ -75,13 +75,15 @@ fn new_struct<'ir, F: FnOnce(lift::Expr<'ir>) -> TokenStream>(
     r#struct: &'ir ir::Struct,
     compile: F,
 ) -> TokenStream {
-    let parameters = r#struct.iter_nonzero().map(|field| {
+    let fields = r#struct.iter().filter(|field| !field.r#type.is_zst());
+
+    let parameters = fields.clone().map(|field| {
         let ident = field.ident.escape();
         let r#type = field.r#type.packed();
         quote!(#ident: #r#type)
     });
 
-    let value = compile(lift::Expr::or(r#struct.iter_nonzero().map(|field| {
+    let value = compile(lift::Expr::or(fields.clone().map(|field| {
         lift::Expr::value(field.ident.escape(), &field.r#type).shift_left(field.offset as u8)
     })));
 

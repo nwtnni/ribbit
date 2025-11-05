@@ -11,7 +11,8 @@ pub(crate) fn pack(ir: &ir::Ir) -> TokenStream {
     let pack = match &ir.data {
         ir::Data::Struct(r#struct) => {
             let arguments = r#struct
-                .iter_nonzero()
+                .iter()
+                .filter(|field| !field.r#type.is_zst())
                 .map(|ir::Field { ident, r#type, .. }| r#type.pack(quote!(self.#ident)));
 
             quote!(#packed::new(#(#arguments),*))

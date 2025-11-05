@@ -170,6 +170,10 @@ impl Type {
         self.as_tight().is_nonzero()
     }
 
+    pub(crate) fn is_zst(&self) -> bool {
+        self.as_tight().size() == 0
+    }
+
     pub(crate) fn mask(&self) -> u128 {
         self.as_tight().mask()
     }

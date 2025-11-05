@@ -29,7 +29,8 @@ pub(crate) fn with<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 
 
     Or::R(
         r#struct
-            .iter_nonzero()
+            .iter()
+            .filter(|field| !field.r#type.is_zst())
             .filter(|field| !field.opt.with.0.skip)
             .map(move |field| {
                 let value = lift::Expr::or([

@@ -268,11 +268,7 @@ impl Struct<'_> {
         })
     }
 
-    pub(crate) fn iter_nonzero(&self) -> impl Iterator<Item = &Field> {
-        self.iter().filter(|field| field.r#type.size() != 0)
-    }
-
-    pub(crate) fn iter(&self) -> impl Iterator<Item = &Field> {
+    pub(crate) fn iter(&self) -> core::slice::Iter<'_, Field> {
         self.fields.iter()
     }
 }
