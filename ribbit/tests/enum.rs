@@ -180,3 +180,18 @@ fn explicit_discriminant_nonzero() {
         _ => unreachable!(),
     }
 }
+
+#[test]
+fn unit_omit_size() {
+    #[derive(ribbit::Pack, Copy, Clone, Debug)]
+    #[ribbit(size = 8, debug, eq)]
+    enum Unit {
+        A,
+        B,
+        C,
+    }
+
+    let a = Unit::A.pack();
+    let c = Unit::C.pack();
+    assert_ne!(a, c);
+}

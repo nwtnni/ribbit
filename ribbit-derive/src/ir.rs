@@ -229,7 +229,7 @@ impl Struct<'_> {
         unpacked: &'input syn::Ident,
         fields: &'input darling::ast::Fields<SpannedValue<input::Field>>,
     ) -> darling::Result<Struct<'input>> {
-        let Some(size) = *opt.size else {
+        let Some(size) = opt.size.or_else(|| fields.is_unit().then_some(0)) else {
             bail!(Span::call_site()=> crate::Error::TopLevelSize);
         };
 
