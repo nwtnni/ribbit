@@ -1,3 +1,5 @@
+use core::marker::PhantomData;
+
 use ribbit::u3;
 use ribbit::u7;
 use ribbit::Pack as _;
@@ -199,4 +201,33 @@ fn const_loose_to_loose() {
 
     assert_eq!(outer.pack().unpack(), outer);
     assert_eq!(outer.pack().data().value(), 5);
+}
+
+#[test]
+fn phantom_data_zst() {
+    #[derive(Debug, PartialEq, Eq, ribbit::Pack)]
+    #[ribbit(size = 64, debug, eq)]
+    struct Phantom<T> {
+        data: u64,
+
+        _type: PhantomData<T>,
+    }
+
+    impl<T> Copy for Phantom<T> {}
+    impl<T> Clone for Phantom<T> {
+        fn clone(&self) -> Self {
+            *self
+        }
+    }
+
+    let unpacked = Phantom::<usize> {
+        data: 34,
+        _type: PhantomData,
+    };
+
+    let packed = ribbit::Packed::<Phantom<usize>>::new(34);
+
+    assert_eq!(unpacked.pack(), packed);
+    assert_eq!(unpacked, packed.unpack());
+    assert_eq!(packed.data(), 34);
 }

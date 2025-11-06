@@ -11,6 +11,7 @@ use crate::r#type::Loose;
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub(crate) enum Tight {
     Unit,
+    PhantomData,
     Bool,
     Loose { signed: bool, loose: Loose },
     Arbitrary(Arbitrary),
@@ -32,15 +33,12 @@ impl Tight {
     }
 
     pub(crate) fn from_path(path: &syn::TypePath) -> Option<Self> {
-        let segment = match path.path.segments.last()? {
+        let ident = match path.path.segments.last()? {
+            segment if segment.ident == "PhantomData" => return Some(Self::PhantomData),
             segment if !segment.arguments.is_none() => return None,
-            segment => segment,
+            segment if segment.ident == "bool" => return Some(Self::Bool),
+            segment => segment.ident.to_string(),
         };
-
-        let ident = segment.ident.to_string();
-        if ident == "bool" {
-            return Some(Self::Bool);
-        }
 
         let nonzero = ident.starts_with("NonZero");
         let signed = match nonzero {
@@ -86,7 +84,7 @@ impl Tight {
 
     pub(crate) fn size(&self) -> usize {
         match self {
-            Tight::Unit => 0,
+            Tight::Unit | Tight::PhantomData => 0,
             Tight::Bool => 1,
             Tight::Loose { signed: _, loose } => loose.size(),
             Tight::Arbitrary(arbitrary) => arbitrary.size(),
@@ -96,7 +94,7 @@ impl Tight {
 
     pub(crate) fn mask(&self) -> u128 {
         match self {
-            Tight::Unit => 0,
+            Tight::Unit | Tight::PhantomData => 0,
             Tight::Bool => 1,
             Tight::Loose { signed: _, loose } => loose.mask(),
             Tight::Arbitrary(arbitrary) => arbitrary.mask(),
@@ -114,7 +112,7 @@ impl Tight {
 
     pub(crate) fn to_loose(self) -> Loose {
         match self {
-            Tight::Unit | Tight::Bool => Loose::N8,
+            Tight::Unit | Tight::PhantomData | Tight::Bool => Loose::N8,
             Tight::Loose { loose, .. } | Tight::NonZero { signed: _, loose } => loose,
             Tight::Arbitrary(arbitrary) => arbitrary.to_loose(),
         }
@@ -122,7 +120,9 @@ impl Tight {
 
     pub(crate) fn convert_to_loose(&self, expression: TokenStream) -> TokenStream {
         match self {
-            Tight::Unit => proc_macro2::Literal::usize_unsuffixed(0).to_token_stream(),
+            Tight::Unit | Tight::PhantomData => {
+                proc_macro2::Literal::usize_unsuffixed(0).to_token_stream()
+            }
             Tight::Bool => {
                 let zero = proc_macro2::Literal::usize_unsuffixed(0);
                 let one = proc_macro2::Literal::usize_unsuffixed(1);
@@ -163,6 +163,7 @@ impl Tight {
     pub(crate) fn convert_from_loose(&self, expression: TokenStream) -> TokenStream {
         match self {
             Tight::Unit => quote!(()),
+            Tight::PhantomData => quote!(::ribbit::private::PhantomData),
             Tight::Bool => {
                 let zero = proc_macro2::Literal::usize_unsuffixed(0);
                 quote!((#expression != #zero))
@@ -185,6 +186,7 @@ impl ToTokens for Tight {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let path = match self {
             Tight::Unit => return quote!(()).to_tokens(tokens),
+            Tight::PhantomData => return quote!(::ribbit::private::PhantomData).to_tokens(tokens),
             Tight::Bool => quote!(bool),
             Tight::Loose {
                 signed: true,
@@ -222,6 +224,7 @@ impl Display for Tight {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Tight::Unit => "()".fmt(f),
+            Tight::PhantomData => "PhantomData".fmt(f),
             Tight::Bool => "bool".fmt(f),
             Tight::Loose {
                 signed: true,
