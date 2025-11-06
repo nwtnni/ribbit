@@ -20,19 +20,21 @@ macro_rules! atomic {
 
         impl<T> Debug for $name<T>
         where
-            T: Pack + Debug,
+            T: Pack,
+            T::Packed: Debug,
         {
             fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-                self.load(Ordering::Relaxed).fmt(f)
+                self.load_packed(Ordering::Relaxed).fmt(f)
             }
         }
 
         impl<T> Display for $name<T>
         where
-            T: Pack + Display,
+            T: Pack,
+            T::Packed: Display,
         {
             fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-                self.load(Ordering::Relaxed).fmt(f)
+                self.load_packed(Ordering::Relaxed).fmt(f)
             }
         }
 
