@@ -1,9 +1,9 @@
 use core::sync::atomic::Ordering;
 
-use ribbit::atomic::Atomic;
 use ribbit::u22;
 use ribbit::u26;
 use ribbit::u9;
+use ribbit::Atomic;
 
 #[test]
 fn aligned() {

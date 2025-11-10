@@ -10,12 +10,14 @@ use crate::Unpack;
 pub struct Atomic<T: Pack>(<<T::Packed as Unpack>::Loose as seal::Atomic>::Atomic);
 
 impl<T: Pack> Atomic<T> {
+    #[inline]
     pub fn new(value: T) -> Self {
         Self(<<T::Packed as Unpack>::Loose as seal::Atomic>::new(
             Self::packed_to_loose(value.pack()),
         ))
     }
 
+    #[inline]
     pub const fn new_packed(value: T::Packed) -> Self {
         union Transmute<T: Unpack> {
             loose: T::Loose,
@@ -29,20 +31,24 @@ impl<T: Pack> Atomic<T> {
         unsafe { Self(ManuallyDrop::into_inner(loose.atomic)) }
     }
 
+    #[inline]
     pub fn load(&self, ordering: Ordering) -> T {
         self.load_packed(ordering).unpack()
     }
 
+    #[inline]
     pub fn load_packed(&self, ordering: Ordering) -> T::Packed {
         Self::loose_to_packed(<<T::Packed as Unpack>::Loose as seal::Atomic>::load(
             &self.0, ordering,
         ))
     }
 
+    #[inline]
     pub fn store(&self, value: T, ordering: Ordering) {
         self.store_packed(value.pack(), ordering)
     }
 
+    #[inline]
     pub fn store_packed(&self, value: T::Packed, ordering: Ordering) {
         <<T::Packed as Unpack>::Loose as seal::Atomic>::store(
             &self.0,
@@ -51,20 +57,24 @@ impl<T: Pack> Atomic<T> {
         )
     }
 
+    #[inline]
     pub fn get(&mut self) -> T {
         self.get_packed().unpack()
     }
 
+    #[inline]
     pub fn get_packed(&mut self) -> T::Packed {
         Self::loose_to_packed(<<T::Packed as Unpack>::Loose as seal::Atomic>::get(
             &mut self.0,
         ))
     }
 
+    #[inline]
     pub fn set(&mut self, value: T) {
         self.set_packed(value.pack())
     }
 
+    #[inline]
     pub fn set_packed(&mut self, value: T::Packed) {
         <<T::Packed as Unpack>::Loose as seal::Atomic>::set(
             &mut self.0,
@@ -72,6 +82,7 @@ impl<T: Pack> Atomic<T> {
         )
     }
 
+    #[inline]
     pub fn compare_exchange(
         &self,
         old: T,
@@ -84,6 +95,7 @@ impl<T: Pack> Atomic<T> {
             .map_err(Unpack::unpack)
     }
 
+    #[inline]
     pub fn compare_exchange_packed(
         &self,
         old: T::Packed,
@@ -102,6 +114,7 @@ impl<T: Pack> Atomic<T> {
         .map_err(Self::loose_to_packed)
     }
 
+    #[inline]
     pub fn compare_exchange_weak(
         &self,
         old: T,
@@ -114,6 +127,7 @@ impl<T: Pack> Atomic<T> {
             .map_err(Unpack::unpack)
     }
 
+    #[inline]
     pub fn compare_exchange_weak_packed(
         &self,
         old: T::Packed,
@@ -132,10 +146,12 @@ impl<T: Pack> Atomic<T> {
         .map_err(Self::loose_to_packed)
     }
 
+    #[inline]
     pub fn swap(&self, value: T, ordering: Ordering) -> T {
         self.swap_packed(value.pack(), ordering).unpack()
     }
 
+    #[inline]
     pub fn swap_packed(&self, value: T::Packed, ordering: Ordering) -> T::Packed {
         Self::loose_to_packed(<<T::Packed as Unpack>::Loose as seal::Atomic>::swap(
             &self.0,
@@ -144,10 +160,12 @@ impl<T: Pack> Atomic<T> {
         ))
     }
 
+    #[inline]
     const fn packed_to_loose(value: T::Packed) -> <T::Packed as Unpack>::Loose {
         crate::convert::packed_to_loose(value)
     }
 
+    #[inline]
     const fn loose_to_packed(loose: <T::Packed as Unpack>::Loose) -> T::Packed {
         unsafe { crate::convert::loose_to_packed(loose) }
     }
@@ -158,6 +176,7 @@ where
     T: Pack,
     T::Packed: Debug,
 {
+    #[inline]
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         self.load_packed(Ordering::Relaxed).fmt(f)
     }
@@ -168,6 +187,7 @@ where
     T: Pack,
     T::Packed: Display,
 {
+    #[inline]
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
         self.load_packed(Ordering::Relaxed).fmt(f)
     }
@@ -178,6 +198,7 @@ where
     T: Pack,
     T::Packed: Default,
 {
+    #[inline]
     fn default() -> Self {
         Self::new_packed(T::Packed::default())
     }
@@ -188,26 +209,32 @@ macro_rules! impl_atomic {
         impl super::seal::Atomic for $ty {
             type Atomic = $atomic;
 
+            #[inline]
             fn new(value: Self) -> Self::Atomic {
                 <$atomic>::new(value)
             }
 
+            #[inline]
             fn load(atomic: &Self::Atomic, ordering: Ordering) -> Self {
                 <$atomic>::load(atomic, ordering)
             }
 
+            #[inline]
             fn store(atomic: &Self::Atomic, value: Self, ordering: Ordering) {
                 <$atomic>::store(atomic, value, ordering)
             }
 
+            #[inline]
             fn get(atomic: &mut Self::Atomic) -> Self {
                 *<$atomic>::get_mut(atomic)
             }
 
+            #[inline]
             fn set(atomic: &mut Self::Atomic, value: Self) {
                 *<$atomic>::get_mut(atomic) = value
             }
 
+            #[inline]
             fn compare_exchange(
                 atomic: &Self::Atomic,
                 old: Self,
@@ -218,6 +245,7 @@ macro_rules! impl_atomic {
                 <$atomic>::compare_exchange(atomic, old, new, success, failure)
             }
 
+            #[inline]
             fn compare_exchange_weak(
                 atomic: &Self::Atomic,
                 old: Self,
@@ -228,6 +256,7 @@ macro_rules! impl_atomic {
                 <$atomic>::compare_exchange_weak(atomic, old, new, success, failure)
             }
 
+            #[inline]
             fn swap(atomic: &Self::Atomic, value: Self, ordering: Ordering) -> Self {
                 <$atomic>::swap(atomic, value, ordering)
             }

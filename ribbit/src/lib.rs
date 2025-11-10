@@ -13,7 +13,8 @@ use core::num::NonZeroU8;
 pub use arbitrary_int::*;
 pub use ribbit_derive::Pack;
 
-pub mod atomic;
+mod atomic;
+pub use atomic::Atomic;
 
 pub type Packed<T> = <T as Pack>::Packed;
 pub type Unpacked<T> = <T as Unpack>::Unpacked;
