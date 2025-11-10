@@ -1,192 +1,295 @@
 use core::fmt::Debug;
 use core::fmt::Display;
-use core::marker::PhantomData;
-use core::sync::atomic::AtomicU16;
-use core::sync::atomic::AtomicU32;
-use core::sync::atomic::AtomicU64;
-use core::sync::atomic::AtomicU8;
+use core::mem::ManuallyDrop;
 use core::sync::atomic::Ordering;
 
 use crate::Pack;
 use crate::Unpack;
 
-macro_rules! atomic {
-    ($name:ident, $atomic:ty, $loose:ty, $size:expr) => {
-        #[repr(transparent)]
-        pub struct $name<T> {
-            value: $atomic,
-            _type: PhantomData<T>,
+#[repr(transparent)]
+pub struct Atomic<T: Pack>(<<T::Packed as Unpack>::Loose as seal::Atomic>::Atomic);
+
+impl<T: Pack> Atomic<T> {
+    pub fn new(value: T) -> Self {
+        Self(<<T::Packed as Unpack>::Loose as seal::Atomic>::new(
+            Self::packed_to_loose(value.pack()),
+        ))
+    }
+
+    pub const fn new_packed(value: T::Packed) -> Self {
+        union Transmute<T: Unpack> {
+            loose: T::Loose,
+            atomic: ManuallyDrop<<T::Loose as seal::Atomic>::Atomic>,
         }
 
-        impl<T> Debug for $name<T>
-        where
-            T: Pack,
-            T::Packed: Debug,
-        {
-            fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-                self.load_packed(Ordering::Relaxed).fmt(f)
+        let loose = Transmute::<T::Packed> {
+            loose: Self::packed_to_loose(value),
+        };
+
+        unsafe { Self(ManuallyDrop::into_inner(loose.atomic)) }
+    }
+
+    pub fn load(&self, ordering: Ordering) -> T {
+        self.load_packed(ordering).unpack()
+    }
+
+    pub fn load_packed(&self, ordering: Ordering) -> T::Packed {
+        Self::loose_to_packed(<<T::Packed as Unpack>::Loose as seal::Atomic>::load(
+            &self.0, ordering,
+        ))
+    }
+
+    pub fn store(&self, value: T, ordering: Ordering) {
+        self.store_packed(value.pack(), ordering)
+    }
+
+    pub fn store_packed(&self, value: T::Packed, ordering: Ordering) {
+        <<T::Packed as Unpack>::Loose as seal::Atomic>::store(
+            &self.0,
+            Self::packed_to_loose(value),
+            ordering,
+        )
+    }
+
+    pub fn get(&mut self) -> T {
+        self.get_packed().unpack()
+    }
+
+    pub fn get_packed(&mut self) -> T::Packed {
+        Self::loose_to_packed(<<T::Packed as Unpack>::Loose as seal::Atomic>::get(
+            &mut self.0,
+        ))
+    }
+
+    pub fn set(&mut self, value: T) {
+        self.set_packed(value.pack())
+    }
+
+    pub fn set_packed(&mut self, value: T::Packed) {
+        <<T::Packed as Unpack>::Loose as seal::Atomic>::set(
+            &mut self.0,
+            Self::packed_to_loose(value),
+        )
+    }
+
+    pub fn compare_exchange(
+        &self,
+        old: T,
+        new: T,
+        success: Ordering,
+        failure: Ordering,
+    ) -> Result<T, T> {
+        self.compare_exchange_packed(old.pack(), new.pack(), success, failure)
+            .map(Unpack::unpack)
+            .map_err(Unpack::unpack)
+    }
+
+    pub fn compare_exchange_packed(
+        &self,
+        old: T::Packed,
+        new: T::Packed,
+        success: Ordering,
+        failure: Ordering,
+    ) -> Result<T::Packed, T::Packed> {
+        <<T::Packed as Unpack>::Loose as seal::Atomic>::compare_exchange(
+            &self.0,
+            Self::packed_to_loose(old),
+            Self::packed_to_loose(new),
+            success,
+            failure,
+        )
+        .map(Self::loose_to_packed)
+        .map_err(Self::loose_to_packed)
+    }
+
+    pub fn compare_exchange_weak(
+        &self,
+        old: T,
+        new: T,
+        success: Ordering,
+        failure: Ordering,
+    ) -> Result<T, T> {
+        self.compare_exchange_weak_packed(old.pack(), new.pack(), success, failure)
+            .map(Unpack::unpack)
+            .map_err(Unpack::unpack)
+    }
+
+    pub fn compare_exchange_weak_packed(
+        &self,
+        old: T::Packed,
+        new: T::Packed,
+        success: Ordering,
+        failure: Ordering,
+    ) -> Result<T::Packed, T::Packed> {
+        <<T::Packed as Unpack>::Loose as seal::Atomic>::compare_exchange_weak(
+            &self.0,
+            Self::packed_to_loose(old),
+            Self::packed_to_loose(new),
+            success,
+            failure,
+        )
+        .map(Self::loose_to_packed)
+        .map_err(Self::loose_to_packed)
+    }
+
+    pub fn swap(&self, value: T, ordering: Ordering) -> T {
+        self.swap_packed(value.pack(), ordering).unpack()
+    }
+
+    pub fn swap_packed(&self, value: T::Packed, ordering: Ordering) -> T::Packed {
+        Self::loose_to_packed(<<T::Packed as Unpack>::Loose as seal::Atomic>::swap(
+            &self.0,
+            Self::packed_to_loose(value),
+            ordering,
+        ))
+    }
+
+    const fn packed_to_loose(value: T::Packed) -> <T::Packed as Unpack>::Loose {
+        crate::convert::packed_to_loose(value)
+    }
+
+    const fn loose_to_packed(loose: <T::Packed as Unpack>::Loose) -> T::Packed {
+        unsafe { crate::convert::loose_to_packed(loose) }
+    }
+}
+
+impl<T> Debug for Atomic<T>
+where
+    T: Pack,
+    T::Packed: Debug,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        self.load_packed(Ordering::Relaxed).fmt(f)
+    }
+}
+
+impl<T> Display for Atomic<T>
+where
+    T: Pack,
+    T::Packed: Display,
+{
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        self.load_packed(Ordering::Relaxed).fmt(f)
+    }
+}
+
+impl<T> Default for Atomic<T>
+where
+    T: Pack,
+    T::Packed: Default,
+{
+    fn default() -> Self {
+        Self::new_packed(T::Packed::default())
+    }
+}
+
+macro_rules! impl_atomic {
+    ($ty:ty, $atomic:ty) => {
+        impl super::seal::Atomic for $ty {
+            type Atomic = $atomic;
+
+            fn new(value: Self) -> Self::Atomic {
+                <$atomic>::new(value)
             }
-        }
 
-        impl<T> Display for $name<T>
-        where
-            T: Pack,
-            T::Packed: Display,
-        {
-            fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
-                self.load_packed(Ordering::Relaxed).fmt(f)
-            }
-        }
-
-        impl<T> Default for $name<T>
-        where
-            T: Pack,
-            T::Packed: Default,
-        {
-            fn default() -> Self {
-                Self::from_packed(T::Packed::default())
-            }
-        }
-
-        impl<T> $name<T>
-        where
-            T: Pack,
-        {
-            const INVARIANT: () = assert!(<<T as Pack>::Packed as Unpack>::BITS <= $size);
-
-            pub fn new(value: T) -> Self {
-                const { Self::INVARIANT }
-                Self::from_packed(value.pack())
+            fn load(atomic: &Self::Atomic, ordering: Ordering) -> Self {
+                <$atomic>::load(atomic, ordering)
             }
 
-            pub const fn from_packed(value: T::Packed) -> Self {
-                const { Self::INVARIANT }
-                Self {
-                    value: <$atomic>::new(Self::loosen(value)),
-                    _type: PhantomData,
-                }
+            fn store(atomic: &Self::Atomic, value: Self, ordering: Ordering) {
+                <$atomic>::store(atomic, value, ordering)
             }
 
-            pub fn load(&self, ordering: Ordering) -> T {
-                self.load_packed(ordering).unpack()
+            fn get(atomic: &mut Self::Atomic) -> Self {
+                *<$atomic>::get_mut(atomic)
             }
 
-            pub fn load_packed(&self, ordering: Ordering) -> T::Packed {
-                Self::pack(self.value.load(ordering))
+            fn set(atomic: &mut Self::Atomic, value: Self) {
+                *<$atomic>::get_mut(atomic) = value
             }
 
-            pub fn store(&self, value: T, ordering: Ordering) {
-                self.store_packed(value.pack(), ordering)
-            }
-
-            pub fn store_packed(&self, value: T::Packed, ordering: Ordering) {
-                self.value.store(Self::loosen(value), ordering)
-            }
-
-            pub fn get(&mut self) -> T {
-                self.get_packed().unpack()
-            }
-
-            pub fn get_packed(&mut self) -> T::Packed {
-                Self::pack(*self.value.get_mut())
-            }
-
-            pub fn set(&mut self, value: T) {
-                self.set_packed(value.pack())
-            }
-
-            pub fn set_packed(&mut self, value: T::Packed) {
-                *self.value.get_mut() = Self::loosen(value);
-            }
-
-            pub fn compare_exchange(
-                &self,
-                old: T,
-                new: T,
+            fn compare_exchange(
+                atomic: &Self::Atomic,
+                old: Self,
+                new: Self,
                 success: Ordering,
                 failure: Ordering,
-            ) -> Result<T, T> {
-                self.compare_exchange_packed(old.pack(), new.pack(), success, failure)
-                    .map(Unpack::unpack)
-                    .map_err(Unpack::unpack)
+            ) -> Result<Self, Self> {
+                <$atomic>::compare_exchange(atomic, old, new, success, failure)
             }
 
-            pub fn compare_exchange_packed(
-                &self,
-                old: T::Packed,
-                new: T::Packed,
+            fn compare_exchange_weak(
+                atomic: &Self::Atomic,
+                old: Self,
+                new: Self,
                 success: Ordering,
                 failure: Ordering,
-            ) -> Result<T::Packed, T::Packed> {
-                self.value
-                    .compare_exchange(Self::loosen(old), Self::loosen(new), success, failure)
-                    .map(Self::pack)
-                    .map_err(Self::pack)
+            ) -> Result<Self, Self> {
+                <$atomic>::compare_exchange_weak(atomic, old, new, success, failure)
             }
 
-            pub fn compare_exchange_weak(
-                &self,
-                old: T,
-                new: T,
-                success: Ordering,
-                failure: Ordering,
-            ) -> Result<T, T> {
-                self.compare_exchange_weak_packed(old.pack(), new.pack(), success, failure)
-                    .map(Unpack::unpack)
-                    .map_err(Unpack::unpack)
-            }
-
-            pub fn compare_exchange_weak_packed(
-                &self,
-                old: T::Packed,
-                new: T::Packed,
-                success: Ordering,
-                failure: Ordering,
-            ) -> Result<T::Packed, T::Packed> {
-                self.value
-                    .compare_exchange_weak(Self::loosen(old), Self::loosen(new), success, failure)
-                    .map(Self::pack)
-                    .map_err(Self::pack)
-            }
-
-            pub fn swap(&self, value: T, ordering: Ordering) -> T {
-                self.swap_packed(value.pack(), ordering).unpack()
-            }
-
-            pub fn swap_packed(&self, value: T::Packed, ordering: Ordering) -> T::Packed {
-                Self::pack(self.value.swap(Self::loosen(value), ordering))
-            }
-
-            const fn loosen(value: T::Packed) -> $loose {
-                const { Self::INVARIANT }
-                let loose = crate::convert::packed_to_loose(value);
-                crate::convert::loose_to_loose(loose)
-            }
-
-            const fn pack(loose: $loose) -> T::Packed {
-                const { Self::INVARIANT }
-                let loose = crate::convert::loose_to_loose(loose);
-                unsafe { crate::convert::loose_to_packed(loose) }
+            fn swap(atomic: &Self::Atomic, value: Self, ordering: Ordering) -> Self {
+                <$atomic>::swap(atomic, value, ordering)
             }
         }
     };
 }
 
-atomic!(Atomic8, AtomicU8, u8, 8);
-atomic!(Atomic16, AtomicU16, u16, 16);
-atomic!(Atomic32, AtomicU32, u32, 32);
-atomic!(Atomic64, AtomicU64, u64, 64);
+pub(crate) mod seal {
+    use core::sync::atomic::Ordering;
 
-#[cfg(feature = "atomic-u128")]
-atomic!(Atomic128, atomic_128::AtomicU128, u128, 128);
+    pub trait Atomic: Sized {
+        type Atomic;
 
-#[cfg(feature = "atomic-u128")]
+        fn new(value: Self) -> Self::Atomic;
+
+        fn load(atomic: &Self::Atomic, ordering: Ordering) -> Self;
+
+        fn store(atomic: &Self::Atomic, value: Self, ordering: Ordering);
+
+        fn get(atomic: &mut Self::Atomic) -> Self;
+
+        fn set(atomic: &mut Self::Atomic, value: Self);
+
+        fn compare_exchange(
+            atomic: &Self::Atomic,
+            old: Self,
+            new: Self,
+            success: Ordering,
+            failure: Ordering,
+        ) -> Result<Self, Self>;
+
+        fn compare_exchange_weak(
+            atomic: &Self::Atomic,
+            old: Self,
+            new: Self,
+            success: Ordering,
+            failure: Ordering,
+        ) -> Result<Self, Self>;
+
+        fn swap(atomic: &Self::Atomic, value: Self, ordering: Ordering) -> Self;
+    }
+
+    impl_atomic!(u8, core::sync::atomic::AtomicU8);
+    impl_atomic!(u16, core::sync::atomic::AtomicU16);
+    impl_atomic!(u32, core::sync::atomic::AtomicU32);
+    impl_atomic!(u64, core::sync::atomic::AtomicU64);
+}
+
+#[cfg(feature = "portable-u128")]
+mod atomic_128 {
+    use core::sync::atomic::Ordering;
+
+    impl_atomic!(u128, portable_atomic::AtomicU128);
+}
+
 // NOTE: [portable-atomic] currently doesn't support both
 // outlining atomics and using vmovdqa for atomic 128 bit loads.
 // Work around for now by inlining x86-64 support.
 //
 // - https://github.com/taiki-e/portable-atomic/blob/d118cf01f852ef4cc1fa4e0a08f80f5e2a5c8f41/src/imp/atomic128/x86_64.rs#L262-L271
 // - https://github.com/taiki-e/portable-atomic/pull/59
+#[cfg(not(feature = "portable-u128"))]
 mod atomic_128 {
     #[cfg(not(all(
         target_arch = "x86_64",
@@ -195,7 +298,7 @@ mod atomic_128 {
         target_feature = "cmpxchg16b",
     )))]
     compile_error!(
-        "Unsupported target feature set for atomic-u128 feature: avx and cmpxchg16b required"
+        "Atomic u128 only implemented for x86-64 + avx + cmpxchg16b; enable portable-u128 feature for other targets"
     );
 
     use core::arch::asm;
@@ -203,8 +306,10 @@ mod atomic_128 {
     use core::cell::UnsafeCell;
     use core::sync::atomic::Ordering;
 
+    impl_atomic!(u128, AtomicU128);
+
     #[repr(transparent)]
-    pub(super) struct AtomicU128(UnsafeCell<__m128i>);
+    pub struct AtomicU128(UnsafeCell<__m128i>);
 
     unsafe impl Send for AtomicU128 {}
     unsafe impl Sync for AtomicU128 {}

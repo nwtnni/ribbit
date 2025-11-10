@@ -1,13 +1,12 @@
 use core::sync::atomic::Ordering;
 
+use ribbit::atomic::Atomic;
 use ribbit::u22;
 use ribbit::u26;
 use ribbit::u9;
 
 #[test]
 fn aligned() {
-    use ribbit::atomic::Atomic32;
-
     #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
     #[ribbit(size = 32, debug, eq)]
     struct Foo {
@@ -16,7 +15,7 @@ fn aligned() {
     }
 
     #[allow(clippy::disallowed_names)]
-    let foo = Atomic32::<Foo>::new(Foo { lo: 5, hi: 10 });
+    let foo = Atomic::<Foo>::new(Foo { lo: 5, hi: 10 });
 
     assert_eq!(
         foo.compare_exchange(
@@ -33,8 +32,6 @@ fn aligned() {
 
 #[test]
 fn unaligned() {
-    use ribbit::atomic::Atomic32;
-
     #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
     #[ribbit(size = 32, debug, eq)]
     struct Foo {
@@ -43,7 +40,7 @@ fn unaligned() {
     }
 
     #[allow(clippy::disallowed_names)]
-    let foo = Atomic32::<Foo>::new(Foo {
+    let foo = Atomic::<Foo>::new(Foo {
         lo: 5u8.into(),
         hi: 10u8.into(),
     });
@@ -78,8 +75,6 @@ fn unaligned() {
 
 #[test]
 fn undersized() {
-    use ribbit::atomic::Atomic64;
-
     #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
     #[ribbit(size = 64, debug, eq)]
     struct Foo {
@@ -88,7 +83,7 @@ fn undersized() {
     }
 
     #[allow(clippy::disallowed_names)]
-    let foo = Atomic64::<Foo>::new(Foo {
+    let foo = Atomic::<Foo>::new(Foo {
         lo: 5u8.into(),
         hi: 10u8.into(),
     });
@@ -123,8 +118,6 @@ fn undersized() {
 
 #[test]
 fn unique() {
-    use ribbit::atomic::Atomic64;
-
     #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
     #[ribbit(size = 64, debug, eq)]
     struct Foo {
@@ -133,7 +126,7 @@ fn unique() {
     }
 
     #[allow(clippy::disallowed_names)]
-    let mut foo = Atomic64::<Foo>::new(Foo {
+    let mut foo = Atomic::<Foo>::new(Foo {
         lo: 5u8.into(),
         hi: 10u8.into(),
     });

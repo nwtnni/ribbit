@@ -61,7 +61,7 @@ pub unsafe trait Unpack: Copy {
 //
 // Used internally for `const`-compatible conversions between packed
 // and tight types.
-unsafe trait Loose: Copy + Sized {
+unsafe trait Loose: Copy + Sized + atomic::seal::Atomic {
     const ZERO: Self;
 }
 
