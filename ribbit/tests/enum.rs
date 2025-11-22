@@ -3,8 +3,8 @@ use ribbit::Unpack as _;
 
 #[test]
 fn single_named() {
-    #[derive(ribbit::Pack, Copy, Clone)]
-    #[ribbit(size = 16)]
+    #[derive(ribbit::Pack, Copy, Clone, Debug)]
+    #[ribbit(size = 16, debug, eq)]
     enum SingleNamed {
         #[ribbit(size = 16)]
         A { a: u16 },
@@ -15,6 +15,11 @@ fn single_named() {
     match named.unpack() {
         SingleNamed::A { a } => assert_eq!(a, 5),
     }
+
+    assert_eq!(
+        unsafe { ribbit::Packed::<SingleNamed>::new_unchecked(named.value) },
+        named
+    );
 }
 
 #[test]
@@ -55,7 +60,7 @@ fn single_unit() {
 
 #[test]
 fn mixed() {
-    #[derive(ribbit::Pack, Copy, Clone, Debug)]
+    #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
     #[ribbit(size = 34, eq, debug)]
     enum Mixed {
         #[ribbit(size = 16)]
@@ -73,6 +78,11 @@ fn mixed() {
         _ => unreachable!(),
     }
 
+    assert_eq!(
+        unsafe { ribbit::Packed::<Mixed>::new_unchecked(x.value) }.unpack(),
+        Mixed::X { a: 3 },
+    );
+
     x = ribbit::Packed::<Mixed>::new_y(5);
     assert_eq!(x, Mixed::Y(5).pack());
     match x.unpack() {
@@ -80,12 +90,22 @@ fn mixed() {
         _ => unreachable!(),
     }
 
+    assert_eq!(
+        unsafe { ribbit::Packed::<Mixed>::new_unchecked(x.value) }.unpack(),
+        Mixed::Y(5),
+    );
+
     x = ribbit::Packed::<Mixed>::new_z();
     assert_eq!(x, Mixed::Z.pack());
     match x.unpack() {
         Mixed::Z => (),
         _ => unreachable!(),
     }
+
+    assert_eq!(
+        unsafe { ribbit::Packed::<Mixed>::new_unchecked(x.value) }.unpack(),
+        Mixed::Z,
+    );
 }
 
 #[test]

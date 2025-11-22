@@ -10,6 +10,7 @@ use quote::quote;
 use crate::ir;
 use crate::lift;
 use crate::Or;
+use crate::Type;
 
 #[derive(FromMeta, Clone, Debug, Default)]
 pub(crate) struct StructOpt(ir::CommonOpt);
@@ -28,14 +29,18 @@ pub(crate) fn new<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
                 r#struct,
                 |expr| expr.compile(tight),
             ))
-            .chain(iter::once(new_struct_unchecked(
+            .chain(iter::once(new_unchecked(
                 vis,
                 &ir.opt().new.name_unchecked(None),
-                r#struct,
+                &r#struct.r#type,
                 |expr| expr.compile(tight),
             ))),
         )),
-        ir::Data::Enum(r#enum @ ir::Enum { variants, .. }) => Or::R(Or::R(
+        ir::Data::Enum(
+            r#enum @ ir::Enum {
+                r#type, variants, ..
+            },
+        ) => Or::R(Or::R(
             variants
                 .iter()
                 .filter(|variant| !variant.r#struct.opt.new.0.skip)
@@ -57,14 +62,20 @@ pub(crate) fn new<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
                             &variant.r#struct,
                             compile,
                         ),
-                        new_struct_unchecked(
+                        new_unchecked(
                             vis,
                             &ir.opt().new.name_unchecked(Some(&suffix)),
-                            &variant.r#struct,
+                            &variant.r#struct.r#type,
                             compile,
                         ),
                     ]
-                }),
+                })
+                .chain(iter::once(new_unchecked(
+                    vis,
+                    &ir.opt().new.name_unchecked(None),
+                    r#type,
+                    |expr| expr.compile(tight),
+                ))),
         )),
     }
 }
@@ -103,14 +114,14 @@ fn new_struct<'ir, F: FnOnce(lift::Expr<'ir>) -> TokenStream>(
     }
 }
 
-fn new_struct_unchecked<'ir, F: FnOnce(lift::Expr<'ir>) -> TokenStream>(
+fn new_unchecked<'ir, F: FnOnce(lift::Expr<'ir>) -> TokenStream>(
     vis: &syn::Visibility,
     new_unchecked: &syn::Ident,
-    r#struct: &'ir ir::Struct,
+    r#type: &'ir Type,
     compile: F,
 ) -> TokenStream {
     let precondition = crate::gen::precondition::assert();
-    let r#type = r#struct.r#type.as_tight();
+    let r#type = r#type.as_tight();
     let value = compile(lift::Expr::value_tight(quote!(value), r#type));
 
     quote! {
