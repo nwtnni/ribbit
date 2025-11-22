@@ -215,3 +215,22 @@ fn unit_omit_size() {
     let c = Unit::C.pack();
     assert_ne!(a, c);
 }
+
+#[test]
+fn unit_discriminant() {
+    #[derive(ribbit::Pack, Copy, Clone, Debug)]
+    #[ribbit(size = 8, debug, eq)]
+    enum Unit {
+        A = 1,
+        B = 5,
+        C = 3,
+    }
+
+    let a = Unit::A.pack();
+    let c = Unit::C.pack();
+    assert_ne!(a, c);
+
+    assert_eq!(Unit::A.pack().value, Unit::A as u8);
+    assert_eq!(Unit::B.pack().value, Unit::B as u8);
+    assert_eq!(Unit::C.pack().value, Unit::C as u8);
+}
