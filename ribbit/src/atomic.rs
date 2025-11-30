@@ -268,7 +268,7 @@ pub(crate) mod seal {
     use core::sync::atomic::Ordering;
 
     pub trait Atomic: Sized {
-        type Atomic;
+        type Atomic: core::fmt::Debug + Default + Send + Sync;
 
         fn new(value: Self) -> Self::Atomic;
 
@@ -339,6 +339,20 @@ mod atomic_128 {
 
     #[repr(transparent)]
     pub struct AtomicU128(UnsafeCell<__m128i>);
+
+    impl Default for AtomicU128 {
+        fn default() -> Self {
+            Self(UnsafeCell::new(unsafe {
+                core::mem::transmute::<u128, __m128i>(0)
+            }))
+        }
+    }
+
+    impl core::fmt::Debug for AtomicU128 {
+        fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+            self.load(Ordering::Relaxed).fmt(f)
+        }
+    }
 
     unsafe impl Send for AtomicU128 {}
     unsafe impl Sync for AtomicU128 {}
