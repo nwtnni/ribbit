@@ -12,8 +12,12 @@ pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
         ir::Data::Struct(r#struct) => {
             let fields = r#struct.iter().map(|field| {
                 let unescaped = &field.ident;
-                let get = crate::gen::get::FieldOpt::name(field);
-                let value = field.r#type.unpack(quote!(self.#get()));
+                let value = field.r#type.unpack(crate::gen::get::get_field(
+                    &r#struct.r#type,
+                    field,
+                    r#struct.max_offset,
+                    field.offset as u8,
+                ));
                 quote!(#unescaped: #value)
             });
 

@@ -274,9 +274,9 @@ fn rename_get() {
     #[derive(ribbit::Pack, Copy, Clone)]
     #[ribbit(size = 64)]
     struct Half {
-        #[ribbit(get(rename = "b"))]
+        #[ribbit(get(rename = "get_a"))]
         a: u32,
-        #[ribbit(get(rename = "a"))]
+        #[ribbit(get(rename = "get_b"))]
         b: u32,
     }
 
@@ -287,6 +287,53 @@ fn rename_get() {
     .pack();
 
     assert_eq!(h.value, 0xbeef_dead_dead_beef);
-    assert_eq!(h.b(), 0xdead_beef);
+    assert_eq!(h.get_a(), 0xdead_beef);
+    assert_eq!(h.get_b(), 0xbeef_dead);
+}
+
+#[test]
+fn skip_get() {
+    #[derive(ribbit::Pack, Copy, Clone)]
+    #[ribbit(size = 64)]
+    struct Half {
+        #[ribbit(get(skip))]
+        a: u32,
+        #[ribbit(get(skip))]
+        b: u32,
+    }
+
+    let h = Half {
+        a: 0xdead_beef,
+        b: 0xbeef_dead,
+    }
+    .pack();
+
+    assert_eq!(h.value, 0xbeef_dead_dead_beef);
+}
+
+#[test]
+fn rename_with() {
+    #[derive(ribbit::Pack, Copy, Clone)]
+    #[ribbit(size = 64)]
+    struct Half {
+        #[ribbit(with(rename = "update_a"))]
+        a: u32,
+        #[ribbit(with(rename = "update_b"))]
+        b: u32,
+    }
+
+    let h = Half {
+        a: 0xdead_beef,
+        b: 0xbeef_dead,
+    }
+    .pack();
+
+    assert_eq!(h.value, 0xbeef_dead_dead_beef);
+    assert_eq!(h.a(), 0xdead_beef);
+    assert_eq!(h.b(), 0xbeef_dead);
+
+    let h = h.update_a(0xbeef_dead).update_b(0xdead_beef);
+    assert_eq!(h.value, 0xdead_beef_beef_dead);
     assert_eq!(h.a(), 0xbeef_dead);
+    assert_eq!(h.b(), 0xdead_beef);
 }
