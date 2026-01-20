@@ -16,7 +16,7 @@ pub use arbitrary_int::*;
 pub use ribbit_derive::Pack;
 
 #[cfg(feature = "atomic")]
-mod atomic;
+pub mod atomic;
 #[cfg(feature = "atomic")]
 pub use atomic::Atomic;
 
