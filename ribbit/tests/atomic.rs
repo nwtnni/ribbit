@@ -1,3 +1,5 @@
+#![cfg(feature = "atomic")]
+
 use core::sync::atomic::Ordering;
 
 use ribbit::u22;
