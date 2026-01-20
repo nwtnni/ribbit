@@ -148,7 +148,7 @@ impl<'ir> Expr<'ir> {
             Self::And { expr, mask } => match expr.optimize() {
                 Self::Constant(value) => Self::Constant(value & mask),
                 expr => Self::And {
-                    expr: Box::new(expr.optimize()),
+                    expr: Box::new(expr),
                     mask,
                 },
             },
