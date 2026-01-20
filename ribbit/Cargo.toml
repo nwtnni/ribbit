@@ -4,8 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["portable-u128"]
-portable-u128 = ["dep:portable-atomic"]
+atomic-u128 = ["dep:portable-atomic"]
 
 [dependencies]
 arbitrary-int = "2.0"

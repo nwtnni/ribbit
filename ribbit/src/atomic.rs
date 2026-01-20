@@ -7,9 +7,14 @@ use crate::Pack;
 use crate::Unpack;
 
 #[repr(transparent)]
-pub struct Atomic<T: Pack>(<<T::Packed as Unpack>::Loose as seal::Atomic>::Atomic);
+pub struct Atomic<T: Pack>(<<T::Packed as Unpack>::Loose as seal::Atomic>::Atomic)
+where
+    <T::Packed as Unpack>::Loose: seal::Atomic;
 
-impl<T: Pack> Atomic<T> {
+impl<T: Pack> Atomic<T>
+where
+    <T::Packed as Unpack>::Loose: seal::Atomic,
+{
     #[inline]
     pub fn new(value: T) -> Self {
         Self(<<T::Packed as Unpack>::Loose as seal::Atomic>::new(
@@ -19,7 +24,10 @@ impl<T: Pack> Atomic<T> {
 
     #[inline]
     pub const fn new_packed(value: T::Packed) -> Self {
-        union Transmute<T: Unpack> {
+        union Transmute<T: Unpack>
+        where
+            T::Loose: seal::Atomic,
+        {
             loose: T::Loose,
             atomic: ManuallyDrop<<T::Loose as seal::Atomic>::Atomic>,
         }
@@ -175,6 +183,7 @@ impl<T> Debug for Atomic<T>
 where
     T: Pack,
     T::Packed: Debug,
+    <T::Packed as Unpack>::Loose: seal::Atomic,
 {
     #[inline]
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
@@ -186,6 +195,7 @@ impl<T> Display for Atomic<T>
 where
     T: Pack,
     T::Packed: Display,
+    <T::Packed as Unpack>::Loose: seal::Atomic,
 {
     #[inline]
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
@@ -197,6 +207,7 @@ impl<T> Default for Atomic<T>
 where
     T: Pack,
     T::Packed: Default,
+    <T::Packed as Unpack>::Loose: seal::Atomic,
 {
     #[inline]
     fn default() -> Self {
@@ -303,221 +314,7 @@ pub(crate) mod seal {
     impl_atomic!(u16, core::sync::atomic::AtomicU16);
     impl_atomic!(u32, core::sync::atomic::AtomicU32);
     impl_atomic!(u64, core::sync::atomic::AtomicU64);
-}
 
-#[cfg(feature = "portable-u128")]
-mod atomic_128 {
-    use core::sync::atomic::Ordering;
-
+    #[cfg(feature = "atomic-u128")]
     impl_atomic!(u128, portable_atomic::AtomicU128);
-}
-
-// NOTE: [portable-atomic] currently doesn't support both
-// outlining atomics and using vmovdqa for atomic 128 bit loads.
-// Work around for now by inlining x86-64 support.
-//
-// - https://github.com/taiki-e/portable-atomic/blob/d118cf01f852ef4cc1fa4e0a08f80f5e2a5c8f41/src/imp/atomic128/x86_64.rs#L262-L271
-// - https://github.com/taiki-e/portable-atomic/pull/59
-#[cfg(not(feature = "portable-u128"))]
-mod atomic_128 {
-    #[cfg(not(all(
-        target_arch = "x86_64",
-        target_pointer_width = "64",
-        target_feature = "avx",
-        target_feature = "cmpxchg16b",
-    )))]
-    compile_error!(
-        "Atomic u128 only implemented for x86-64 + avx + cmpxchg16b; enable portable-u128 feature for other targets"
-    );
-
-    use core::arch::asm;
-    use core::arch::x86_64::__m128i;
-    use core::cell::UnsafeCell;
-    use core::sync::atomic::Ordering;
-
-    impl_atomic!(u128, AtomicU128);
-
-    #[repr(transparent)]
-    pub struct AtomicU128(UnsafeCell<__m128i>);
-
-    impl Default for AtomicU128 {
-        fn default() -> Self {
-            Self(UnsafeCell::new(unsafe {
-                core::mem::transmute::<u128, __m128i>(0)
-            }))
-        }
-    }
-
-    impl core::fmt::Debug for AtomicU128 {
-        fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-            self.load(Ordering::Relaxed).fmt(f)
-        }
-    }
-
-    unsafe impl Send for AtomicU128 {}
-    unsafe impl Sync for AtomicU128 {}
-
-    impl AtomicU128 {
-        #[inline]
-        pub(super) const fn new(value: u128) -> Self {
-            Self(UnsafeCell::new(unsafe {
-                core::mem::transmute::<u128, __m128i>(value)
-            }))
-        }
-
-        #[inline]
-        pub(super) const fn get_mut(&mut self) -> &mut u128 {
-            unsafe { core::mem::transmute(self.0.get_mut()) }
-        }
-
-        // https://github.com/taiki-e/portable-atomic/blob/d118cf01f852ef4cc1fa4e0a08f80f5e2a5c8f41/src/imp/atomic128/x86_64.rs#L158-L175
-        #[inline]
-        pub(super) fn load(&self, _ordering: Ordering) -> u128 {
-            unsafe {
-                let output: __m128i;
-                asm! {
-                    "vmovdqa {output}, xmmword ptr [{address}]",
-                    address = in(reg) self.0.get(),
-                    output = out(xmm_reg) output,
-                    options(nostack, preserves_flags, readonly),
-                }
-                core::mem::transmute::<__m128i, u128>(output)
-            }
-        }
-
-        // https://github.com/taiki-e/portable-atomic/blob/d118cf01f852ef4cc1fa4e0a08f80f5e2a5c8f41/src/imp/atomic128/x86_64.rs#L180-L218
-        #[inline]
-        pub(super) fn store(&self, value: u128, ordering: Ordering) {
-            unsafe {
-                let input = core::mem::transmute::<u128, __m128i>(value);
-                match ordering {
-                    Ordering::Relaxed | Ordering::Release => {
-                        asm!(
-                            "vmovdqa xmmword ptr [{address}], {input}",
-                            address = in(reg) self.0.get(),
-                            input = in(xmm_reg) input,
-                            options(nostack, preserves_flags),
-                        );
-                    }
-                    Ordering::SeqCst => {
-                        let mut uninit = core::mem::MaybeUninit::<u64>::uninit();
-                        asm!(
-                            concat!("vmovdqa xmmword ptr [{address}], {input}"),
-                            concat!("xchg qword ptr [{uninit}], {any}"),
-                            address = in(reg) self.0.get(),
-                            input = in(xmm_reg) input,
-                            uninit = inout(reg) uninit.as_mut_ptr() => _,
-                            any = lateout(reg) _,
-                            options(nostack, preserves_flags),
-                        );
-                    }
-                    _ => unreachable!(),
-                }
-            }
-        }
-
-        // https://github.com/taiki-e/portable-atomic/blob/d118cf01f852ef4cc1fa4e0a08f80f5e2a5c8f41/src/imp/atomic128/x86_64.rs#L95-L142
-        #[inline]
-        pub(super) fn compare_exchange(
-            &self,
-            old: u128,
-            new: u128,
-            _success: Ordering,
-            _failure: Ordering,
-        ) -> Result<u128, u128> {
-            unsafe {
-                let mut success: u8;
-                let old = U128 { whole: old };
-                let new = U128 { whole: new };
-                let lo;
-                let hi;
-
-                asm!(
-                    "xchg {save_rbx}, rbx",
-                    "lock cmpxchg16b xmmword ptr [rdi]",
-                    "sete cl",
-                    "mov rbx, {save_rbx}",
-                    save_rbx = inout(reg) new.pair.lo => _,
-                    in("rcx") new.pair.hi,
-                    inout("rax") old.pair.lo => lo,
-                    inout("rdx") old.pair.hi => hi,
-                    in("rdi") self.0.get(),
-                    lateout("cl") success,
-                    options(nostack),
-                );
-
-                let out = U128 {
-                    pair: Pair { lo, hi },
-                }
-                .whole;
-
-                core::hint::assert_unchecked(success == 0 || success == 1);
-                if success == 0 {
-                    Err(out)
-                } else {
-                    Ok(out)
-                }
-            }
-        }
-
-        #[inline]
-        pub(super) fn compare_exchange_weak(
-            &self,
-            old: u128,
-            new: u128,
-            success: Ordering,
-            failure: Ordering,
-        ) -> Result<u128, u128> {
-            self.compare_exchange(old, new, success, failure)
-        }
-
-        // https://github.com/taiki-e/portable-atomic/blob/d118cf01f852ef4cc1fa4e0a08f80f5e2a5c8f41/src/imp/atomic128/x86_64.rs#L442-L495
-        #[inline]
-        pub(super) fn swap(&self, value: u128, _order: Ordering) -> u128 {
-            unsafe {
-                let value = U128 { whole: value };
-                let lo;
-                let hi;
-
-                asm!(
-                    "xchg {save_rbx}, rbx",
-                    "mov rax, qword ptr [rdi]",
-                    "mov rdx, qword ptr [rdi + 8]",
-                    "2:",
-                        "lock cmpxchg16b xmmword ptr [rdi]",
-                        "jne 2b",
-                    "mov rbx, {save_rbx}",
-                    save_rbx = inout(reg) value.pair.lo => _,
-                    in("rcx") value.pair.hi,
-                    out("rax") lo,
-                    out("rdx") hi,
-                    in("rdi") self.0.get(),
-                    options(nostack),
-                );
-
-                U128 {
-                    pair: Pair { lo, hi },
-                }
-                .whole
-            }
-        }
-    }
-
-    #[repr(C)]
-    #[derive(Copy, Clone)]
-    union U128 {
-        whole: u128,
-        pair: Pair,
-    }
-
-    // https://github.com/taiki-e/portable-atomic/blob/d118cf01f852ef4cc1fa4e0a08f80f5e2a5c8f41/src/utils.rs#L393-L414
-    #[repr(C)]
-    #[derive(Copy, Clone)]
-    struct Pair {
-        #[cfg(target_endian = "little")]
-        lo: u64,
-        hi: u64,
-        #[cfg(target_endian = "big")]
-        lo: u64,
-    }
 }
