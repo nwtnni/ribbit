@@ -8,9 +8,9 @@ atomic = []
 atomic-u128 = ["atomic", "dep:portable-atomic"]
 
 [dependencies]
-arbitrary-int = "2.0"
-portable-atomic = { version = "1.11.1", optional = true }
+arbitrary-int = "2.0.0"
+portable-atomic = { version = "1.13.0", optional = true }
 ribbit-derive = { path = "../ribbit-derive" }
 
 [dev-dependencies]
-trybuild = "1.0.97"
+trybuild = "1.0.114"
