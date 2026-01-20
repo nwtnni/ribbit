@@ -1,3 +1,5 @@
+#![no_std]
+
 use core::marker::PhantomData;
 use core::num::NonZeroI128;
 use core::num::NonZeroI16;
