@@ -2,145 +2,141 @@
 
 use core::sync::atomic::Ordering;
 
-use ribbit::u22;
-use ribbit::u26;
-use ribbit::u9;
 use ribbit::Atomic;
+
+#[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
+#[ribbit(size = 32, debug, eq)]
+struct Aligned {
+    lo: u16,
+    hi: u16,
+}
 
 #[test]
 fn aligned() {
-    #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
-    #[ribbit(size = 32, debug, eq)]
-    struct Foo {
-        lo: u16,
-        hi: u16,
-    }
-
-    #[allow(clippy::disallowed_names)]
-    let foo = Atomic::<Foo>::new(Foo { lo: 5, hi: 10 });
+    let aligned = Atomic::<Aligned>::new(Aligned { lo: 5, hi: 10 });
 
     assert_eq!(
-        foo.compare_exchange(
-            Foo { lo: 5, hi: 10 },
-            Foo { lo: 6, hi: 11 },
+        aligned.compare_exchange(
+            Aligned { lo: 5, hi: 10 },
+            Aligned { lo: 6, hi: 11 },
             Ordering::Relaxed,
             Ordering::Relaxed,
         ),
-        Ok(Foo { lo: 5, hi: 10 })
+        Ok(Aligned { lo: 5, hi: 10 })
     );
 
-    assert_eq!(foo.load(Ordering::Relaxed), Foo { lo: 6, hi: 11 });
+    assert_eq!(aligned.load(Ordering::Relaxed), Aligned { lo: 6, hi: 11 });
+}
+
+#[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
+#[ribbit(size = 32, debug, eq)]
+struct Unaligned {
+    lo: ribbit::u9,
+    hi: ribbit::u22,
 }
 
 #[test]
 fn unaligned() {
-    #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
-    #[ribbit(size = 32, debug, eq)]
-    struct Foo {
-        lo: u9,
-        hi: u22,
-    }
-
     #[allow(clippy::disallowed_names)]
-    let foo = Atomic::<Foo>::new(Foo {
+    let unaligned = Atomic::<Unaligned>::new(Unaligned {
         lo: 5u8.into(),
         hi: 10u8.into(),
     });
 
     assert_eq!(
-        foo.compare_exchange(
-            Foo {
+        unaligned.compare_exchange(
+            Unaligned {
                 lo: 5u8.into(),
                 hi: 10u8.into()
             },
-            Foo {
+            Unaligned {
                 lo: 6u8.into(),
                 hi: 11u8.into()
             },
             Ordering::Relaxed,
             Ordering::Relaxed,
         ),
-        Ok(Foo {
+        Ok(Unaligned {
             lo: 5u8.into(),
             hi: 10u8.into()
         })
     );
 
     assert_eq!(
-        foo.load(Ordering::Relaxed),
-        Foo {
+        unaligned.load(Ordering::Relaxed),
+        Unaligned {
             lo: 6u8.into(),
             hi: 11u8.into()
         },
     );
 }
 
+#[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
+#[ribbit(size = 64, debug, eq)]
+struct Undersized {
+    lo: ribbit::u9,
+    hi: ribbit::u26,
+}
+
 #[test]
 fn undersized() {
-    #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
-    #[ribbit(size = 64, debug, eq)]
-    struct Foo {
-        lo: u9,
-        hi: u26,
-    }
-
     #[allow(clippy::disallowed_names)]
-    let foo = Atomic::<Foo>::new(Foo {
+    let undersized = Atomic::<Undersized>::new(Undersized {
         lo: 5u8.into(),
         hi: 10u8.into(),
     });
 
     assert_eq!(
-        foo.compare_exchange(
-            Foo {
+        undersized.compare_exchange(
+            Undersized {
                 lo: 5u8.into(),
                 hi: 10u8.into()
             },
-            Foo {
+            Undersized {
                 lo: 6u8.into(),
                 hi: 11u8.into()
             },
             Ordering::Relaxed,
             Ordering::Relaxed,
         ),
-        Ok(Foo {
+        Ok(Undersized {
             lo: 5u8.into(),
             hi: 10u8.into()
         })
     );
 
     assert_eq!(
-        foo.load(Ordering::Relaxed),
-        Foo {
+        undersized.load(Ordering::Relaxed),
+        Undersized {
             lo: 6u8.into(),
             hi: 11u8.into()
         }
     );
 }
 
-#[test]
-fn unique() {
-    #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
-    #[ribbit(size = 64, debug, eq)]
-    struct Foo {
-        lo: u9,
-        hi: u26,
-    }
+#[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
+#[ribbit(size = 64, debug, eq)]
+struct Mutable {
+    lo: ribbit::u9,
+    hi: ribbit::u26,
+}
 
+#[test]
+fn mutable() {
     #[allow(clippy::disallowed_names)]
-    let mut foo = Atomic::<Foo>::new(Foo {
+    let mut mutable = Atomic::<Mutable>::new(Mutable {
         lo: 5u8.into(),
         hi: 10u8.into(),
     });
 
-    foo.set(Foo {
+    mutable.set(Mutable {
         lo: 9u8.into(),
         hi: 3u8.into(),
     });
 
     assert_eq!(
-        foo.get(),
-        Foo {
+        mutable.get(),
+        Mutable {
             lo: 9u8.into(),
             hi: 3u8.into()
         },

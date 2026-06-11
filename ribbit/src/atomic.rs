@@ -1,42 +1,34 @@
 use core::fmt::Debug;
 use core::fmt::Display;
-use core::mem::ManuallyDrop;
+use core::marker::PhantomData;
 use core::sync::atomic::Ordering;
 
 use crate::Pack;
 use crate::Unpack;
 
+#[expect(private_interfaces)]
 #[repr(transparent)]
-pub struct Atomic<T: Pack>(<<T::Packed as Unpack>::Loose as Loose>::Atomic)
-where
-    <T::Packed as Unpack>::Loose: Loose;
+pub struct Atomic<T: Pack, R = <<<T as Pack>::Packed as Unpack>::Loose as Loose>::Atomic> {
+    raw: R,
+    r#type: PhantomData<T>,
+}
 
-impl<T: Pack> Atomic<T>
+impl<T, R> Atomic<T, R>
 where
-    <T::Packed as Unpack>::Loose: Loose,
+    T: Pack,
+    R: Raw<<<T as Pack>::Packed as Unpack>::Loose>,
 {
     #[inline]
-    pub fn new(value: T) -> Self {
-        Self(<<T::Packed as Unpack>::Loose as Loose>::new(
-            Self::packed_to_loose(value.pack()),
-        ))
+    pub fn new(unpacked: T) -> Self {
+        Self::new_packed(unpacked.pack())
     }
 
     #[inline]
-    pub const fn new_packed(value: T::Packed) -> Self {
-        union Transmute<T: Unpack>
-        where
-            T::Loose: Loose,
-        {
-            loose: T::Loose,
-            atomic: ManuallyDrop<<T::Loose as Loose>::Atomic>,
+    pub fn new_packed(packed: T::Packed) -> Self {
+        Self {
+            raw: R::new(Self::packed_to_loose(packed)),
+            r#type: PhantomData,
         }
-
-        let loose = Transmute::<T::Packed> {
-            loose: Self::packed_to_loose(value),
-        };
-
-        unsafe { Self(ManuallyDrop::into_inner(loose.atomic)) }
     }
 
     #[inline]
@@ -46,9 +38,7 @@ where
 
     #[inline]
     pub fn load_packed(&self, ordering: Ordering) -> T::Packed {
-        Self::loose_to_packed(<<T::Packed as Unpack>::Loose as Loose>::load(
-            &self.0, ordering,
-        ))
+        Self::loose_to_packed(R::load(&self.raw, ordering))
     }
 
     #[inline]
@@ -58,11 +48,7 @@ where
 
     #[inline]
     pub fn store_packed(&self, value: T::Packed, ordering: Ordering) {
-        <<T::Packed as Unpack>::Loose as Loose>::store(
-            &self.0,
-            Self::packed_to_loose(value),
-            ordering,
-        )
+        R::store(&self.raw, Self::packed_to_loose(value), ordering)
     }
 
     #[inline]
@@ -72,7 +58,7 @@ where
 
     #[inline]
     pub fn get_packed(&mut self) -> T::Packed {
-        Self::loose_to_packed(<<T::Packed as Unpack>::Loose as Loose>::get(&mut self.0))
+        Self::loose_to_packed(R::get(&mut self.raw))
     }
 
     #[inline]
@@ -82,7 +68,7 @@ where
 
     #[inline]
     pub fn set_packed(&mut self, value: T::Packed) {
-        <<T::Packed as Unpack>::Loose as Loose>::set(&mut self.0, Self::packed_to_loose(value))
+        R::set(&mut self.raw, Self::packed_to_loose(value))
     }
 
     #[inline]
@@ -106,8 +92,8 @@ where
         success: Ordering,
         failure: Ordering,
     ) -> Result<T::Packed, T::Packed> {
-        <<T::Packed as Unpack>::Loose as Loose>::compare_exchange(
-            &self.0,
+        R::compare_exchange(
+            &self.raw,
             Self::packed_to_loose(old),
             Self::packed_to_loose(new),
             success,
@@ -138,8 +124,8 @@ where
         success: Ordering,
         failure: Ordering,
     ) -> Result<T::Packed, T::Packed> {
-        <<T::Packed as Unpack>::Loose as Loose>::compare_exchange_weak(
-            &self.0,
+        R::compare_exchange_weak(
+            &self.raw,
             Self::packed_to_loose(old),
             Self::packed_to_loose(new),
             success,
@@ -156,11 +142,7 @@ where
 
     #[inline]
     pub fn swap_packed(&self, value: T::Packed, ordering: Ordering) -> T::Packed {
-        Self::loose_to_packed(<<T::Packed as Unpack>::Loose as Loose>::swap(
-            &self.0,
-            Self::packed_to_loose(value),
-            ordering,
-        ))
+        Self::loose_to_packed(R::swap(&self.raw, Self::packed_to_loose(value), ordering))
     }
 
     #[inline]
@@ -174,6 +156,7 @@ where
     }
 }
 
+#[expect(private_interfaces)]
 impl<T> Debug for Atomic<T>
 where
     T: Pack,
@@ -186,6 +169,7 @@ where
     }
 }
 
+#[expect(private_interfaces)]
 impl<T> Display for Atomic<T>
 where
     T: Pack,
@@ -198,6 +182,7 @@ where
     }
 }
 
+#[expect(private_interfaces)]
 impl<T> Default for Atomic<T>
 where
     T: Pack,
@@ -210,103 +195,124 @@ where
     }
 }
 
-macro_rules! impl_atomic {
-    ($ty:ty, $atomic:ty) => {
-        impl Loose for $ty {
-            type Atomic = $atomic;
+/// Interface for underlying atomic library.
+pub trait Raw<T>: core::fmt::Debug + Default + Send + Sync {
+    fn new(loose: T) -> Self;
 
+    fn load(&self, ordering: Ordering) -> T;
+
+    fn store(&self, value: T, ordering: Ordering);
+
+    fn get(&mut self) -> T;
+
+    fn set(&mut self, value: T);
+
+    fn compare_exchange(
+        &self,
+        old: T,
+        new: T,
+        success: Ordering,
+        failure: Ordering,
+    ) -> Result<T, T>;
+
+    fn compare_exchange_weak(
+        &self,
+        old: T,
+        new: T,
+        success: Ordering,
+        failure: Ordering,
+    ) -> Result<T, T>;
+
+    fn swap(&self, value: T, ordering: Ordering) -> T;
+}
+
+#[macro_export]
+macro_rules! impl_raw {
+    ($loose:ty, $atomic:ty) => {
+        impl $crate::atomic::Raw<$loose> for $atomic {
             #[inline]
-            fn new(value: Self) -> Self::Atomic {
-                <$atomic>::new(value)
+            fn new(loose: $loose) -> Self {
+                <$atomic>::new(loose)
             }
 
             #[inline]
-            fn load(atomic: &Self::Atomic, ordering: Ordering) -> Self {
-                <$atomic>::load(atomic, ordering)
+            fn load(&self, ordering: Ordering) -> $loose {
+                <$atomic>::load(self, ordering)
             }
 
             #[inline]
-            fn store(atomic: &Self::Atomic, value: Self, ordering: Ordering) {
-                <$atomic>::store(atomic, value, ordering)
+            fn store(&self, value: $loose, ordering: Ordering) {
+                <$atomic>::store(self, value, ordering)
             }
 
             #[inline]
-            fn get(atomic: &mut Self::Atomic) -> Self {
-                *<$atomic>::get_mut(atomic)
+            fn get(&mut self) -> $loose {
+                *<$atomic>::get_mut(self)
             }
 
             #[inline]
-            fn set(atomic: &mut Self::Atomic, value: Self) {
-                *<$atomic>::get_mut(atomic) = value
+            fn set(&mut self, value: $loose) {
+                *<$atomic>::get_mut(self) = value
             }
 
             #[inline]
             fn compare_exchange(
-                atomic: &Self::Atomic,
-                old: Self,
-                new: Self,
+                &self,
+                old: $loose,
+                new: $loose,
                 success: Ordering,
                 failure: Ordering,
-            ) -> Result<Self, Self> {
-                <$atomic>::compare_exchange(atomic, old, new, success, failure)
+            ) -> Result<$loose, $loose> {
+                <$atomic>::compare_exchange(self, old, new, success, failure)
             }
 
             #[inline]
             fn compare_exchange_weak(
-                atomic: &Self::Atomic,
-                old: Self,
-                new: Self,
+                &self,
+                old: $loose,
+                new: $loose,
                 success: Ordering,
                 failure: Ordering,
-            ) -> Result<Self, Self> {
-                <$atomic>::compare_exchange_weak(atomic, old, new, success, failure)
+            ) -> Result<$loose, $loose> {
+                <$atomic>::compare_exchange_weak(self, old, new, success, failure)
             }
 
             #[inline]
-            fn swap(atomic: &Self::Atomic, value: Self, ordering: Ordering) -> Self {
-                <$atomic>::swap(atomic, value, ordering)
+            fn swap(&self, value: $loose, ordering: Ordering) -> $loose {
+                <$atomic>::swap(self, value, ordering)
             }
         }
     };
 }
 
-#[expect(private_bounds)]
-pub trait Loose: crate::Loose {
-    type Atomic: core::fmt::Debug + Default + Send + Sync;
-
-    fn new(value: Self) -> Self::Atomic;
-
-    fn load(atomic: &Self::Atomic, ordering: Ordering) -> Self;
-
-    fn store(atomic: &Self::Atomic, value: Self, ordering: Ordering);
-
-    fn get(atomic: &mut Self::Atomic) -> Self;
-
-    fn set(atomic: &mut Self::Atomic, value: Self);
-
-    fn compare_exchange(
-        atomic: &Self::Atomic,
-        old: Self,
-        new: Self,
-        success: Ordering,
-        failure: Ordering,
-    ) -> Result<Self, Self>;
-
-    fn compare_exchange_weak(
-        atomic: &Self::Atomic,
-        old: Self,
-        new: Self,
-        success: Ordering,
-        failure: Ordering,
-    ) -> Result<Self, Self>;
-
-    fn swap(atomic: &Self::Atomic, value: Self, ordering: Ordering) -> Self;
+/// Provides default implementations of [`Raw`].
+trait Loose: crate::Loose {
+    type Atomic: Raw<Self>;
 }
 
-impl_atomic!(u8, core::sync::atomic::AtomicU8);
-impl_atomic!(u16, core::sync::atomic::AtomicU16);
-impl_atomic!(u32, core::sync::atomic::AtomicU32);
-impl_atomic!(u64, core::sync::atomic::AtomicU64);
+impl_raw!(u8, core::sync::atomic::AtomicU8);
+impl Loose for u8 {
+    type Atomic = core::sync::atomic::AtomicU8;
+}
+
+impl_raw!(u16, core::sync::atomic::AtomicU16);
+impl Loose for u16 {
+    type Atomic = core::sync::atomic::AtomicU16;
+}
+
+impl_raw!(u32, core::sync::atomic::AtomicU32);
+impl Loose for u32 {
+    type Atomic = core::sync::atomic::AtomicU32;
+}
+
+impl_raw!(u64, core::sync::atomic::AtomicU64);
+impl Loose for u64 {
+    type Atomic = core::sync::atomic::AtomicU64;
+}
 
 #[cfg(feature = "atomic-u128")]
-impl_atomic!(u128, portable_atomic::AtomicU128);
+impl_raw!(u128, portable_atomic::AtomicU128);
+#[cfg(feature = "atomic-u128")]
+impl Loose for u128 {
+    type Atomic = portable_atomic::AtomicU128;
+}
