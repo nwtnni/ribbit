@@ -17,7 +17,7 @@ fn single_named() {
     }
 
     assert_eq!(
-        unsafe { ribbit::Packed::<SingleNamed>::new_unchecked(named.into_raw()) },
+        unsafe { ribbit::Packed::<SingleNamed>::from_raw_unchecked(named.into_raw()) },
         named
     );
 }
@@ -79,7 +79,7 @@ fn mixed() {
     }
 
     assert_eq!(
-        unsafe { ribbit::Packed::<Mixed>::new_unchecked(x.into_raw()) }.unpack(),
+        unsafe { ribbit::Packed::<Mixed>::from_raw_unchecked(x.into_raw()) }.unpack(),
         Mixed::X { a: 3 },
     );
 
@@ -91,7 +91,7 @@ fn mixed() {
     }
 
     assert_eq!(
-        unsafe { ribbit::Packed::<Mixed>::new_unchecked(x.into_raw()) }.unpack(),
+        unsafe { ribbit::Packed::<Mixed>::from_raw_unchecked(x.into_raw()) }.unpack(),
         Mixed::Y(5),
     );
 
@@ -103,7 +103,7 @@ fn mixed() {
     }
 
     assert_eq!(
-        unsafe { ribbit::Packed::<Mixed>::new_unchecked(x.into_raw()) }.unpack(),
+        unsafe { ribbit::Packed::<Mixed>::from_raw_unchecked(x.into_raw()) }.unpack(),
         Mixed::Z,
     );
 }

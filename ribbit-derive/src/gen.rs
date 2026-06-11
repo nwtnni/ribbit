@@ -15,6 +15,12 @@ pub(crate) use precondition::precondition;
 pub(crate) mod with;
 pub(crate) use with::with;
 
+pub(crate) mod into_raw;
+pub(crate) use into_raw::into_raw;
+
+pub(crate) mod from_raw_unchecked;
+pub(crate) use from_raw_unchecked::from_raw_unchecked;
+
 // Traits
 
 /// Generate a [`core::fmt::Debug`] implementation by forwarding to the unpacked type.

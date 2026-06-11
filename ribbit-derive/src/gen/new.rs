@@ -22,25 +22,13 @@ pub(crate) fn new<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
 
     match &ir.data {
         ir::Data::Struct(_) if ir.opt().new.0.skip => Or::L(iter::empty()),
-        ir::Data::Struct(r#struct) => Or::R(Or::L(
-            iter::once(new_struct(
-                vis,
-                &ir.opt().new.name(None),
-                r#struct,
-                |expr| expr.compile(tight),
-            ))
-            .chain(iter::once(new_unchecked(
-                vis,
-                &ir.opt().new.name_unchecked(None),
-                &r#struct.r#type,
-                |expr| expr.compile(tight),
-            ))),
-        )),
-        ir::Data::Enum(
-            r#enum @ ir::Enum {
-                r#type, variants, ..
-            },
-        ) => Or::R(Or::R(
+        ir::Data::Struct(r#struct) => Or::R(Or::L(iter::once(new_struct(
+            vis,
+            &ir.opt().new.name(None),
+            r#struct,
+            |expr| expr.compile(tight),
+        )))),
+        ir::Data::Enum(r#enum @ ir::Enum { variants, .. }) => Or::R(Or::R(
             variants
                 .iter()
                 .filter(|variant| !variant.r#struct.opt.new.0.skip)
@@ -69,13 +57,7 @@ pub(crate) fn new<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
                             compile,
                         ),
                     ]
-                })
-                .chain(iter::once(new_unchecked(
-                    vis,
-                    &ir.opt().new.name_unchecked(None),
-                    r#type,
-                    |expr| expr.compile(tight),
-                ))),
+                }),
         )),
     }
 }

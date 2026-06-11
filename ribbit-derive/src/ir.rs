@@ -283,6 +283,10 @@ pub(crate) struct StructOpt {
     pub(crate) packed: gen::packed::StructOpt,
     #[darling(default)]
     pub(crate) new: gen::new::StructOpt,
+    #[darling(default)]
+    pub(crate) into_raw: gen::into_raw::StructOpt,
+    #[darling(default)]
+    pub(crate) from_raw_unchecked: gen::from_raw_unchecked::StructOpt,
     pub(crate) debug: Option<gen::debug::StructOpt>,
     pub(crate) eq: Option<gen::eq::StructOpt>,
     pub(crate) ord: Option<gen::ord::StructOpt>,

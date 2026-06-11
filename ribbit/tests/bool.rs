@@ -24,7 +24,7 @@ fn multiple() {
 
 #[test]
 fn unchecked() {
-    let b = unsafe { ribbit::Packed::<B>::new_unchecked(u2::new(0b10)) };
+    let b = unsafe { ribbit::Packed::<B>::from_raw_unchecked(u2::new(0b10)) };
     assert!(!b._0());
     assert!(b._1());
 }

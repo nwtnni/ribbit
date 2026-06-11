@@ -41,6 +41,8 @@ fn pack_impl(input: syn::DeriveInput, output: &mut TokenStream) -> Result<(), da
     let unpack = gen::unpack(&ir);
     let get = gen::get(&ir);
     let with = gen::with(&ir);
+    let into_raw = gen::into_raw(&ir);
+    let from_raw_unchecked = gen::from_raw_unchecked(&ir);
     let from = gen::from(&ir);
     let debug = gen::debug(&ir);
     let hash = gen::hash(&ir);
@@ -68,6 +70,10 @@ fn pack_impl(input: syn::DeriveInput, output: &mut TokenStream) -> Result<(), da
                 #precondition
 
                 #(#new)*
+
+                #into_raw
+
+                #from_raw_unchecked
 
                 #(#get)*
 
