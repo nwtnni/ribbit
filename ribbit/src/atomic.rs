@@ -6,6 +6,13 @@ use core::sync::atomic::Ordering;
 use crate::Pack;
 use crate::Unpack;
 
+pub use core::sync::atomic::AtomicU16;
+pub use core::sync::atomic::AtomicU32;
+pub use core::sync::atomic::AtomicU64;
+pub use core::sync::atomic::AtomicU8;
+#[cfg(feature = "atomic-u128")]
+pub use portable_atomic::AtomicU128;
+
 #[expect(private_interfaces)]
 #[repr(transparent)]
 pub struct Atomic<T: Pack, R = <<<T as Pack>::Packed as Unpack>::Loose as Loose>::Atomic> {
@@ -25,8 +32,13 @@ where
 
     #[inline]
     pub fn new_packed(packed: T::Packed) -> Self {
+        Self::new_raw(R::new(Self::packed_to_loose(packed)))
+    }
+
+    #[inline]
+    pub const fn new_raw(raw: R) -> Self {
         Self {
-            raw: R::new(Self::packed_to_loose(packed)),
+            raw,
             r#type: PhantomData,
         }
     }
@@ -290,29 +302,29 @@ trait Loose: crate::Loose {
     type Atomic: Raw<Self>;
 }
 
-impl_raw!(u8, core::sync::atomic::AtomicU8);
+impl_raw!(u8, AtomicU8);
 impl Loose for u8 {
-    type Atomic = core::sync::atomic::AtomicU8;
+    type Atomic = AtomicU8;
 }
 
-impl_raw!(u16, core::sync::atomic::AtomicU16);
+impl_raw!(u16, AtomicU16);
 impl Loose for u16 {
-    type Atomic = core::sync::atomic::AtomicU16;
+    type Atomic = AtomicU16;
 }
 
-impl_raw!(u32, core::sync::atomic::AtomicU32);
+impl_raw!(u32, AtomicU32);
 impl Loose for u32 {
-    type Atomic = core::sync::atomic::AtomicU32;
+    type Atomic = AtomicU32;
 }
 
-impl_raw!(u64, core::sync::atomic::AtomicU64);
+impl_raw!(u64, AtomicU64);
 impl Loose for u64 {
-    type Atomic = core::sync::atomic::AtomicU64;
+    type Atomic = AtomicU64;
 }
 
 #[cfg(feature = "atomic-u128")]
-impl_raw!(u128, portable_atomic::AtomicU128);
+impl_raw!(u128, AtomicU128);
 #[cfg(feature = "atomic-u128")]
 impl Loose for u128 {
-    type Atomic = portable_atomic::AtomicU128;
+    type Atomic = AtomicU128;
 }
