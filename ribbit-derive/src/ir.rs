@@ -268,7 +268,7 @@ impl Struct<'_> {
         })
     }
 
-    pub(crate) fn iter(&self) -> core::slice::Iter<'_, Field> {
+    pub(crate) fn iter(&self) -> core::slice::Iter<'_, Field<'_>> {
         self.fields.iter()
     }
 }
@@ -405,7 +405,7 @@ impl<'input> FieldIdent<'input> {
         }
     }
 
-    pub(crate) fn escape(&self) -> Cow<syn::Ident> {
+    pub(crate) fn escape(&self) -> Cow<'_, syn::Ident> {
         match self {
             FieldIdent::Named(named) => Cow::Borrowed(*named),
             FieldIdent::Unnamed(unnamed) => Cow::Owned(format_ident!("_{}", unnamed)),
