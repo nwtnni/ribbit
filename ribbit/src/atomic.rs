@@ -13,7 +13,6 @@ pub use core::sync::atomic::AtomicU8;
 #[cfg(feature = "atomic-u128")]
 pub use portable_atomic::AtomicU128;
 
-#[expect(private_interfaces)]
 #[repr(transparent)]
 pub struct Atomic<T: Pack, R = <<<T as Pack>::Packed as Unpack>::Loose as Loose>::Atomic> {
     raw: R,
@@ -168,7 +167,6 @@ where
     }
 }
 
-#[expect(private_interfaces)]
 impl<T> Debug for Atomic<T>
 where
     T: Pack,
@@ -181,7 +179,6 @@ where
     }
 }
 
-#[expect(private_interfaces)]
 impl<T> Display for Atomic<T>
 where
     T: Pack,
@@ -194,7 +191,6 @@ where
     }
 }
 
-#[expect(private_interfaces)]
 impl<T> Default for Atomic<T>
 where
     T: Pack,
@@ -298,7 +294,8 @@ macro_rules! impl_raw {
 }
 
 /// Provides default implementations of [`Raw`].
-trait Loose: crate::Loose {
+#[expect(private_bounds)]
+pub trait Loose: crate::Loose {
     type Atomic: Raw<Self>;
 }
 

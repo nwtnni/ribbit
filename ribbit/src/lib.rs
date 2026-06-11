@@ -142,6 +142,7 @@ pub use arbitrary_int::i96;
 pub use arbitrary_int::i97;
 pub use arbitrary_int::i98;
 pub use arbitrary_int::i99;
+pub use arbitrary_int::traits::Integer;
 pub use arbitrary_int::u1;
 pub use arbitrary_int::u10;
 pub use arbitrary_int::u100;
