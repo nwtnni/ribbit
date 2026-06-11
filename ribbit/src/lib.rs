@@ -268,12 +268,17 @@ pub use arbitrary_int::u99;
 
 pub use ribbit_derive::Pack;
 
+/// Support for atomic operations on packed representations.
 #[cfg(feature = "atomic")]
 pub mod atomic;
 #[cfg(feature = "atomic")]
+#[doc(inline)]
 pub use atomic::Atomic;
 
+/// Convenience type alias for the packed representation of `T`.
 pub type Packed<T> = <T as Pack>::Packed;
+
+/// Convenience type alias for the unpacked representation of `T`.
 pub type Unpacked<T> = <T as Unpack>::Unpacked;
 
 /// Marks a type that can be packed into `BITS`.
@@ -300,32 +305,46 @@ pub unsafe trait Pack: Copy {
 /// Implementer must ensure:
 /// - Type has size `BITS`
 /// - Size and alignment of `Self::Loose` is the same as `Self`
+/// - Size and alignment of `Self::Raw` is the same as `Self`
 pub unsafe trait Unpack: Copy {
+    /// Size of `Self::Raw` in bits.
     const BITS: usize;
 
+    /// Unpacked representation.
     type Unpacked: Pack<Packed = Self>;
 
+    /// Smallest native unsigned integer type that fits `Self::Raw`.
+    #[doc(hidden)]
     #[expect(private_bounds)]
     type Loose: Loose;
 
+    /// Raw underlying representation of a packed type.
     type Raw: Unpack<Unpacked = Self::Raw, Loose = Self::Loose, Raw = Self::Raw>;
 
+    /// Convert to unpacked representation.
     fn unpack(self) -> Self::Unpacked;
 
+    /// Convert from typed to raw representation.
+    ///
+    /// For a `const`-compatible function, see [`crate::convert::packed_to_raw`].
     fn into_raw(self) -> Self::Raw;
 
+    /// Convert from raw to typed representation.
+    ///
+    /// For a `const`-compatible function, see [`crate::convert::raw_to_packed`].
+    ///
+    /// # Safety
+    ///
+    /// Caller must guarantee `raw` is a valid bit pattern for `Self`, e.g.,
+    /// was created by a previous call to [`Unpack::into_raw`].
     unsafe fn from_raw_unchecked(raw: Self::Raw) -> Self;
 }
 
-/// Native integer type.
+/// Native unsigned integer type.
 ///
-/// # Safety
-///
-/// Zero must be a valid bit pattern for this type.
-//
-// Used internally for `const`-compatible conversions between packed
-// and tight types.
-unsafe trait Loose: Copy + Sized + Unpack<Unpacked = Self, Loose = Self, Raw = Self> {}
+/// Used internally for `const`-compatible operations on the underlying bytes
+/// of a packed type.
+trait Loose: Copy + Sized + Unpack<Unpacked = Self, Loose = Self, Raw = Self> {}
 
 /// Implements `const`-compatible conversions between packed and loose representations.
 pub mod convert {
@@ -337,14 +356,27 @@ pub mod convert {
     union Transmute<T: Unpack> {
         packed: T,
         loose: T::Loose,
+        raw: T::Raw,
     }
 
     /// Convert from a packed struct to a native integer type.
+    #[doc(hidden)]
     #[inline]
     pub const fn packed_to_loose<T: Unpack>(packed: T) -> T::Loose {
+        // SAFETY: `T` and `T::Loose` have the same layout
         unsafe {
             let mut zeroed = MaybeUninit::<Transmute<T>>::zeroed();
             zeroed.write(Transmute { packed }).loose
+        }
+    }
+
+    /// `const`-compatible version of [`Unpack::into_raw`].
+    #[inline]
+    pub const fn packed_to_raw<T: Unpack>(packed: T) -> T::Raw {
+        // SAFETY: `T` and `T::Raw` have the same layout
+        unsafe {
+            let mut zeroed = MaybeUninit::<Transmute<T>>::zeroed();
+            zeroed.write(Transmute { packed }).raw
         }
     }
 
@@ -353,11 +385,27 @@ pub mod convert {
     /// # Safety
     ///
     /// Caller must guarantee that `loose` is a valid bit pattern for type `T`.
+    #[doc(hidden)]
     #[inline]
     pub const unsafe fn loose_to_packed<T: Unpack>(loose: T::Loose) -> T {
+        // SAFETY: `T` and `T::Loose` have the same layout, and caller guarantees bit pattern is valid
         unsafe {
             let mut zeroed = MaybeUninit::<Transmute<T>>::zeroed();
             zeroed.write(Transmute { loose }).packed
+        }
+    }
+
+    /// `const`-compatible version of [`Unpack::from_raw_unchecked`].
+    ///
+    /// # Safety
+    ///
+    /// Caller must guarantee that `raw` is a valid bit pattern for type `T`.
+    #[inline]
+    pub const unsafe fn raw_to_packed<T: Unpack>(raw: T::Raw) -> T {
+        // SAFETY: `T` and `T::Raw` have the same layout, and caller guarantees bit pattern is valid
+        unsafe {
+            let mut zeroed = MaybeUninit::<Transmute<T>>::zeroed();
+            zeroed.write(Transmute { raw }).packed
         }
     }
 
@@ -368,8 +416,9 @@ pub mod convert {
     }
 
     /// Convert between two generic native integer types.
-    #[inline]
+    #[doc(hidden)]
     #[allow(private_bounds)]
+    #[inline]
     pub const fn loose_to_loose<F: Loose, I: Loose>(from: F) -> I {
         // SAFETY: `Loose` is only implemented for native integer types.
         unsafe {
@@ -443,7 +492,7 @@ macro_rules! impl_unpack {
 #[rustfmt::skip]
 macro_rules! impl_impl_number {
     ($name:ident, $unsigned_loose:ty, $signed_loose:ty, $loose_bits:expr, $dollar:tt) => {
-        unsafe impl Loose for $unsigned_loose {}
+        impl Loose for $unsigned_loose {}
 
         impl_pack!($unsigned_loose);
         impl_unpack!($unsigned_loose, $loose_bits, $unsigned_loose);
@@ -681,11 +730,14 @@ impl_u128!(
     u127, i127: 127,
 );
 
-/// Marker trait asserting that values of this type cannot be zero.
+/// Marker trait asserting that values of this type cannot be zero, *and*
+/// that Rust is aware of this niche. Only implemented for standard library
+/// `NonZero` types.
 ///
 /// # Safety
 ///
-/// Implementer must guarantee that zero is not a valid bit pattern for this type.
+/// Implementer must guarantee that zero is not a valid bit pattern for this type,
+/// and that Rust is aware of this niche.
 #[allow(private_bounds)]
 unsafe trait NonZero {}
 
@@ -739,7 +791,7 @@ where
             assert!(align_of::<Self>() == align_of::<T>());
         }
 
-        // SAFETY: `Self::Raw` implements `NonZero`
+        // SAFETY: `T::Raw` implements `NonZero`, so Option<T> uses zero niche
         unsafe { core::mem::transmute_copy(&self) }
     }
 
@@ -750,12 +802,14 @@ where
             assert!(align_of::<Self>() == align_of::<T>());
         }
 
-        core::mem::transmute_copy(&raw)
+        // SAFETY: `T::Raw` implements `NonZero`, so Option<T> uses zero niche
+        unsafe { core::mem::transmute_copy(&raw) }
     }
 }
 
 #[doc(hidden)]
 pub mod private {
+    /// `const` assertion that `T` is backed by a non-zero type.
     #[expect(private_bounds)]
     pub const fn assert_nonzero<T>()
     where
@@ -764,6 +818,7 @@ pub mod private {
     {
     }
 
+    /// `const` assertion that `T` is exactly `expected` bits.
     pub const fn assert_size_eq<T>(expected: usize)
     where
         T: crate::Pack,
@@ -774,6 +829,7 @@ pub mod private {
         )
     }
 
+    /// `const` assertion that `T` is at least `expected` bits.
     pub const fn assert_size_ge<T>(expected: usize)
     where
         T: crate::Pack,
