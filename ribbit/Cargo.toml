@@ -6,7 +6,8 @@ license = "MIT OR Apache-2.0"
 
 [features]
 atomic = []
-atomic-u128 = ["atomic", "dep:portable-atomic", "portable-atomic/require-cas"]
+u128 = []
+atomic-u128 = ["atomic", "u128", "dep:portable-atomic", "portable-atomic/require-cas"]
 
 [dependencies]
 arbitrary-int = "2.1.1"

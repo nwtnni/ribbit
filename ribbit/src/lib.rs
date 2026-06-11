@@ -345,7 +345,10 @@ pub unsafe trait Unpack: Copy {
 ///
 /// Used internally for `const`-compatible operations on the underlying bytes
 /// of a packed type.
-trait Loose: Copy + Sized + Unpack<Unpacked = Self, Loose = Self, Raw = Self> {}
+trait Loose: Copy + Sized + Unpack<Unpacked = Self, Loose = Self, Raw = Self> {
+    #[cfg(feature = "atomic")]
+    type Atomic: atomic::Raw<Self>;
+}
 
 /// Implements `const`-compatible conversions between packed and loose representations.
 pub mod convert {
@@ -493,8 +496,6 @@ macro_rules! impl_unpack {
 #[rustfmt::skip]
 macro_rules! impl_impl_number {
     ($name:ident, $unsigned_loose:ty, $signed_loose:ty, $loose_bits:expr, $dollar:tt) => {
-        impl Loose for $unsigned_loose {}
-
         impl_pack!($unsigned_loose);
         impl_unpack!($unsigned_loose, $loose_bits, $unsigned_loose);
 
@@ -588,6 +589,11 @@ unsafe impl Unpack for bool {
     }
 }
 
+impl Loose for u8 {
+    #[cfg(feature = "atomic")]
+    type Atomic = atomic::AtomicU8;
+}
+
 impl_impl_number!(impl_u8, u8, i8, 8, $);
 impl_u8!(
     u1, i1: 1,
@@ -599,6 +605,11 @@ impl_u8!(
     u7, i7: 7,
 );
 
+impl Loose for u16 {
+    #[cfg(feature = "atomic")]
+    type Atomic = atomic::AtomicU16;
+}
+
 impl_impl_number!(impl_u16, u16, i16, 16, $);
 impl_u16!(
     u9, i9: 9,
@@ -609,6 +620,11 @@ impl_u16!(
     u14, i14: 14,
     u15, i15: 15,
 );
+
+impl Loose for u32 {
+    #[cfg(feature = "atomic")]
+    type Atomic = atomic::AtomicU32;
+}
 
 impl_impl_number!(impl_u32, u32, i32, 32, $);
 impl_u32!(
@@ -628,6 +644,11 @@ impl_u32!(
     u30, i30: 30,
     u31, i31: 31,
 );
+
+impl Loose for u64 {
+    #[cfg(feature = "atomic")]
+    type Atomic = atomic::AtomicU64;
+}
 
 impl_impl_number!(impl_u64, u64, i64, 64, $);
 impl_u64!(
@@ -664,7 +685,15 @@ impl_u64!(
     u63, i63: 63,
 );
 
+#[cfg(feature = "u128")]
+impl Loose for u128 {
+    #[cfg(feature = "atomic")]
+    type Atomic = atomic::AtomicU128;
+}
+
+#[cfg(feature = "u128")]
 impl_impl_number!(impl_u128, u128, i128, 128, $);
+#[cfg(feature = "u128")]
 impl_u128!(
     u65, i65: 65,
     u66, i66: 66,
@@ -758,6 +787,7 @@ impl_nonzero!(NonZeroU8, NonZeroI8, u8, 8);
 impl_nonzero!(NonZeroU16, NonZeroI16, u16, 16);
 impl_nonzero!(NonZeroU32, NonZeroI32, u32, 32);
 impl_nonzero!(NonZeroU64, NonZeroI64, u64, 64);
+#[cfg(feature = "u128")]
 impl_nonzero!(NonZeroU128, NonZeroI128, u128, 128);
 
 unsafe impl<T> Pack for Option<T>

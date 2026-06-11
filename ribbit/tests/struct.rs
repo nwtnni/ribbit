@@ -186,16 +186,19 @@ fn absolute_path() {
     assert_eq!(path.b().value(), 22);
 }
 
+#[cfg(feature = "u128")]
 #[expect(dead_code)]
 #[derive(ribbit::Pack, Copy, Clone)]
 #[ribbit(size = 128)]
 struct Tuple128(u32, u32, u64);
 
+#[cfg(feature = "u128")]
 #[expect(dead_code)]
 #[derive(ribbit::Pack, Copy, Clone)]
 #[ribbit(size = 128, nonzero)]
 struct NonZero128(ribbit::NonZeroU128);
 
+#[cfg(feature = "u128")]
 #[expect(dead_code)]
 #[derive(ribbit::Pack, Copy, Clone)]
 #[ribbit(size = 99)]

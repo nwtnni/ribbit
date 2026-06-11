@@ -3,6 +3,7 @@ use core::fmt::Display;
 use core::marker::PhantomData;
 use core::sync::atomic::Ordering;
 
+use crate::Loose;
 use crate::Pack;
 use crate::Unpack;
 
@@ -10,9 +11,10 @@ pub use core::sync::atomic::AtomicU16;
 pub use core::sync::atomic::AtomicU32;
 pub use core::sync::atomic::AtomicU64;
 pub use core::sync::atomic::AtomicU8;
-#[cfg(feature = "atomic-u128")]
+#[cfg(feature = "u128")]
 pub use portable_atomic::AtomicU128;
 
+#[expect(private_interfaces)]
 #[repr(transparent)]
 pub struct Atomic<T: Pack, R = <<<T as Pack>::Packed as Unpack>::Loose as Loose>::Atomic> {
     raw: R,
@@ -167,11 +169,11 @@ where
     }
 }
 
-impl<T> Debug for Atomic<T>
+impl<T, R> Debug for Atomic<T, R>
 where
     T: Pack,
     T::Packed: Debug,
-    <T::Packed as Unpack>::Loose: Loose,
+    R: Raw<<<T as Pack>::Packed as Unpack>::Loose>,
 {
     #[inline]
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
@@ -179,11 +181,11 @@ where
     }
 }
 
-impl<T> Display for Atomic<T>
+impl<T, R> Display for Atomic<T, R>
 where
     T: Pack,
     T::Packed: Display,
-    <T::Packed as Unpack>::Loose: Loose,
+    R: Raw<<<T as Pack>::Packed as Unpack>::Loose>,
 {
     #[inline]
     fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
@@ -191,11 +193,11 @@ where
     }
 }
 
-impl<T> Default for Atomic<T>
+impl<T, R> Default for Atomic<T, R>
 where
     T: Pack,
     T::Packed: Default,
-    <T::Packed as Unpack>::Loose: Loose,
+    R: Raw<<<T as Pack>::Packed as Unpack>::Loose>,
 {
     #[inline]
     fn default() -> Self {
@@ -293,35 +295,9 @@ macro_rules! impl_raw {
     };
 }
 
-/// Provides default implementations of [`Raw`].
-#[expect(private_bounds)]
-pub trait Loose: crate::Loose {
-    type Atomic: Raw<Self>;
-}
-
 impl_raw!(u8, AtomicU8);
-impl Loose for u8 {
-    type Atomic = AtomicU8;
-}
-
 impl_raw!(u16, AtomicU16);
-impl Loose for u16 {
-    type Atomic = AtomicU16;
-}
-
 impl_raw!(u32, AtomicU32);
-impl Loose for u32 {
-    type Atomic = AtomicU32;
-}
-
 impl_raw!(u64, AtomicU64);
-impl Loose for u64 {
-    type Atomic = AtomicU64;
-}
-
-#[cfg(feature = "atomic-u128")]
+#[cfg(feature = "u128")]
 impl_raw!(u128, AtomicU128);
-#[cfg(feature = "atomic-u128")]
-impl Loose for u128 {
-    type Atomic = AtomicU128;
-}
