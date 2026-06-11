@@ -36,7 +36,7 @@ pub(crate) fn get<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
                     r#struct.max_offset,
                     field.offset as u8,
                 );
-                let vis = field.opt.get.0.vis(field.vis);
+                let vis = field.opt.get.0.vis(&field.vis);
                 let name = FieldOpt::name(field);
                 let r#type = field.r#type.packed();
 

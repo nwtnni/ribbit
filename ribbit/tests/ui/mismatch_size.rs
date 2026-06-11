@@ -1,5 +1,3 @@
-use ribbit::u15;
-
 #[derive(ribbit::Pack, Copy, Clone)]
 #[ribbit(size = 16)]
 struct A(u16);
@@ -8,8 +6,8 @@ struct A(u16);
 #[ribbit(size = 16)]
 struct B {
     #[ribbit(size = 1)]
-    a: A,
-    b: u15,
+    a: crate::A,
+    b: ribbit::u15,
 }
 
 fn main() {}

@@ -16,7 +16,7 @@ use crate::Type;
 pub(crate) struct StructOpt(ir::CommonOpt);
 
 pub(crate) fn new<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 'ir {
-    let vis = ir.opt().new.0.vis(ir.vis);
+    let vis = ir.opt().new.0.vis(&ir.vis);
 
     let tight = ir.r#type().as_tight();
 
@@ -108,7 +108,7 @@ fn new_struct<'ir, F: FnOnce(lift::Expr<'ir>) -> TokenStream>(
             #precondition
             Self {
                 value: #value,
-                r#type: ::ribbit::private::PhantomData,
+                r#type: ::ribbit::PhantomData,
             }
         }
     }
@@ -130,7 +130,7 @@ fn new_unchecked<'ir, F: FnOnce(lift::Expr<'ir>) -> TokenStream>(
             #precondition
             Self {
                 value: #value,
-                r#type: ::ribbit::private::PhantomData,
+                r#type: ::ribbit::PhantomData,
             }
         }
     }

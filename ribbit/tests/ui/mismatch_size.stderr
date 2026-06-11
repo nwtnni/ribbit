@@ -1,11 +1,14 @@
 error[E0308]: mismatched types
- --> tests/ui/mismatch_size.rs:7:10
+ --> tests/ui/mismatch_size.rs:5:10
   |
-7 | #[derive(ribbit::Pack, Copy, Clone)]
+5 | #[derive(ribbit::Pack, Copy, Clone)]
   |          ^^^^^^^^^^^^
   |          |
   |          expected `u16`, found `u8`
   |          arguments to this function are incorrect
+6 | #[ribbit(size = 16)]
+7 | struct B {
+  |        - this return type influences the call expression's return type
   |
 note: function defined here
  --> src/lib.rs
@@ -14,25 +17,47 @@ note: function defined here
   |                         ^^^^^^^^^^^^^^^
   = note: this error originates in the derive macro `ribbit::Pack` (in Nightly builds, run with -Z macro-backtrace for more info)
 
-error[E0080]: evaluation of constant value failed
-  --> tests/ui/mismatch_size.rs:11:8
-   |
-11 |     a: A,
-   |        ^ evaluation panicked: Annotated size does not equal actual size
-   |
-note: inside `assert_size_eq::<A>`
-  --> src/lib.rs
-   |
-   | /         assert!(
-   | |             expected == <T::Packed as crate::Unpack>::BITS,
-   | |             "Annotated size does not equal actual size",
-   | |         )
-   | |_________^ the failure occurred here
+error[E0308]: mismatched types
+ --> tests/ui/mismatch_size.rs:5:10
+  |
+5 | #[derive(ribbit::Pack, Copy, Clone)]
+  |          ^^^^^^^^^^^^
+  |          |
+  |          expected `u16`, found `u8`
+  |          arguments to this function are incorrect
+  |          this return type influences the call expression's return type
+  |
+note: function defined here
+ --> src/lib.rs
+  |
+  |     pub const unsafe fn loose_to_packed<T: Unpack>(loose: T::Loose) -> T {
+  |                         ^^^^^^^^^^^^^^^
+  = note: this error originates in the derive macro `ribbit::Pack` (in Nightly builds, run with -Z macro-backtrace for more info)
+
+error[E0080]: evaluation panicked: Annotated size does not equal actual size
+ --> tests/ui/mismatch_size.rs:9:8
+  |
+9 |     a: crate::A,
+  |        ^^^^^ evaluation of `b_packed::BPacked::_RIBBIT_PRECONDITION` failed inside this call
+  |
+note: inside `ribbit::private::assert_size_eq::<A>`
+ --> $RUST/core/src/panic.rs
+  |
+  |           $crate::panicking::panic_fmt($crate::const_format_args!($($t)+));
+  |           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ the failure occurred here
+  |
+ ::: src/lib.rs
+  |
+  | /         assert!(
+  | |             expected == <T::Packed as crate::Unpack>::BITS,
+  | |             "Annotated size does not equal actual size",
+  | |         )
+  | |_________- in this macro invocation
 
 note: erroneous constant encountered
- --> tests/ui/mismatch_size.rs:7:10
+ --> tests/ui/mismatch_size.rs:5:10
   |
-7 | #[derive(ribbit::Pack, Copy, Clone)]
+5 | #[derive(ribbit::Pack, Copy, Clone)]
   |          ^^^^^^^^^^^^
   |
   = note: this note originates in the derive macro `ribbit::Pack` (in Nightly builds, run with -Z macro-backtrace for more info)

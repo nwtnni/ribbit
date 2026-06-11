@@ -163,7 +163,7 @@ impl Tight {
     pub(crate) fn convert_from_loose(&self, expression: TokenStream) -> TokenStream {
         match self {
             Tight::Unit => quote!(()),
-            Tight::PhantomData => quote!(::ribbit::private::PhantomData),
+            Tight::PhantomData => quote!(::ribbit::PhantomData),
             Tight::Bool => {
                 let zero = proc_macro2::Literal::usize_unsuffixed(0);
                 quote!((#expression != #zero))
@@ -186,7 +186,7 @@ impl ToTokens for Tight {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let path = match self {
             Tight::Unit => return quote!(()).to_tokens(tokens),
-            Tight::PhantomData => return quote!(::ribbit::private::PhantomData).to_tokens(tokens),
+            Tight::PhantomData => return quote!(::ribbit::PhantomData).to_tokens(tokens),
             Tight::Bool => quote!(bool),
             Tight::Loose {
                 signed: true,
@@ -216,7 +216,7 @@ impl ToTokens for Tight {
             Tight::Arbitrary(arbitrary) => return arbitrary.to_tokens(tokens),
         };
 
-        quote!(::ribbit::private::#path).to_tokens(tokens)
+        quote!(::ribbit::#path).to_tokens(tokens)
     }
 }
 

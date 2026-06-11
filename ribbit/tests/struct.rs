@@ -1,62 +1,60 @@
 use arbitrary_int::*;
 use core::num::NonZeroI32;
 use core::num::NonZeroI8;
-use core::num::NonZeroU128;
 use core::num::NonZeroU16;
-use ribbit::OptionExt as _;
 use ribbit::Pack as _;
 use ribbit::Unpack as _;
 
-#[test]
-fn basic() {
-    #[derive(ribbit::Pack, Copy, Clone)]
-    #[ribbit(size = 64)]
-    struct Half {
-        a: u32,
-        b: u32,
-    }
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 64)]
+struct Smoke {
+    a: u32,
+    b: u32,
+}
 
-    let h = Half {
+#[test]
+fn smoke() {
+    let h = Smoke {
         a: 0xdead_beef,
         b: 0xbeef_dead,
     }
     .pack();
 
-    assert_eq!(h.value, 0xbeef_dead_dead_beef);
+    assert_eq!(h.into_raw(), 0xbeef_dead_dead_beef);
     assert_eq!(h.a(), 0xdead_beef);
     assert_eq!(h.b(), 0xbeef_dead);
 }
 
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 64)]
+struct Arbitrary {
+    a: ribbit::u40,
+    b: ribbit::u24,
+}
+
 #[test]
 fn arbitrary_field() {
-    #[derive(ribbit::Pack, Copy, Clone)]
-    #[ribbit(size = 64)]
-    struct Half {
-        a: u40,
-        b: u24,
-    }
-
-    let h = Half {
+    let h = Arbitrary {
         a: u40::new(0xad_dead_beef),
         b: u24::new(0xbe_efde),
     }
     .pack();
 
-    assert_eq!(h.value, 0xbeef_dead_dead_beef);
+    assert_eq!(h.into_raw(), 0xbeef_dead_dead_beef);
     assert_eq!(h.a().value(), 0xad_dead_beef);
     assert_eq!(h.b().value(), 0xbe_efde);
 }
 
-#[test]
-fn arbitrary_repr() {
-    #[derive(ribbit::Pack, Copy, Clone)]
-    #[ribbit(size = 9)]
-    struct Half {
-        a: u1,
-        b: u8,
-    }
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 9)]
+struct Unaligned {
+    a: ribbit::u1,
+    b: u8,
+}
 
-    let h = Half {
+#[test]
+fn unaligned_field() {
+    let h = Unaligned {
         a: u1::new(1),
         b: 0b10101010,
     }
@@ -65,16 +63,16 @@ fn arbitrary_repr() {
     assert_eq!(h.b(), 0b10101010);
 }
 
-#[test]
-fn set_bit() {
-    #[derive(ribbit::Pack, Copy, Clone)]
-    #[ribbit(size = 2)]
-    struct Bits {
-        a: u1,
-        b: u1,
-    }
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 2)]
+struct AdjacentBit {
+    a: ribbit::u1,
+    b: ribbit::u1,
+}
 
-    let h = Bits {
+#[test]
+fn adjacent_bits() {
+    let h = AdjacentBit {
         a: u1::new(0),
         b: u1::new(0),
     }
@@ -94,15 +92,15 @@ fn set_bit() {
     assert_eq!(j.b().value(), 0b1);
 }
 
-#[test]
-fn set_clobber() {
-    #[derive(ribbit::Pack, Copy, Clone)]
-    #[ribbit(size = 2)]
-    struct Clobber {
-        value: u2,
-    }
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 2)]
+struct TwoBit {
+    value: ribbit::u2,
+}
 
-    let c = Clobber { value: u2::new(0) }.pack();
+#[test]
+fn two_bit() {
+    let c = TwoBit { value: u2::new(0) }.pack();
 
     assert_eq!(c.value(), u2::new(0b00));
 
@@ -113,24 +111,15 @@ fn set_clobber() {
     assert_eq!(c.value(), u2::new(0b10));
 }
 
-#[test]
-fn nonzero() {
-    #[derive(ribbit::Pack, Copy, Clone)]
-    #[ribbit(size = 16, nonzero)]
-    struct NonZero {
-        nonzero: NonZeroU16,
-    }
+#[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
+#[ribbit(size = 16, nonzero)]
+struct NonZero {
+    nonzero: ribbit::NonZeroU16,
 }
 
 #[test]
-fn nonzero_new_unchecked() {
-    #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
-    #[ribbit(size = 16, nonzero)]
-    struct NonZero {
-        nonzero: NonZeroU16,
-    }
-
-    let non_zero = unsafe { ribbit::Packed::<Option<NonZero>>::new_unchecked(15) };
+fn nonzero_from_raw() {
+    let non_zero = unsafe { ribbit::Packed::<Option<NonZero>>::from_raw_unchecked(15) };
     assert_eq!(
         non_zero.unpack(),
         Some(NonZero {
@@ -138,21 +127,21 @@ fn nonzero_new_unchecked() {
         })
     );
 
-    let zero = unsafe { ribbit::Packed::<Option<NonZero>>::new_unchecked(0) };
+    let zero = unsafe { ribbit::Packed::<Option<NonZero>>::from_raw_unchecked(0) };
     assert_eq!(zero.unpack(), None);
 }
 
-#[test]
-fn explicit() {
-    #[derive(ribbit::Pack, Copy, Clone)]
-    #[ribbit(size = 18)]
-    struct Mix {
-        #[ribbit(offset = 2)]
-        a: NonZeroU16,
-        b: u2,
-    }
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 18)]
+struct ExplicitOffset {
+    #[ribbit(offset = 2)]
+    a: ribbit::NonZeroU16,
+    b: ribbit::u2,
+}
 
-    let mix = Mix {
+#[test]
+fn explicit_offset() {
+    let mix = ExplicitOffset {
         a: NonZeroU16::new(55).unwrap(),
         b: u2::new(3),
     }
@@ -169,26 +158,26 @@ fn explicit() {
     assert_eq!(mix.b().value(), 0);
 }
 
-#[test]
-fn underflow() {
-    #[derive(ribbit::Pack, Copy, Clone)]
-    #[ribbit(size = 8)]
-    struct Zst;
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 8)]
+struct AnnotatedSizeLarger;
 
-    let zst = Zst.pack();
-    assert_eq!(zst.value, 0);
+#[test]
+fn annotated_size_larger() {
+    let zst = AnnotatedSizeLarger.pack();
+    assert_eq!(zst.into_raw(), 0);
+}
+
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 32, nonzero)]
+struct AbsolutePath {
+    a: ::core::num::NonZeroU8,
+    b: ribbit::u24,
 }
 
 #[test]
-fn type_path() {
-    #[derive(ribbit::Pack, Copy, Clone)]
-    #[ribbit(size = 32, nonzero)]
-    struct Path {
-        a: ::std::num::NonZeroU8,
-        b: ribbit::u24,
-    }
-
-    let path = Path {
+fn absolute_path() {
+    let path = AbsolutePath {
         a: ::std::num::NonZeroU8::new(5).unwrap(),
         b: ribbit::u24::new(22),
     }
@@ -197,31 +186,31 @@ fn type_path() {
     assert_eq!(path.b().value(), 22);
 }
 
-#[test]
-fn u128() {
-    #[derive(ribbit::Pack, Copy, Clone)]
-    #[ribbit(size = 128)]
-    struct Tuple(u32, u32, u64);
+#[expect(dead_code)]
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 128)]
+struct Tuple128(u32, u32, u64);
 
-    #[derive(ribbit::Pack, Copy, Clone)]
-    #[ribbit(size = 128, nonzero)]
-    struct NonZero(NonZeroU128);
+#[expect(dead_code)]
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 128, nonzero)]
+struct NonZero128(ribbit::NonZeroU128);
 
-    #[derive(ribbit::Pack, Copy, Clone)]
-    #[ribbit(size = 99)]
-    struct Arbitrary(u99);
+#[expect(dead_code)]
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 99)]
+struct Arbitrary128(ribbit::u99);
+
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 40)]
+struct NativeSigned {
+    a: i32,
+    b: i8,
 }
 
 #[test]
-fn basic_signed() {
-    #[derive(ribbit::Pack, Copy, Clone)]
-    #[ribbit(size = 40)]
-    struct Half {
-        a: i32,
-        b: i8,
-    }
-
-    let h = Half {
+fn native_signed() {
+    let h = NativeSigned {
         a: 0xead_beef,
         b: 0xd,
     }
@@ -231,16 +220,16 @@ fn basic_signed() {
     assert_eq!(h.b(), 0xd);
 }
 
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 64)]
+struct ArbitrarySigned {
+    a: ribbit::i40,
+    b: ribbit::i24,
+}
+
 #[test]
 fn arbitrary_signed() {
-    #[derive(ribbit::Pack, Copy, Clone)]
-    #[ribbit(size = 64)]
-    struct Half {
-        a: i40,
-        b: i24,
-    }
-
-    let h = Half {
+    let h = ArbitrarySigned {
         a: i40::new(0xd_dead_beef),
         b: i24::new(0xe_efde),
     }
@@ -250,16 +239,16 @@ fn arbitrary_signed() {
     assert_eq!(h.b().value(), 0xe_efde);
 }
 
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 64)]
+struct NonZeroSigned {
+    a: ribbit::NonZeroI32,
+    b: ribbit::NonZeroI8,
+}
+
 #[test]
 fn nonzero_signed() {
-    #[derive(ribbit::Pack, Copy, Clone)]
-    #[ribbit(size = 64)]
-    struct Half {
-        a: NonZeroI32,
-        b: NonZeroI8,
-    }
-
-    let h = Half {
+    let h = NonZeroSigned {
         a: NonZeroI32::new(0xead_beef).unwrap(),
         b: NonZeroI8::new(0xd).unwrap(),
     }
@@ -269,71 +258,71 @@ fn nonzero_signed() {
     assert_eq!(h.b().get(), 0xd);
 }
 
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 64)]
+struct RenameGet {
+    #[ribbit(get(rename = "get_a"))]
+    a: u32,
+    #[ribbit(get(rename = "get_b"))]
+    b: u32,
+}
+
 #[test]
 fn rename_get() {
-    #[derive(ribbit::Pack, Copy, Clone)]
-    #[ribbit(size = 64)]
-    struct Half {
-        #[ribbit(get(rename = "get_a"))]
-        a: u32,
-        #[ribbit(get(rename = "get_b"))]
-        b: u32,
-    }
-
-    let h = Half {
+    let h = RenameGet {
         a: 0xdead_beef,
         b: 0xbeef_dead,
     }
     .pack();
 
-    assert_eq!(h.value, 0xbeef_dead_dead_beef);
+    assert_eq!(h.into_raw(), 0xbeef_dead_dead_beef);
     assert_eq!(h.get_a(), 0xdead_beef);
     assert_eq!(h.get_b(), 0xbeef_dead);
 }
 
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 64)]
+struct SkipGet {
+    #[ribbit(get(skip))]
+    a: u32,
+    #[ribbit(get(skip))]
+    b: u32,
+}
+
 #[test]
 fn skip_get() {
-    #[derive(ribbit::Pack, Copy, Clone)]
-    #[ribbit(size = 64)]
-    struct Half {
-        #[ribbit(get(skip))]
-        a: u32,
-        #[ribbit(get(skip))]
-        b: u32,
-    }
-
-    let h = Half {
+    let h = SkipGet {
         a: 0xdead_beef,
         b: 0xbeef_dead,
     }
     .pack();
 
-    assert_eq!(h.value, 0xbeef_dead_dead_beef);
+    assert_eq!(h.into_raw(), 0xbeef_dead_dead_beef);
+}
+
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 64)]
+struct RenameWith {
+    #[ribbit(with(rename = "update_a"))]
+    a: u32,
+    #[ribbit(with(rename = "update_b"))]
+    b: u32,
 }
 
 #[test]
 fn rename_with() {
-    #[derive(ribbit::Pack, Copy, Clone)]
-    #[ribbit(size = 64)]
-    struct Half {
-        #[ribbit(with(rename = "update_a"))]
-        a: u32,
-        #[ribbit(with(rename = "update_b"))]
-        b: u32,
-    }
-
-    let h = Half {
+    let h = RenameWith {
         a: 0xdead_beef,
         b: 0xbeef_dead,
     }
     .pack();
 
-    assert_eq!(h.value, 0xbeef_dead_dead_beef);
+    assert_eq!(h.into_raw(), 0xbeef_dead_dead_beef);
     assert_eq!(h.a(), 0xdead_beef);
     assert_eq!(h.b(), 0xbeef_dead);
 
     let h = h.update_a(0xbeef_dead).update_b(0xdead_beef);
-    assert_eq!(h.value, 0xdead_beef_beef_dead);
+    assert_eq!(h.into_raw(), 0xdead_beef_beef_dead);
     assert_eq!(h.a(), 0xbeef_dead);
     assert_eq!(h.b(), 0xdead_beef);
 }

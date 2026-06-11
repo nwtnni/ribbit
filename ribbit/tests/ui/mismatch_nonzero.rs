@@ -6,7 +6,7 @@ struct A(u16);
 #[ribbit(size = 32)]
 struct B {
     #[ribbit(size = 16, nonzero)]
-    a: A,
+    a: crate::A,
     b: u16,
 }
 

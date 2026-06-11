@@ -71,80 +71,80 @@ fn compose() {
     assert_eq!(b.inner().lo(), 2);
 }
 
+#[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
+#[ribbit(size = 8, debug, eq)]
+enum EnumNewtype<T> {
+    #[ribbit(size = 7)]
+    Left(T),
+    #[ribbit(size = 7)]
+    Right(T),
+}
+
 #[test]
 fn r#enum_newtype() {
-    #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
-    #[ribbit(size = 8, debug, eq)]
-    enum Either<T> {
-        #[ribbit(size = 7)]
-        Left(T),
-        #[ribbit(size = 7)]
-        Right(T),
-    }
-
-    let a = Either::Left(u7::new(1)).pack();
-    let b = Either::Right(u7::new(1)).pack();
+    let a = EnumNewtype::Left(u7::new(1)).pack();
+    let b = EnumNewtype::Right(u7::new(1)).pack();
 
     assert_ne!(a, b);
 
     match a.unpack() {
-        Either::Left(l) => assert_eq!(l.value(), 1),
-        Either::Right(_) => unreachable!(),
+        EnumNewtype::Left(l) => assert_eq!(l.value(), 1),
+        EnumNewtype::Right(_) => unreachable!(),
     }
 
     match b.unpack() {
-        Either::Left(_) => unreachable!(),
-        Either::Right(r) => assert_eq!(r.value(), 1),
+        EnumNewtype::Left(_) => unreachable!(),
+        EnumNewtype::Right(r) => assert_eq!(r.value(), 1),
     }
+}
+
+#[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
+#[ribbit(size = 8, debug, eq)]
+enum EnumNamed<T> {
+    #[ribbit(size = 7, debug, from)]
+    Left {
+        #[ribbit(size = 7)]
+        l: T,
+    },
+    #[ribbit(size = 7, debug, from)]
+    Right {
+        #[ribbit(size = 7)]
+        r: T,
+    },
 }
 
 #[test]
 fn r#enum_named() {
-    #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
-    #[ribbit(size = 8, debug, eq)]
-    enum Either<T> {
-        #[ribbit(size = 7, debug, from)]
-        Left {
-            #[ribbit(size = 7)]
-            l: T,
-        },
-        #[ribbit(size = 7, debug, from)]
-        Right {
-            #[ribbit(size = 7)]
-            r: T,
-        },
-    }
-
-    let a = Either::Left { l: u7::new(1) }.pack();
-    let b = Either::Right { r: u7::new(1) }.pack();
+    let a = EnumNamed::Left { l: u7::new(1) }.pack();
+    let b = EnumNamed::Right { r: u7::new(1) }.pack();
 
     assert_ne!(a, b);
 
     match a.unpack() {
-        Either::Left { l } => assert_eq!(l.value(), 1),
-        Either::Right { .. } => unreachable!(),
+        EnumNamed::Left { l } => assert_eq!(l.value(), 1),
+        EnumNamed::Right { .. } => unreachable!(),
     }
 
     match b.unpack() {
-        Either::Left { .. } => unreachable!(),
-        Either::Right { r } => assert_eq!(r.value(), 1),
+        EnumNamed::Left { .. } => unreachable!(),
+        EnumNamed::Right { r } => assert_eq!(r.value(), 1),
     }
 }
 
+#[derive(ribbit::Pack, Copy, Clone, Debug)]
+#[ribbit(size = 3, debug, eq)]
+struct Small(ribbit::u3);
+
+#[derive(ribbit::Pack, Copy, Clone)]
+#[ribbit(size = 24, debug)]
+struct Large<T> {
+    #[ribbit(size = 16)]
+    a: T,
+    b: u8,
+}
+
 #[test]
-fn relax() {
-    #[derive(ribbit::Pack, Copy, Clone, Debug)]
-    #[ribbit(size = 3, debug, eq)]
-    struct Small(u3);
-
-    #[derive(ribbit::Pack, Copy, Clone)]
-    #[ribbit(size = 24, debug)]
-    struct Large<T> {
-        #[ribbit(size = 16)]
-        a: T,
-        b: u8,
-    }
-
+fn actual_size_lt_expected() {
     let a = Small(u3::new(3));
     let b = Large { a, b: 7 }.pack();
 
@@ -152,74 +152,76 @@ fn relax() {
     assert_eq!(b.b(), 7);
 }
 
+trait Foo {
+    type Bar: Copy + core::fmt::Debug + Eq;
+}
+
+impl Foo for u32 {
+    type Bar = u64;
+}
+
+#[derive(ribbit::Pack, Debug, PartialEq, Eq)]
+#[ribbit(size = 64)]
+struct Wrapper<A>(<A as crate::Foo>::Bar)
+where
+    A: crate::Foo;
+
+impl<A> Clone for Wrapper<A>
+where
+    A: Foo,
+{
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
+impl<A> Copy for Wrapper<A> where A: Foo {}
+
 #[test]
-fn associated() {
-    trait Foo {
-        type Bar: Copy;
-    }
+fn associated_type() {
+    let wrapper = Wrapper::<u32>(5u64);
+    assert_eq!(wrapper, wrapper.pack().unpack());
+}
 
-    impl Foo for u32 {
-        type Bar = u64;
-    }
-
-    #[derive(ribbit::Pack)]
-    #[ribbit(size = 64)]
-    struct Wrapper<A>(<A as Foo>::Bar)
-    where
-        A: Foo;
-
-    impl<A> Clone for Wrapper<A>
-    where
-        A: Foo,
-    {
-        fn clone(&self) -> Self {
-            *self
-        }
-    }
-
-    impl<A> Copy for Wrapper<A> where A: Foo {}
+#[derive(Copy, Clone, Debug, PartialEq, Eq, ribbit::Pack)]
+#[ribbit(size = 64)]
+struct ConstNew<T> {
+    other: u32,
+    #[ribbit(size = 32)]
+    data: T,
 }
 
 #[test]
-fn const_loose_to_loose() {
-    #[derive(Copy, Clone, Debug, PartialEq, Eq, ribbit::Pack)]
-    #[ribbit(size = 64)]
-    struct Outer64<T> {
-        other: u32,
-        #[ribbit(size = 32)]
-        data: T,
-    }
-
-    let outer = Outer64::<u7> {
+fn const_new() {
+    let outer = ConstNew::<u7> {
         data: u7::new(5),
         other: 10,
     };
 
     const {
-        ribbit::Packed::<Outer64<u7>>::new(10, u7::new(5));
+        ribbit::Packed::<ConstNew<u7>>::new(10, u7::new(5));
     }
 
     assert_eq!(outer.pack().unpack(), outer);
     assert_eq!(outer.pack().data().value(), 5);
 }
 
+#[derive(Debug, PartialEq, Eq, ribbit::Pack)]
+#[ribbit(size = 64, debug, eq)]
+struct Phantom<T> {
+    data: u64,
+    _type: ribbit::PhantomData<T>,
+}
+
+impl<T> Copy for Phantom<T> {}
+impl<T> Clone for Phantom<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+
 #[test]
 fn phantom_data_zst() {
-    #[derive(Debug, PartialEq, Eq, ribbit::Pack)]
-    #[ribbit(size = 64, debug, eq)]
-    struct Phantom<T> {
-        data: u64,
-
-        _type: PhantomData<T>,
-    }
-
-    impl<T> Copy for Phantom<T> {}
-    impl<T> Clone for Phantom<T> {
-        fn clone(&self) -> Self {
-            *self
-        }
-    }
-
     let unpacked = Phantom::<usize> {
         data: 34,
         _type: PhantomData,

@@ -35,9 +35,6 @@ pub(crate) use from::from;
 pub(crate) mod hash;
 pub(crate) use hash::hash;
 
-mod nonzero;
-pub(crate) use nonzero::nonzero;
-
 /// Generate [`core::cmp::PartialOrd`] and [`core::cmp::Ord`] implementations
 /// for the packed type directly based on the underlying tight type.
 pub(crate) mod ord;

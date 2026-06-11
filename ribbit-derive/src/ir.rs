@@ -19,7 +19,7 @@ use crate::r#type::Tight;
 use crate::Type;
 
 pub(crate) struct Ir<'input> {
-    pub(crate) vis: &'input syn::Visibility,
+    pub(crate) vis: syn::Visibility,
     generics: &'input syn::Generics,
     generics_bounded: syn::Generics,
     pub(crate) data: Data<'input>,
@@ -142,7 +142,7 @@ impl<'input> Ir<'input> {
         };
 
         Ok(Ir {
-            vis: &item.vis,
+            vis: raise_vis(&item.vis),
             generics: &item.generics,
             generics_bounded,
             data,
@@ -291,7 +291,7 @@ pub(crate) struct StructOpt {
 }
 
 pub(crate) struct Field<'input> {
-    pub(crate) vis: &'input syn::Visibility,
+    pub(crate) vis: syn::Visibility,
     pub(crate) ident: FieldIdent<'input>,
     pub(crate) r#type: SpannedValue<Type>,
     pub(crate) offset: usize,
@@ -351,7 +351,7 @@ impl<'input> Field<'input> {
             .not();
 
         Ok(Self {
-            vis: &field.vis,
+            vis: raise_vis(&field.vis),
             ident: FieldIdent::new(index, field.ident.as_ref()),
             r#type,
             offset: *offset,
@@ -443,5 +443,26 @@ impl CommonOpt {
             .as_ref()
             .map(Cow::Borrowed)
             .unwrap_or_else(default)
+    }
+}
+
+// NOTE: doesn't handle types within functions
+// - https://bon-rs.com/blog/the-weird-of-function-local-types-in-rust
+// - https://github.com/rust-lang/rust/issues/79260
+fn raise_vis(vis: &syn::Visibility) -> syn::Visibility {
+    match vis {
+        syn::Visibility::Inherited => parse_quote!(pub(super)),
+        // Prepend super to relative paths beginning with super
+        syn::Visibility::Restricted(vis)
+            if vis.path.leading_colon.is_none()
+                && vis.path.segments.first().is_some_and(|segment| {
+                    segment.arguments.is_empty() && segment.ident == "super"
+                }) =>
+        {
+            let mut vis = vis.clone();
+            vis.path.segments.insert(0, parse_quote!(super));
+            syn::Visibility::Restricted(vis)
+        }
+        vis => vis.clone(),
     }
 }

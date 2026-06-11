@@ -77,11 +77,27 @@ pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
     quote! {
         unsafe impl #generics_impl ::ribbit::Unpack for #packed #generics_type #generics_where {
             const BITS: usize = #size;
+
             type Unpacked = #unpacked #generics_type;
             type Loose = #loose;
+            type Raw = #tight;
+
             #[inline]
             fn unpack(self) -> #unpacked #generics_type {
                 #unpack
+            }
+
+            #[inline]
+            fn into_raw(self) -> Self::Raw {
+                self.value
+            }
+
+            #[inline]
+            unsafe fn from_raw_unchecked(raw: Self::Raw) -> Self {
+                Self {
+                    value: raw,
+                    r#type: ::ribbit::PhantomData,
+                }
             }
         }
     }

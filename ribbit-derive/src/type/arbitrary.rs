@@ -56,7 +56,7 @@ impl ToTokens for Arbitrary {
             false => 'u',
         };
         let ident = format_ident!("{}{}", signed, self.size());
-        quote!(::ribbit::private::#ident).to_tokens(tokens)
+        quote!(::ribbit::#ident).to_tokens(tokens)
     }
 }
 

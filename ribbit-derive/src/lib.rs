@@ -9,8 +9,10 @@ pub(crate) use error::Error;
 pub(crate) use r#type::Type;
 
 use darling::FromDeriveInput as _;
+use heck::ToSnakeCase as _;
 use ir::Ir;
 use proc_macro2::TokenStream;
+use quote::format_ident;
 use quote::quote;
 use quote::TokenStreamExt as _;
 use syn::parse_macro_input;
@@ -34,7 +36,6 @@ fn pack_impl(input: syn::DeriveInput, output: &mut TokenStream) -> Result<(), da
 
     let precondition = gen::precondition(&ir);
     let new = gen::new(&ir);
-    let nonzero = gen::nonzero(&ir);
     let pack = gen::pack(&ir);
     let packed = gen::packed(&ir);
     let unpack = gen::unpack(&ir);
@@ -48,33 +49,41 @@ fn pack_impl(input: syn::DeriveInput, output: &mut TokenStream) -> Result<(), da
 
     let generics = ir.generics_bounded();
     let (generics_impl, generics_type, generics_where) = generics.split_for_impl();
-    let packed_ident = ir.ident_packed();
+    let ident_unpacked = ir.ident_unpacked();
+    let ident_packed = ir.ident_packed();
+    let ident_module = format_ident!("{}", ir.ident_packed().to_string().to_snake_case());
+    let vis_packed = ir.opt().packed.vis(&input.vis);
 
     output.append_all(quote! {
-        #(#nonzero)*
-
         #pack
 
-        #packed
+        mod #ident_module {
+            use super::#ident_unpacked;
 
-        #unpack
+            #packed
 
-        impl #generics_impl #packed_ident #generics_type #generics_where {
-            #precondition
+            #unpack
 
-            #(#new)*
+            impl #generics_impl #ident_packed #generics_type #generics_where {
+                #precondition
 
-            #(#get)*
+                #(#new)*
 
-            #(#with)*
+                #(#get)*
+
+                #(#with)*
+            }
+
+            #from
+            #debug
+
+            #hash
+            #eq
+            #ord
         }
 
-        #from
-        #debug
+        #vis_packed use #ident_module::#ident_packed;
 
-        #hash
-        #eq
-        #ord
     });
 
     Ok(())

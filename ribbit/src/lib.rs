@@ -1,18 +1,271 @@
 #![no_std]
 
-use core::marker::PhantomData;
-use core::num::NonZeroI128;
-use core::num::NonZeroI16;
-use core::num::NonZeroI32;
-use core::num::NonZeroI64;
-use core::num::NonZeroI8;
-use core::num::NonZeroU128;
-use core::num::NonZeroU16;
-use core::num::NonZeroU32;
-use core::num::NonZeroU64;
-use core::num::NonZeroU8;
+pub use core::marker::PhantomData;
+pub use core::num::NonZeroI128;
+pub use core::num::NonZeroI16;
+pub use core::num::NonZeroI32;
+pub use core::num::NonZeroI64;
+pub use core::num::NonZeroI8;
+pub use core::num::NonZeroU128;
+pub use core::num::NonZeroU16;
+pub use core::num::NonZeroU32;
+pub use core::num::NonZeroU64;
+pub use core::num::NonZeroU8;
+pub use core::primitive::bool;
+pub use core::primitive::u128;
+pub use core::primitive::u16;
+pub use core::primitive::u32;
+pub use core::primitive::u64;
+pub use core::primitive::u8;
+pub type Unit = ();
 
-pub use arbitrary_int::*;
+pub use arbitrary_int::i1;
+pub use arbitrary_int::i10;
+pub use arbitrary_int::i100;
+pub use arbitrary_int::i101;
+pub use arbitrary_int::i102;
+pub use arbitrary_int::i103;
+pub use arbitrary_int::i104;
+pub use arbitrary_int::i105;
+pub use arbitrary_int::i106;
+pub use arbitrary_int::i107;
+pub use arbitrary_int::i108;
+pub use arbitrary_int::i109;
+pub use arbitrary_int::i11;
+pub use arbitrary_int::i110;
+pub use arbitrary_int::i111;
+pub use arbitrary_int::i112;
+pub use arbitrary_int::i113;
+pub use arbitrary_int::i114;
+pub use arbitrary_int::i115;
+pub use arbitrary_int::i116;
+pub use arbitrary_int::i117;
+pub use arbitrary_int::i118;
+pub use arbitrary_int::i119;
+pub use arbitrary_int::i12;
+pub use arbitrary_int::i120;
+pub use arbitrary_int::i121;
+pub use arbitrary_int::i122;
+pub use arbitrary_int::i123;
+pub use arbitrary_int::i124;
+pub use arbitrary_int::i125;
+pub use arbitrary_int::i126;
+pub use arbitrary_int::i127;
+pub use arbitrary_int::i13;
+pub use arbitrary_int::i14;
+pub use arbitrary_int::i15;
+pub use arbitrary_int::i17;
+pub use arbitrary_int::i18;
+pub use arbitrary_int::i19;
+pub use arbitrary_int::i2;
+pub use arbitrary_int::i20;
+pub use arbitrary_int::i21;
+pub use arbitrary_int::i22;
+pub use arbitrary_int::i23;
+pub use arbitrary_int::i24;
+pub use arbitrary_int::i25;
+pub use arbitrary_int::i26;
+pub use arbitrary_int::i27;
+pub use arbitrary_int::i28;
+pub use arbitrary_int::i29;
+pub use arbitrary_int::i3;
+pub use arbitrary_int::i30;
+pub use arbitrary_int::i31;
+pub use arbitrary_int::i33;
+pub use arbitrary_int::i34;
+pub use arbitrary_int::i35;
+pub use arbitrary_int::i36;
+pub use arbitrary_int::i37;
+pub use arbitrary_int::i38;
+pub use arbitrary_int::i39;
+pub use arbitrary_int::i4;
+pub use arbitrary_int::i40;
+pub use arbitrary_int::i41;
+pub use arbitrary_int::i42;
+pub use arbitrary_int::i43;
+pub use arbitrary_int::i44;
+pub use arbitrary_int::i45;
+pub use arbitrary_int::i46;
+pub use arbitrary_int::i47;
+pub use arbitrary_int::i48;
+pub use arbitrary_int::i49;
+pub use arbitrary_int::i5;
+pub use arbitrary_int::i50;
+pub use arbitrary_int::i51;
+pub use arbitrary_int::i52;
+pub use arbitrary_int::i53;
+pub use arbitrary_int::i54;
+pub use arbitrary_int::i55;
+pub use arbitrary_int::i56;
+pub use arbitrary_int::i57;
+pub use arbitrary_int::i58;
+pub use arbitrary_int::i59;
+pub use arbitrary_int::i6;
+pub use arbitrary_int::i60;
+pub use arbitrary_int::i61;
+pub use arbitrary_int::i62;
+pub use arbitrary_int::i63;
+pub use arbitrary_int::i65;
+pub use arbitrary_int::i66;
+pub use arbitrary_int::i67;
+pub use arbitrary_int::i68;
+pub use arbitrary_int::i69;
+pub use arbitrary_int::i7;
+pub use arbitrary_int::i70;
+pub use arbitrary_int::i71;
+pub use arbitrary_int::i72;
+pub use arbitrary_int::i73;
+pub use arbitrary_int::i74;
+pub use arbitrary_int::i75;
+pub use arbitrary_int::i76;
+pub use arbitrary_int::i77;
+pub use arbitrary_int::i78;
+pub use arbitrary_int::i79;
+pub use arbitrary_int::i80;
+pub use arbitrary_int::i81;
+pub use arbitrary_int::i82;
+pub use arbitrary_int::i83;
+pub use arbitrary_int::i84;
+pub use arbitrary_int::i85;
+pub use arbitrary_int::i86;
+pub use arbitrary_int::i87;
+pub use arbitrary_int::i88;
+pub use arbitrary_int::i89;
+pub use arbitrary_int::i9;
+pub use arbitrary_int::i90;
+pub use arbitrary_int::i91;
+pub use arbitrary_int::i92;
+pub use arbitrary_int::i93;
+pub use arbitrary_int::i94;
+pub use arbitrary_int::i95;
+pub use arbitrary_int::i96;
+pub use arbitrary_int::i97;
+pub use arbitrary_int::i98;
+pub use arbitrary_int::i99;
+pub use arbitrary_int::u1;
+pub use arbitrary_int::u10;
+pub use arbitrary_int::u100;
+pub use arbitrary_int::u101;
+pub use arbitrary_int::u102;
+pub use arbitrary_int::u103;
+pub use arbitrary_int::u104;
+pub use arbitrary_int::u105;
+pub use arbitrary_int::u106;
+pub use arbitrary_int::u107;
+pub use arbitrary_int::u108;
+pub use arbitrary_int::u109;
+pub use arbitrary_int::u11;
+pub use arbitrary_int::u110;
+pub use arbitrary_int::u111;
+pub use arbitrary_int::u112;
+pub use arbitrary_int::u113;
+pub use arbitrary_int::u114;
+pub use arbitrary_int::u115;
+pub use arbitrary_int::u116;
+pub use arbitrary_int::u117;
+pub use arbitrary_int::u118;
+pub use arbitrary_int::u119;
+pub use arbitrary_int::u12;
+pub use arbitrary_int::u120;
+pub use arbitrary_int::u121;
+pub use arbitrary_int::u122;
+pub use arbitrary_int::u123;
+pub use arbitrary_int::u124;
+pub use arbitrary_int::u125;
+pub use arbitrary_int::u126;
+pub use arbitrary_int::u127;
+pub use arbitrary_int::u13;
+pub use arbitrary_int::u14;
+pub use arbitrary_int::u15;
+pub use arbitrary_int::u17;
+pub use arbitrary_int::u18;
+pub use arbitrary_int::u19;
+pub use arbitrary_int::u2;
+pub use arbitrary_int::u20;
+pub use arbitrary_int::u21;
+pub use arbitrary_int::u22;
+pub use arbitrary_int::u23;
+pub use arbitrary_int::u24;
+pub use arbitrary_int::u25;
+pub use arbitrary_int::u26;
+pub use arbitrary_int::u27;
+pub use arbitrary_int::u28;
+pub use arbitrary_int::u29;
+pub use arbitrary_int::u3;
+pub use arbitrary_int::u30;
+pub use arbitrary_int::u31;
+pub use arbitrary_int::u33;
+pub use arbitrary_int::u34;
+pub use arbitrary_int::u35;
+pub use arbitrary_int::u36;
+pub use arbitrary_int::u37;
+pub use arbitrary_int::u38;
+pub use arbitrary_int::u39;
+pub use arbitrary_int::u4;
+pub use arbitrary_int::u40;
+pub use arbitrary_int::u41;
+pub use arbitrary_int::u42;
+pub use arbitrary_int::u43;
+pub use arbitrary_int::u44;
+pub use arbitrary_int::u45;
+pub use arbitrary_int::u46;
+pub use arbitrary_int::u47;
+pub use arbitrary_int::u48;
+pub use arbitrary_int::u49;
+pub use arbitrary_int::u5;
+pub use arbitrary_int::u50;
+pub use arbitrary_int::u51;
+pub use arbitrary_int::u52;
+pub use arbitrary_int::u53;
+pub use arbitrary_int::u54;
+pub use arbitrary_int::u55;
+pub use arbitrary_int::u56;
+pub use arbitrary_int::u57;
+pub use arbitrary_int::u58;
+pub use arbitrary_int::u59;
+pub use arbitrary_int::u6;
+pub use arbitrary_int::u60;
+pub use arbitrary_int::u61;
+pub use arbitrary_int::u62;
+pub use arbitrary_int::u63;
+pub use arbitrary_int::u65;
+pub use arbitrary_int::u66;
+pub use arbitrary_int::u67;
+pub use arbitrary_int::u68;
+pub use arbitrary_int::u69;
+pub use arbitrary_int::u7;
+pub use arbitrary_int::u70;
+pub use arbitrary_int::u71;
+pub use arbitrary_int::u72;
+pub use arbitrary_int::u73;
+pub use arbitrary_int::u74;
+pub use arbitrary_int::u75;
+pub use arbitrary_int::u76;
+pub use arbitrary_int::u77;
+pub use arbitrary_int::u78;
+pub use arbitrary_int::u79;
+pub use arbitrary_int::u80;
+pub use arbitrary_int::u81;
+pub use arbitrary_int::u82;
+pub use arbitrary_int::u83;
+pub use arbitrary_int::u84;
+pub use arbitrary_int::u85;
+pub use arbitrary_int::u86;
+pub use arbitrary_int::u87;
+pub use arbitrary_int::u88;
+pub use arbitrary_int::u89;
+pub use arbitrary_int::u9;
+pub use arbitrary_int::u90;
+pub use arbitrary_int::u91;
+pub use arbitrary_int::u92;
+pub use arbitrary_int::u93;
+pub use arbitrary_int::u94;
+pub use arbitrary_int::u95;
+pub use arbitrary_int::u96;
+pub use arbitrary_int::u97;
+pub use arbitrary_int::u98;
+pub use arbitrary_int::u99;
+
 pub use ribbit_derive::Pack;
 
 #[cfg(feature = "atomic")]
@@ -52,10 +305,16 @@ pub unsafe trait Unpack: Copy {
 
     type Unpacked: Pack<Packed = Self>;
 
-    #[allow(private_bounds)]
+    #[expect(private_bounds)]
     type Loose: Loose;
 
+    type Raw: Unpack<Unpacked = Self::Raw, Loose = Self::Loose, Raw = Self::Raw>;
+
     fn unpack(self) -> Self::Unpacked;
+
+    fn into_raw(self) -> Self::Raw;
+
+    unsafe fn from_raw_unchecked(raw: Self::Raw) -> Self;
 }
 
 /// Native integer type.
@@ -66,9 +325,7 @@ pub unsafe trait Unpack: Copy {
 //
 // Used internally for `const`-compatible conversions between packed
 // and tight types.
-unsafe trait Loose: Copy + Sized {
-    const ZERO: Self;
-}
+unsafe trait Loose: Copy + Sized + Unpack<Unpacked = Self, Loose = Self, Raw = Self> {}
 
 /// Implements `const`-compatible conversions between packed and loose representations.
 pub mod convert {
@@ -148,8 +405,36 @@ macro_rules! impl_pack {
     ($tight:ty) => {
         unsafe impl Pack for $tight {
             type Packed = Self;
+
+            #[inline]
             fn pack(self) -> Self::Packed {
                 self
+            }
+        }
+    };
+}
+
+macro_rules! impl_unpack {
+    ($tight:ty, $bits:expr, $loose:ty) => {
+        unsafe impl Unpack for $tight {
+            const BITS: usize = $bits;
+            type Unpacked = Self;
+            type Loose = $loose;
+            type Raw = Self;
+
+            #[inline]
+            fn unpack(self) -> Self::Unpacked {
+                self
+            }
+
+            #[inline]
+            fn into_raw(self) -> Self::Raw {
+                self
+            }
+
+            #[inline]
+            unsafe fn from_raw_unchecked(raw: Self::Raw) -> Self {
+                raw
             }
         }
     };
@@ -158,58 +443,22 @@ macro_rules! impl_pack {
 #[rustfmt::skip]
 macro_rules! impl_impl_number {
     ($name:ident, $unsigned_loose:ty, $signed_loose:ty, $loose_bits:expr, $dollar:tt) => {
-        unsafe impl Loose for $unsigned_loose {
-            const ZERO: Self = 0;
-        }
-
-        unsafe impl Unpack for $unsigned_loose {
-            const BITS: usize = $loose_bits;
-            type Unpacked = Self;
-            type Loose = Self;
-
-            fn unpack(self) -> Self::Unpacked {
-                self
-            }
-        }
+        unsafe impl Loose for $unsigned_loose {}
 
         impl_pack!($unsigned_loose);
-
-        unsafe impl Unpack for $signed_loose {
-            const BITS: usize = $loose_bits;
-            type Unpacked = Self;
-            type Loose = $unsigned_loose;
-
-            fn unpack(self) -> Self::Unpacked {
-                self
-            }
-        }
+        impl_unpack!($unsigned_loose, $loose_bits, $unsigned_loose);
 
         impl_pack!($signed_loose);
+        impl_unpack!($signed_loose, $loose_bits, $unsigned_loose);
 
         macro_rules! $name {
             ($dollar($unsigned:ident, $signed:ident: $bits:expr),* $dollar(,)?) => {
                 $dollar(
-                    unsafe impl Unpack for $unsigned {
-                        const BITS: usize = $bits;
-                        type Unpacked = Self;
-                        type Loose = $unsigned_loose;
-                        fn unpack(self) -> Self::Unpacked {
-                            self
-                        }
-                    }
-
                     impl_pack!($unsigned);
-
-                    unsafe impl Unpack for $signed {
-                        const BITS: usize = $bits;
-                        type Unpacked = Self;
-                        type Loose = $unsigned_loose;
-                        fn unpack(self) -> Self::Unpacked {
-                            self
-                        }
-                    }
+                    impl_unpack!($unsigned, $bits, $unsigned_loose);
 
                     impl_pack!($signed);
+                    impl_unpack!($signed, $bits, $unsigned_loose);
                 )*
             };
         }
@@ -222,11 +471,22 @@ unsafe impl Unpack for () {
     const BITS: usize = 0;
     type Unpacked = Self;
     type Loose = u8;
+    type Raw = ();
+
+    #[inline]
     fn unpack(self) -> Self::Unpacked {}
+
+    #[inline]
+    fn into_raw(self) -> Self::Raw {}
+
+    #[inline]
+    unsafe fn from_raw_unchecked(_: Self::Raw) -> Self {}
 }
 
 unsafe impl<T> Pack for PhantomData<T> {
     type Packed = Self;
+
+    #[inline]
     fn pack(self) -> Self::Packed {
         self
     }
@@ -236,8 +496,21 @@ unsafe impl<T> Unpack for PhantomData<T> {
     const BITS: usize = 0;
     type Unpacked = PhantomData<T>;
     type Loose = u8;
+    type Raw = Self;
+
+    #[inline]
     fn unpack(self) -> Self::Unpacked {
         self
+    }
+
+    #[inline]
+    fn into_raw(self) -> Self::Raw {
+        self
+    }
+
+    #[inline]
+    unsafe fn from_raw_unchecked(raw: Self::Raw) -> Self {
+        raw
     }
 }
 
@@ -247,8 +520,21 @@ unsafe impl Unpack for bool {
     const BITS: usize = 1;
     type Unpacked = bool;
     type Loose = u8;
+    type Raw = bool;
+
+    #[inline]
     fn unpack(self) -> Self::Unpacked {
         self
+    }
+
+    #[inline]
+    fn into_raw(self) -> Self::Raw {
+        self
+    }
+
+    #[inline]
+    unsafe fn from_raw_unchecked(raw: Self::Raw) -> Self {
+        raw
     }
 }
 
@@ -401,34 +687,16 @@ impl_u128!(
 ///
 /// Implementer must guarantee that zero is not a valid bit pattern for this type.
 #[allow(private_bounds)]
-pub unsafe trait NonZero {}
+unsafe trait NonZero {}
 
 macro_rules! impl_nonzero {
     ($unsigned:ty, $signed:ty, $loose:ty, $bits:expr) => {
         impl_pack!($unsigned);
-
-        unsafe impl Unpack for $unsigned {
-            const BITS: usize = $bits;
-            type Unpacked = Self;
-            type Loose = $loose;
-            fn unpack(self) -> Self::Unpacked {
-                self
-            }
-        }
-
+        impl_unpack!($unsigned, $bits, $loose);
         unsafe impl NonZero for $unsigned {}
 
         impl_pack!($signed);
-
-        unsafe impl Unpack for $signed {
-            const BITS: usize = $bits;
-            type Unpacked = Self;
-            type Loose = $loose;
-            fn unpack(self) -> Self::Unpacked {
-                self
-            }
-        }
-
+        impl_unpack!($signed, $bits, $loose);
         unsafe impl NonZero for $signed {}
     };
 }
@@ -439,32 +707,10 @@ impl_nonzero!(NonZeroU32, NonZeroI32, u32, 32);
 impl_nonzero!(NonZeroU64, NonZeroI64, u64, 64);
 impl_nonzero!(NonZeroU128, NonZeroI128, u128, 128);
 
-/// Extension trait for cheaply constructing a `ribbit::Packed<Option<T>>`
-/// from the underlying integer type by reinterpreting the bits.
-pub trait OptionExt {
-    type Loose;
-    /// # SAFETY
-    ///
-    /// Caller must ensure `loose` contains a valid bit pattern for `Self`.
-    unsafe fn new_unchecked(loose: Self::Loose) -> Self;
-}
-
-impl<T> OptionExt for Option<T>
-where
-    T: Unpack + NonZero,
-{
-    type Loose = T::Loose;
-    #[inline(always)]
-    unsafe fn new_unchecked(loose: Self::Loose) -> Self {
-        // SAFETY: `T::Loose` has the same size and alignment as `Self`
-        core::mem::transmute_copy(&loose)
-    }
-}
-
 unsafe impl<T> Pack for Option<T>
 where
     T: Pack,
-    T::Packed: NonZero,
+    <T::Packed as Unpack>::Raw: NonZero,
 {
     type Packed = Option<T::Packed>;
     fn pack(self) -> Self::Packed {
@@ -474,170 +720,47 @@ where
 
 unsafe impl<T> Unpack for Option<T>
 where
-    T: Unpack + NonZero,
+    T: Unpack<Raw: NonZero>,
 {
     const BITS: usize = T::BITS;
     type Unpacked = Option<T::Unpacked>;
     type Loose = T::Loose;
+    type Raw = T::Loose;
+
+    #[inline]
     fn unpack(self) -> Self::Unpacked {
         self.map(|packed| packed.unpack())
     }
+
+    #[inline]
+    fn into_raw(self) -> Self::Raw {
+        const {
+            assert!(size_of::<Self>() == size_of::<T>());
+            assert!(align_of::<Self>() == align_of::<T>());
+        }
+
+        // SAFETY: `Self::Raw` implements `NonZero`
+        unsafe { core::mem::transmute_copy(&self) }
+    }
+
+    #[inline]
+    unsafe fn from_raw_unchecked(raw: Self::Raw) -> Self {
+        const {
+            assert!(size_of::<Self>() == size_of::<T>());
+            assert!(align_of::<Self>() == align_of::<T>());
+        }
+
+        core::mem::transmute_copy(&raw)
+    }
 }
 
-// Preserve arbitrary_int re-export order
-#[rustfmt::skip]
 #[doc(hidden)]
 pub mod private {
-    pub use ::core::primitive::bool;
-    pub type Unit = ();
-
-    pub use ::core::num::NonZeroU128;
-    pub use ::core::num::NonZeroU16;
-    pub use ::core::num::NonZeroU32;
-    pub use ::core::num::NonZeroU64;
-    pub use ::core::num::NonZeroU8;
-
-    pub use ::core::num::NonZeroI128;
-    pub use ::core::num::NonZeroI16;
-    pub use ::core::num::NonZeroI32;
-    pub use ::core::num::NonZeroI64;
-    pub use ::core::num::NonZeroI8;
-
-    pub use ::arbitrary_int::u1;
-    pub use ::arbitrary_int::u2;
-    pub use ::arbitrary_int::u3;
-    pub use ::arbitrary_int::u4;
-    pub use ::arbitrary_int::u5;
-    pub use ::arbitrary_int::u6;
-    pub use ::arbitrary_int::u7;
-    pub use core::primitive::u8;
-    pub use ::arbitrary_int::u9;
-    pub use ::arbitrary_int::u10;
-    pub use ::arbitrary_int::u11;
-    pub use ::arbitrary_int::u12;
-    pub use ::arbitrary_int::u13;
-    pub use ::arbitrary_int::u14;
-    pub use ::arbitrary_int::u15;
-    pub use core::primitive::u16;
-    pub use ::arbitrary_int::u17;
-    pub use ::arbitrary_int::u18;
-    pub use ::arbitrary_int::u19;
-    pub use ::arbitrary_int::u20;
-    pub use ::arbitrary_int::u21;
-    pub use ::arbitrary_int::u22;
-    pub use ::arbitrary_int::u23;
-    pub use ::arbitrary_int::u24;
-    pub use ::arbitrary_int::u25;
-    pub use ::arbitrary_int::u26;
-    pub use ::arbitrary_int::u27;
-    pub use ::arbitrary_int::u28;
-    pub use ::arbitrary_int::u29;
-    pub use ::arbitrary_int::u30;
-    pub use ::arbitrary_int::u31;
-    pub use core::primitive::u32;
-    pub use ::arbitrary_int::u33;
-    pub use ::arbitrary_int::u34;
-    pub use ::arbitrary_int::u35;
-    pub use ::arbitrary_int::u36;
-    pub use ::arbitrary_int::u37;
-    pub use ::arbitrary_int::u38;
-    pub use ::arbitrary_int::u39;
-    pub use ::arbitrary_int::u40;
-    pub use ::arbitrary_int::u41;
-    pub use ::arbitrary_int::u42;
-    pub use ::arbitrary_int::u43;
-    pub use ::arbitrary_int::u44;
-    pub use ::arbitrary_int::u45;
-    pub use ::arbitrary_int::u46;
-    pub use ::arbitrary_int::u47;
-    pub use ::arbitrary_int::u48;
-    pub use ::arbitrary_int::u49;
-    pub use ::arbitrary_int::u50;
-    pub use ::arbitrary_int::u51;
-    pub use ::arbitrary_int::u52;
-    pub use ::arbitrary_int::u53;
-    pub use ::arbitrary_int::u54;
-    pub use ::arbitrary_int::u55;
-    pub use ::arbitrary_int::u56;
-    pub use ::arbitrary_int::u57;
-    pub use ::arbitrary_int::u58;
-    pub use ::arbitrary_int::u59;
-    pub use ::arbitrary_int::u60;
-    pub use ::arbitrary_int::u61;
-    pub use ::arbitrary_int::u62;
-    pub use ::arbitrary_int::u63;
-    pub use core::primitive::u64;
-    pub use ::arbitrary_int::u65;
-    pub use ::arbitrary_int::u66;
-    pub use ::arbitrary_int::u67;
-    pub use ::arbitrary_int::u68;
-    pub use ::arbitrary_int::u69;
-    pub use ::arbitrary_int::u70;
-    pub use ::arbitrary_int::u71;
-    pub use ::arbitrary_int::u72;
-    pub use ::arbitrary_int::u73;
-    pub use ::arbitrary_int::u74;
-    pub use ::arbitrary_int::u75;
-    pub use ::arbitrary_int::u76;
-    pub use ::arbitrary_int::u77;
-    pub use ::arbitrary_int::u78;
-    pub use ::arbitrary_int::u79;
-    pub use ::arbitrary_int::u80;
-    pub use ::arbitrary_int::u81;
-    pub use ::arbitrary_int::u82;
-    pub use ::arbitrary_int::u83;
-    pub use ::arbitrary_int::u84;
-    pub use ::arbitrary_int::u85;
-    pub use ::arbitrary_int::u86;
-    pub use ::arbitrary_int::u87;
-    pub use ::arbitrary_int::u88;
-    pub use ::arbitrary_int::u89;
-    pub use ::arbitrary_int::u90;
-    pub use ::arbitrary_int::u91;
-    pub use ::arbitrary_int::u92;
-    pub use ::arbitrary_int::u93;
-    pub use ::arbitrary_int::u94;
-    pub use ::arbitrary_int::u95;
-    pub use ::arbitrary_int::u96;
-    pub use ::arbitrary_int::u97;
-    pub use ::arbitrary_int::u98;
-    pub use ::arbitrary_int::u99;
-    pub use ::arbitrary_int::u100;
-    pub use ::arbitrary_int::u101;
-    pub use ::arbitrary_int::u102;
-    pub use ::arbitrary_int::u103;
-    pub use ::arbitrary_int::u104;
-    pub use ::arbitrary_int::u105;
-    pub use ::arbitrary_int::u106;
-    pub use ::arbitrary_int::u107;
-    pub use ::arbitrary_int::u108;
-    pub use ::arbitrary_int::u109;
-    pub use ::arbitrary_int::u110;
-    pub use ::arbitrary_int::u111;
-    pub use ::arbitrary_int::u112;
-    pub use ::arbitrary_int::u113;
-    pub use ::arbitrary_int::u114;
-    pub use ::arbitrary_int::u115;
-    pub use ::arbitrary_int::u116;
-    pub use ::arbitrary_int::u117;
-    pub use ::arbitrary_int::u118;
-    pub use ::arbitrary_int::u119;
-    pub use ::arbitrary_int::u120;
-    pub use ::arbitrary_int::u121;
-    pub use ::arbitrary_int::u122;
-    pub use ::arbitrary_int::u123;
-    pub use ::arbitrary_int::u124;
-    pub use ::arbitrary_int::u125;
-    pub use ::arbitrary_int::u126;
-    pub use ::arbitrary_int::u127;
-    pub use core::primitive::u128;
-
-    pub use ::core::marker::PhantomData;
-
+    #[expect(private_bounds)]
     pub const fn assert_nonzero<T>()
     where
         T: crate::Pack,
-        T::Packed: crate::NonZero,
+        <T::Packed as crate::Unpack>::Raw: crate::NonZero,
     {
     }
 

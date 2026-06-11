@@ -1,8 +1,6 @@
-use std::num::NonZeroU16;
-
 #[derive(ribbit::Pack, Copy, Clone)]
 #[ribbit(size = 16, nonzero)]
-struct Inner(NonZeroU16);
+struct Inner(ribbit::NonZeroU16);
 
 #[derive(ribbit::Pack, Copy, Clone)]
 #[ribbit(size = 21)]

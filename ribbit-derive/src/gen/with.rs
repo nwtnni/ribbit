@@ -42,7 +42,7 @@ pub(crate) fn with<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 
                 ])
                 .compile(ir.r#type().as_tight());
 
-                let vis = field.opt.with.0.vis(field.vis);
+                let vis = field.opt.with.0.vis(&field.vis);
                 let with = FieldOpt::name(field);
                 let name = field.ident.escape();
                 let r#type = field.r#type.packed();
@@ -54,7 +54,7 @@ pub(crate) fn with<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 
                         #precondition
                         Self {
                             value: #value,
-                            r#type: ::ribbit::private::PhantomData,
+                            r#type: ::ribbit::PhantomData,
                         }
                     }
                 }

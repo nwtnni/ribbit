@@ -15,10 +15,14 @@ impl StructOpt {
         self.0
             .rename_with(|| Cow::Owned(format_ident!("{}Packed", unpacked)))
     }
+
+    pub(crate) fn vis<'ir>(&'ir self, default: &'ir syn::Visibility) -> &'ir syn::Visibility {
+        self.0.vis(default)
+    }
 }
 
 pub(crate) fn packed(ir: &ir::Ir) -> TokenStream {
-    let vis = ir.opt().packed.0.vis(ir.vis);
+    let vis = ir.opt().packed.0.vis(&ir.vis);
     let packed = ir.ident_packed();
     let tight = ir.r#type().as_tight();
 
@@ -33,7 +37,7 @@ pub(crate) fn packed(ir: &ir::Ir) -> TokenStream {
         #[repr(transparent)]
         #vis struct #packed #generics_type {
             value: #tight,
-            r#type: ::ribbit::private::PhantomData<fn(#(&#lifetimes ()),*) -> (#(#types),*)>,
+            r#type: ::ribbit::PhantomData<fn(#(&#lifetimes ()),*) -> (#(#types),*)>,
         }
 
         #[automatically_derived]
