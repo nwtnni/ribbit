@@ -32,7 +32,7 @@ where
 
     #[inline]
     pub fn new_packed(packed: T::Packed) -> Self {
-        Self::new_raw(R::new(Self::packed_to_loose(packed)))
+        Self::new_raw(R::new_(Self::packed_to_loose(packed)))
     }
 
     #[inline]
@@ -50,7 +50,7 @@ where
 
     #[inline]
     pub fn load_packed(&self, ordering: Ordering) -> T::Packed {
-        Self::loose_to_packed(R::load(&self.raw, ordering))
+        Self::loose_to_packed(R::load_(&self.raw, ordering))
     }
 
     #[inline]
@@ -60,7 +60,7 @@ where
 
     #[inline]
     pub fn store_packed(&self, value: T::Packed, ordering: Ordering) {
-        R::store(&self.raw, Self::packed_to_loose(value), ordering)
+        R::store_(&self.raw, Self::packed_to_loose(value), ordering)
     }
 
     #[inline]
@@ -70,7 +70,7 @@ where
 
     #[inline]
     pub fn get_packed(&mut self) -> T::Packed {
-        Self::loose_to_packed(R::get(&mut self.raw))
+        Self::loose_to_packed(R::get_(&mut self.raw))
     }
 
     #[inline]
@@ -80,7 +80,7 @@ where
 
     #[inline]
     pub fn set_packed(&mut self, value: T::Packed) {
-        R::set(&mut self.raw, Self::packed_to_loose(value))
+        R::set_(&mut self.raw, Self::packed_to_loose(value))
     }
 
     #[inline]
@@ -104,7 +104,7 @@ where
         success: Ordering,
         failure: Ordering,
     ) -> Result<T::Packed, T::Packed> {
-        R::compare_exchange(
+        R::compare_exchange_(
             &self.raw,
             Self::packed_to_loose(old),
             Self::packed_to_loose(new),
@@ -136,7 +136,7 @@ where
         success: Ordering,
         failure: Ordering,
     ) -> Result<T::Packed, T::Packed> {
-        R::compare_exchange_weak(
+        R::compare_exchange_weak_(
             &self.raw,
             Self::packed_to_loose(old),
             Self::packed_to_loose(new),
@@ -154,7 +154,7 @@ where
 
     #[inline]
     pub fn swap_packed(&self, value: T::Packed, ordering: Ordering) -> T::Packed {
-        Self::loose_to_packed(R::swap(&self.raw, Self::packed_to_loose(value), ordering))
+        Self::loose_to_packed(R::swap_(&self.raw, Self::packed_to_loose(value), ordering))
     }
 
     #[inline]
@@ -206,17 +206,17 @@ where
 
 /// Interface for underlying atomic library.
 pub trait Raw<T>: core::fmt::Debug + Default + Send + Sync {
-    fn new(loose: T) -> Self;
+    fn new_(loose: T) -> Self;
 
-    fn load(&self, ordering: Ordering) -> T;
+    fn load_(&self, ordering: Ordering) -> T;
 
-    fn store(&self, value: T, ordering: Ordering);
+    fn store_(&self, value: T, ordering: Ordering);
 
-    fn get(&mut self) -> T;
+    fn get_(&mut self) -> T;
 
-    fn set(&mut self, value: T);
+    fn set_(&mut self, value: T);
 
-    fn compare_exchange(
+    fn compare_exchange_(
         &self,
         old: T,
         new: T,
@@ -224,7 +224,7 @@ pub trait Raw<T>: core::fmt::Debug + Default + Send + Sync {
         failure: Ordering,
     ) -> Result<T, T>;
 
-    fn compare_exchange_weak(
+    fn compare_exchange_weak_(
         &self,
         old: T,
         new: T,
@@ -232,7 +232,7 @@ pub trait Raw<T>: core::fmt::Debug + Default + Send + Sync {
         failure: Ordering,
     ) -> Result<T, T>;
 
-    fn swap(&self, value: T, ordering: Ordering) -> T;
+    fn swap_(&self, value: T, ordering: Ordering) -> T;
 }
 
 #[macro_export]
@@ -240,32 +240,32 @@ macro_rules! impl_raw {
     ($loose:ty, $atomic:ty) => {
         impl $crate::atomic::Raw<$loose> for $atomic {
             #[inline]
-            fn new(loose: $loose) -> Self {
+            fn new_(loose: $loose) -> Self {
                 <$atomic>::new(loose)
             }
 
             #[inline]
-            fn load(&self, ordering: ::core::sync::atomic::Ordering) -> $loose {
+            fn load_(&self, ordering: ::core::sync::atomic::Ordering) -> $loose {
                 self.load(ordering)
             }
 
             #[inline]
-            fn store(&self, value: $loose, ordering: ::core::sync::atomic::Ordering) {
+            fn store_(&self, value: $loose, ordering: ::core::sync::atomic::Ordering) {
                 self.store(value, ordering)
             }
 
             #[inline]
-            fn get(&mut self) -> $loose {
+            fn get_(&mut self) -> $loose {
                 *self.get_mut()
             }
 
             #[inline]
-            fn set(&mut self, value: $loose) {
+            fn set_(&mut self, value: $loose) {
                 *self.get_mut() = value
             }
 
             #[inline]
-            fn compare_exchange(
+            fn compare_exchange_(
                 &self,
                 old: $loose,
                 new: $loose,
@@ -276,7 +276,7 @@ macro_rules! impl_raw {
             }
 
             #[inline]
-            fn compare_exchange_weak(
+            fn compare_exchange_weak_(
                 &self,
                 old: $loose,
                 new: $loose,
@@ -287,7 +287,7 @@ macro_rules! impl_raw {
             }
 
             #[inline]
-            fn swap(&self, value: $loose, ordering: ::core::sync::atomic::Ordering) -> $loose {
+            fn swap_(&self, value: $loose, ordering: ::core::sync::atomic::Ordering) -> $loose {
                 self.swap(value, ordering)
             }
         }
