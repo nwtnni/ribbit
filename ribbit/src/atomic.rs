@@ -245,23 +245,23 @@ macro_rules! impl_raw {
             }
 
             #[inline]
-            fn load(&self, ordering: Ordering) -> $loose {
-                <$atomic>::load(self, ordering)
+            fn load(&self, ordering: ::core::sync::atomic::Ordering) -> $loose {
+                self.load(ordering)
             }
 
             #[inline]
-            fn store(&self, value: $loose, ordering: Ordering) {
-                <$atomic>::store(self, value, ordering)
+            fn store(&self, value: $loose, ordering: ::core::sync::atomic::Ordering) {
+                self.store(value, ordering)
             }
 
             #[inline]
             fn get(&mut self) -> $loose {
-                *<$atomic>::get_mut(self)
+                *self.get_mut()
             }
 
             #[inline]
             fn set(&mut self, value: $loose) {
-                *<$atomic>::get_mut(self) = value
+                *self.get_mut() = value
             }
 
             #[inline]
@@ -269,10 +269,10 @@ macro_rules! impl_raw {
                 &self,
                 old: $loose,
                 new: $loose,
-                success: Ordering,
-                failure: Ordering,
+                success: ::core::sync::atomic::Ordering,
+                failure: ::core::sync::atomic::Ordering,
             ) -> Result<$loose, $loose> {
-                <$atomic>::compare_exchange(self, old, new, success, failure)
+                self.compare_exchange(old, new, success, failure)
             }
 
             #[inline]
@@ -280,15 +280,15 @@ macro_rules! impl_raw {
                 &self,
                 old: $loose,
                 new: $loose,
-                success: Ordering,
-                failure: Ordering,
+                success: ::core::sync::atomic::Ordering,
+                failure: ::core::sync::atomic::Ordering,
             ) -> Result<$loose, $loose> {
-                <$atomic>::compare_exchange_weak(self, old, new, success, failure)
+                self.compare_exchange_weak(old, new, success, failure)
             }
 
             #[inline]
-            fn swap(&self, value: $loose, ordering: Ordering) -> $loose {
-                <$atomic>::swap(self, value, ordering)
+            fn swap(&self, value: $loose, ordering: ::core::sync::atomic::Ordering) -> $loose {
+                self.swap(value, ordering)
             }
         }
     };
