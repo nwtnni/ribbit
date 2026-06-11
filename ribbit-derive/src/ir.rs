@@ -461,6 +461,18 @@ fn raise_vis(vis: &syn::Visibility) -> syn::Visibility {
         {
             let mut vis = vis.clone();
             vis.path.segments.insert(0, parse_quote!(super));
+            vis.in_token.get_or_insert(parse_quote!(in));
+            syn::Visibility::Restricted(vis)
+        }
+        // Switch pub(self) to pub(super)
+        syn::Visibility::Restricted(vis)
+            if vis.path.leading_colon.is_none()
+                && vis.path.segments.first().is_some_and(|segment| {
+                    segment.arguments.is_empty() && segment.ident == "self"
+                }) =>
+        {
+            let mut vis = vis.clone();
+            vis.path.segments[0] = parse_quote!(super);
             syn::Visibility::Restricted(vis)
         }
         vis => vis.clone(),

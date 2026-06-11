@@ -326,3 +326,64 @@ fn rename_with() {
     assert_eq!(h.a(), 0xbeef_dead);
     assert_eq!(h.b(), 0xdead_beef);
 }
+
+pub(crate) mod one {
+    use ribbit::Pack;
+
+    pub(crate) mod two {
+        #![allow(clippy::too_many_arguments)]
+
+        use ribbit::Pack;
+
+        #[derive(ribbit::Pack, Copy, Clone, Default)]
+        #[ribbit(size = 64)]
+        pub struct Visibility {
+            private_implicit: u8,
+            pub(self) private_explicit: u8,
+            #[rustfmt::skip]
+            pub(in self) private_explicit_in: u8,
+
+            pub(super) super_: u8,
+            #[rustfmt::skip]
+            pub(in super) super_in: u8,
+            pub(in super::super) super_super: u8,
+
+            pub(crate) crate_: u8,
+            pub(in crate::one::two) crate_path: u8,
+        }
+
+        #[test]
+        fn vis_private_ok() {
+            let vis = Visibility::default().pack();
+            assert_eq!(vis.private_implicit(), 0);
+            assert_eq!(vis.private_explicit(), 0);
+            assert_eq!(vis.private_explicit_in(), 0);
+            assert_eq!(vis.crate_path(), 0);
+        }
+    }
+
+    #[test]
+    fn vis_super_ok() {
+        let vis = crate::one::two::Visibility::default().pack();
+        // assert_eq!(vis.private_implicit(), 0);
+        // assert_eq!(vis.private_explicit(), 0);
+        // assert_eq!(vis.private_explicit_in(), 0);
+        // assert_eq!(vis.crate_path(), 0);
+        assert_eq!(vis.super_(), 0);
+        assert_eq!(vis.super_in(), 0);
+    }
+}
+
+#[test]
+fn vis_crate_ok() {
+    use ribbit::Pack;
+    let vis = crate::one::two::Visibility::default().pack();
+    // assert_eq!(vis.private_implicit(), 0);
+    // assert_eq!(vis.private_explicit(), 0);
+    // assert_eq!(vis.private_explicit_in(), 0);
+    // assert_eq!(vis.super_(), 0);
+    // assert_eq!(vis.super_in(), 0);
+    // assert_eq!(vis.crate_path(), 0);
+    assert_eq!(vis.super_super(), 0);
+    assert_eq!(vis.crate_(), 0);
+}
