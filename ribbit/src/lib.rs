@@ -315,8 +315,6 @@ pub unsafe trait Unpack: Copy {
     type Unpacked: Pack<Packed = Self>;
 
     /// Smallest native unsigned integer type that fits `Self::Raw`.
-    #[doc(hidden)]
-    #[expect(private_bounds)]
     type Loose: Loose;
 
     /// Raw underlying representation of a packed type.
@@ -345,9 +343,21 @@ pub unsafe trait Unpack: Copy {
 ///
 /// Used internally for `const`-compatible operations on the underlying bytes
 /// of a packed type.
-trait Loose: Copy + Sized + Unpack<Unpacked = Self, Loose = Self, Raw = Self> {
+pub trait Loose:
+    Copy + Sized + Unpack<Unpacked = Self, Loose = Self, Raw = Self> + seal::Seal
+{
     #[cfg(feature = "atomic")]
     type Atomic: atomic::Raw<Self>;
+}
+
+mod seal {
+    pub trait Seal {}
+    impl Seal for u8 {}
+    impl Seal for u16 {}
+    impl Seal for u32 {}
+    impl Seal for u64 {}
+    #[cfg(feature = "u128")]
+    impl Seal for u128 {}
 }
 
 /// Implements `const`-compatible conversions between packed and loose representations.

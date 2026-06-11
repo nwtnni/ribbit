@@ -14,7 +14,6 @@ pub use core::sync::atomic::AtomicU8;
 #[cfg(feature = "u128")]
 pub use portable_atomic::AtomicU128;
 
-#[expect(private_interfaces)]
 #[repr(transparent)]
 pub struct Atomic<T: Pack, R = <<<T as Pack>::Packed as Unpack>::Loose as Loose>::Atomic> {
     raw: R,
