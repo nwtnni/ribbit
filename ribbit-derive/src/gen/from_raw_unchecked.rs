@@ -51,7 +51,7 @@ pub(crate) fn from_raw_unchecked<'ir>(
 
                 Some(from_raw_unchecked_struct(
                     opt.0.vis(vis),
-                    &opt.name(Some(variant.r#struct.unpacked)),
+                    &opt.name(Some(variant.ident)),
                     variant.r#struct.r#type.as_tight(),
                     compile,
                 ))

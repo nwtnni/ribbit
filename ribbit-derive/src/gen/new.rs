@@ -47,7 +47,7 @@ pub(crate) fn new<'ir>(item: &'ir ir::Item) -> impl Iterator<Item = TokenStream>
 
                 Some(new_struct(
                     opt.0.vis(vis),
-                    &opt.name(Some(variant.r#struct.unpacked)),
+                    &opt.name(Some(variant.ident)),
                     &variant.r#struct,
                     compile,
                 ))

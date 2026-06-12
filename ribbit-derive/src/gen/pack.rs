@@ -24,14 +24,14 @@ pub(crate) fn pack(item: &ir::Item) -> TokenStream {
                     .iter()
                     .map(|field| field.ident.pattern());
 
-                let new = item.opt().new.name(Some(variant.r#struct.unpacked));
+                let new = item.opt().new.name(Some(variant.ident));
 
                 let arguments = variant.r#struct.fields.iter().map(|field| {
                     let name = field.ident.escape();
                     field.r#type.pack(quote!(#name))
                 });
 
-                let variant = &variant.r#struct.unpacked;
+                let variant = &variant.ident;
                 quote! {
                     Self::#variant { #(#patterns ,)* } => #packed::#new( #(#arguments ,)* )
                 }

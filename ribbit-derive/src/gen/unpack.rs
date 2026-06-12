@@ -47,7 +47,7 @@ pub(crate) fn unpack(item: &ir::Item) -> TokenStream {
                     .to_loose()
                     .literal(variant.discriminant as u128);
 
-                let ident = &variant.r#struct.unpacked;
+                let ident = &variant.ident;
 
                 quote!(#discriminant => #unpacked::#ident { #(#fields ,)* })
             });

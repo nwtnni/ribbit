@@ -23,7 +23,8 @@ pub(crate) struct Item<'input> {
     pub(crate) vis: syn::Visibility,
     generics: &'input syn::Generics,
     generics_bounded: syn::Generics,
-    pub(crate) packed: Cow<'input, syn::Ident>,
+    unpacked: &'input syn::Ident,
+    packed: Cow<'input, syn::Ident>,
     pub(crate) data: Data<'input>,
 }
 
@@ -75,6 +76,7 @@ impl<'input> Item<'input> {
                         current_discriminant = discriminant + 1;
 
                         Ok(Variant {
+                            ident: &variant.ident,
                             opt: &variant.opt,
                             discriminant,
                             r#struct,
@@ -117,7 +119,6 @@ impl<'input> Item<'input> {
 
                 let unpacked = &item.ident;
                 let r#enum = Enum {
-                    unpacked,
                     r#type: Type::User {
                         path: parse_quote!(#unpacked),
                         uses: Default::default(),
@@ -143,8 +144,9 @@ impl<'input> Item<'input> {
         };
 
         Ok(Item {
-            packed: item.opt.packed.name(&item.ident),
             opt: &item.opt,
+            unpacked: &item.ident,
+            packed: item.opt.packed.name(&item.ident),
             vis: raise_vis(&item.vis),
             generics: &item.generics,
             generics_bounded,
@@ -161,10 +163,7 @@ impl<'input> Item<'input> {
     }
 
     pub(crate) fn ident_unpacked(&self) -> &syn::Ident {
-        match &self.data {
-            Data::Enum(r#enum) => r#enum.unpacked,
-            Data::Struct(r#struct) => r#struct.unpacked,
-        }
+        self.unpacked
     }
 
     pub(crate) fn opt(&self) -> &ItemOpt {
@@ -189,7 +188,6 @@ pub(crate) enum Data<'input> {
 }
 
 pub(crate) struct Enum<'input> {
-    pub(crate) unpacked: &'input syn::Ident,
     pub(crate) r#type: Type,
     pub(crate) discriminant: Discriminant,
     pub(crate) variants: Vec<Variant<'input>>,
@@ -204,11 +202,11 @@ pub(crate) struct Discriminant {
 pub(crate) struct Variant<'input> {
     pub(crate) opt: &'input VariantOpt,
     pub(crate) discriminant: usize,
+    pub(crate) ident: &'input syn::Ident,
     pub(crate) r#struct: Struct<'input>,
 }
 
 pub(crate) struct Struct<'input> {
-    pub(crate) unpacked: &'input syn::Ident,
     pub(crate) r#type: Type,
 
     pub(crate) max_offset: usize,
@@ -220,7 +218,7 @@ impl Struct<'_> {
         type_params: &darling::usage::IdentSet,
         bounds: &mut Punctuated<syn::WherePredicate, syn::Token![,]>,
         opt: &'input VariantOpt,
-        unpacked: &'input syn::Ident,
+        ident: &'input syn::Ident,
         fields: &'input darling::ast::Fields<SpannedValue<input::Field>>,
     ) -> darling::Result<Struct<'input>> {
         let Some(size) = opt.size.or_else(|| fields.is_unit().then_some(0)) else {
@@ -249,9 +247,8 @@ impl Struct<'_> {
         }
 
         Ok(Struct {
-            unpacked,
             r#type: Type::User {
-                path: parse_quote!(#unpacked),
+                path: parse_quote!(#ident),
                 uses: Default::default(),
                 tight,
             },
