@@ -22,7 +22,6 @@ use crate::Error;
 #[derive(Clone, Debug, Eq)]
 pub(crate) enum Type {
     Tight {
-        path: Option<TypePath>,
         tight: Tight,
     },
     User {
@@ -55,13 +54,7 @@ impl Type {
                 });
             }
 
-            return Ok(SpannedValue::new(
-                Self::Tight {
-                    path: Some(path),
-                    tight,
-                },
-                span,
-            ));
+            return Ok(SpannedValue::new(Self::Tight { tight }, span));
         };
 
         // For convenience, forward nonzero and size annotations
@@ -182,10 +175,7 @@ impl Type {
 impl ToTokens for Type {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         match self {
-            Self::Tight {
-                path: Some(path), ..
-            } => path.to_tokens(tokens),
-            Self::Tight { path: None, tight } => tight.to_tokens(tokens),
+            Self::Tight { tight } => tight.to_tokens(tokens),
             Self::User { path, .. } => path.to_tokens(tokens),
         }
     }
@@ -194,28 +184,8 @@ impl ToTokens for Type {
 impl PartialEq for Type {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
-            (
-                Type::Tight {
-                    path: _,
-                    tight: left,
-                },
-                Type::Tight {
-                    path: _,
-                    tight: right,
-                },
-            ) => left == right,
-            (
-                Type::User {
-                    path: left_path,
-                    uses: _,
-                    tight: left_tight,
-                },
-                Type::User {
-                    path: right_path,
-                    uses: _,
-                    tight: right_tight,
-                },
-            ) => left_tight == right_tight && left_path == right_path,
+            (Type::Tight { tight: left }, Type::Tight { tight: right }) => left == right,
+            (Type::User { path: left, .. }, Type::User { path: right, .. }) => left == right,
             _ => false,
         }
     }

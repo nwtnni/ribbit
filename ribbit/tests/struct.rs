@@ -1,7 +1,13 @@
-use arbitrary_int::*;
 use core::num::NonZeroI32;
 use core::num::NonZeroI8;
 use core::num::NonZeroU16;
+
+use ribbit::i24;
+use ribbit::i40;
+use ribbit::u1;
+use ribbit::u2;
+use ribbit::u24;
+use ribbit::u40;
 use ribbit::Pack as _;
 use ribbit::Unpack as _;
 
@@ -28,8 +34,8 @@ fn smoke() {
 #[derive(ribbit::Pack, Copy, Clone)]
 #[ribbit(size = 64)]
 struct Arbitrary {
-    a: ribbit::u40,
-    b: ribbit::u24,
+    a: u40,
+    b: u24,
 }
 
 #[test]
@@ -95,7 +101,7 @@ fn adjacent_bits() {
 #[derive(ribbit::Pack, Copy, Clone)]
 #[ribbit(size = 2)]
 struct TwoBit {
-    value: ribbit::u2,
+    value: u2,
 }
 
 #[test]
@@ -226,8 +232,8 @@ fn native_signed() {
 #[derive(ribbit::Pack, Copy, Clone)]
 #[ribbit(size = 64)]
 struct ArbitrarySigned {
-    a: ribbit::i40,
-    b: ribbit::i24,
+    a: i40,
+    b: i24,
 }
 
 #[test]
@@ -245,8 +251,8 @@ fn arbitrary_signed() {
 #[derive(ribbit::Pack, Copy, Clone)]
 #[ribbit(size = 64)]
 struct NonZeroSigned {
-    a: ribbit::NonZeroI32,
-    b: ribbit::NonZeroI8,
+    a: NonZeroI32,
+    b: NonZeroI8,
 }
 
 #[test]

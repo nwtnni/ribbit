@@ -325,9 +325,6 @@ impl<'ir> From<&'ir Type> for TypeRef<'ir> {
 
 impl<'ir> From<&'ir Tight> for TypeRef<'ir> {
     fn from(tight: &'ir Tight) -> Self {
-        Self(Cow::Owned(Type::Tight {
-            path: None,
-            tight: *tight,
-        }))
+        Self(Cow::Owned(Type::Tight { tight: *tight }))
     }
 }

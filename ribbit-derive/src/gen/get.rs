@@ -28,6 +28,7 @@ pub(crate) fn get<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
     Or::R({
         r#struct
             .iter()
+            .filter(|field| !field.r#type.is_zst())
             .filter(|field| !field.opt.get.0.skip)
             .map(move |field| {
                 let value = get_field(

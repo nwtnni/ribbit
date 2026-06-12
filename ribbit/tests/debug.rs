@@ -8,8 +8,8 @@ use ribbit::Unpack as _;
 #[ribbit(size = 26, debug)]
 pub struct NamedStruct {
     l: u16,
-    m: ribbit::NonZeroU8,
-    c: ribbit::u2,
+    m: NonZeroU8,
+    c: u2,
 }
 
 #[test]
@@ -25,7 +25,7 @@ fn named_struct() {
 
 #[derive(ribbit::Pack, Copy, Clone, Debug)]
 #[ribbit(size = 5, debug)]
-struct TupleStruct(bool, #[ribbit(offset = 3)] ribbit::u2);
+struct TupleStruct(bool, #[ribbit(offset = 3)] u2);
 
 #[test]
 fn tuple_struct() {

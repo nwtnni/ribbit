@@ -2,6 +2,9 @@
 
 use core::sync::atomic::Ordering;
 
+use ribbit::u22;
+use ribbit::u26;
+use ribbit::u9;
 use ribbit::Atomic;
 
 #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
@@ -31,8 +34,8 @@ fn aligned() {
 #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
 #[ribbit(size = 32, debug, eq)]
 struct Unaligned {
-    lo: ribbit::u9,
-    hi: ribbit::u22,
+    lo: u9,
+    hi: u22,
 }
 
 #[test]
@@ -74,8 +77,8 @@ fn unaligned() {
 #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
 #[ribbit(size = 64, debug, eq)]
 struct Undersized {
-    lo: ribbit::u9,
-    hi: ribbit::u26,
+    lo: u9,
+    hi: u26,
 }
 
 #[test]
@@ -117,8 +120,8 @@ fn undersized() {
 #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
 #[ribbit(size = 64, debug, eq)]
 struct Mutable {
-    lo: ribbit::u9,
-    hi: ribbit::u26,
+    lo: u9,
+    hi: u26,
 }
 
 #[test]

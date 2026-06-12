@@ -1,8 +1,7 @@
 use core::marker::PhantomData;
+use core::num::NonZeroU64;
 
 use ribbit::Pack as _;
-use ribbit::Unpack as _;
-
 #[derive(ribbit::Pack, Copy, Clone)]
 #[ribbit(size = 0)]
 pub struct Foo;
@@ -34,7 +33,7 @@ fn custom_zst() {
 struct PhantomLast<A> {
     a: u64,
     #[ribbit(size = 0)]
-    foo: core::marker::PhantomData<A>,
+    foo: PhantomData<A>,
 }
 
 impl<A> Copy for PhantomLast<A> {}
@@ -59,9 +58,9 @@ fn phantom_last() {
 #[derive(ribbit::Pack)]
 #[ribbit(size = 64, nonzero)]
 struct Phantom<A> {
-    a: ribbit::NonZeroU64,
+    a: NonZeroU64,
     #[ribbit(size = 0)]
-    foo: ribbit::PhantomData<A>,
+    foo: PhantomData<A>,
 }
 
 impl<A> Copy for Phantom<A> {}
@@ -107,8 +106,7 @@ struct LowOffset(#[ribbit(size = 0)] crate::Zst);
 #[test]
 fn low_offset() {
     let zst = Zst;
-    let hole = LowOffset(zst).pack();
-    assert_eq!(zst, hole._0().unpack());
+    let _hole = LowOffset(zst).pack();
 }
 
 #[derive(ribbit::Pack, Copy, Clone, Debug)]
@@ -118,6 +116,5 @@ struct HighOffset<T>(#[ribbit(offset = 32, size = 0)] T);
 #[test]
 fn high_offset() {
     let zst = Zst;
-    let hole = HighOffset(zst).pack();
-    assert_eq!(zst, hole._0().unpack());
+    let _hole = HighOffset(zst).pack();
 }

@@ -1,8 +1,8 @@
+use core::num::NonZeroU16;
+
+use ribbit::u7;
 use ribbit::Pack as _;
 use ribbit::Unpack as _;
-
-use arbitrary_int::u7;
-use core::num::NonZeroU16;
 
 #[derive(ribbit::Pack, Copy, Clone)]
 #[ribbit(size = 32)]
@@ -22,7 +22,7 @@ struct Whole {
 #[derive(ribbit::Pack, Copy, Clone)]
 #[ribbit(size = 16, nonzero)]
 struct LowNonZero {
-    a: ribbit::NonZeroU16,
+    a: NonZeroU16,
 }
 
 #[expect(dead_code)]
@@ -57,7 +57,7 @@ fn option_nonzero() {
 
 #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
 #[ribbit(size = 7)]
-struct Small(ribbit::u7);
+struct Small(u7);
 
 // Pack a smaller type into a larger hole
 #[derive(ribbit::Pack, Copy, Clone)]

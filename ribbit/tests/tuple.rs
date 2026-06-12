@@ -16,7 +16,7 @@ fn one_native() {
 
 #[derive(ribbit::Pack, Copy, Clone)]
 #[ribbit(size = 64, nonzero)]
-pub struct OneNonZero(ribbit::NonZeroU64);
+pub struct OneNonZero(NonZeroU64);
 
 #[test]
 fn one_non_zero() {
