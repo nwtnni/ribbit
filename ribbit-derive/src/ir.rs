@@ -140,7 +140,7 @@ impl<'input> Item<'input> {
             opt: &item.opt,
             unpacked: &item.ident,
             packed: item.opt.packed.name(&item.ident),
-            vis: raise_vis(&item.vis),
+            vis: raise_vis(item.vis.clone()),
             generics: &item.generics,
             generics_bounded,
             data,
@@ -352,7 +352,7 @@ impl<'input> Field<'input> {
             .not();
 
         Ok(Self {
-            vis: raise_vis(&field.vis),
+            vis: raise_vis(field.vis.clone()),
             ident: FieldIdent::new(index, field.ident.as_ref()),
             r#type,
             offset: *offset,
@@ -425,6 +425,7 @@ impl ToTokens for FieldIdent<'_> {
 
 #[derive(FromMeta, Clone, Debug, Default)]
 pub struct CommonOpt {
+    #[darling(map = "raise_vis_opt")]
     vis: Option<syn::Visibility>,
     rename: Option<syn::Ident>,
     #[darling(default)]
@@ -447,36 +448,38 @@ impl CommonOpt {
     }
 }
 
+fn raise_vis_opt(vis: Option<syn::Visibility>) -> Option<syn::Visibility> {
+    vis.map(raise_vis)
+}
+
 // NOTE: doesn't handle types within functions
 // - https://bon-rs.com/blog/the-weird-of-function-local-types-in-rust
 // - https://github.com/rust-lang/rust/issues/79260
-fn raise_vis(vis: &syn::Visibility) -> syn::Visibility {
+fn raise_vis(vis: syn::Visibility) -> syn::Visibility {
     match vis {
         syn::Visibility::Inherited => parse_quote!(pub(super)),
         // Prepend super to relative paths beginning with super
-        syn::Visibility::Restricted(vis)
+        syn::Visibility::Restricted(mut vis)
             if vis.path.leading_colon.is_none()
                 && vis.path.segments.first().is_some_and(|segment| {
                     segment.arguments.is_empty() && segment.ident == "super"
                 }) =>
         {
-            let mut vis = vis.clone();
             vis.path.segments.insert(0, parse_quote!(super));
             vis.in_token.get_or_insert(parse_quote!(in));
             syn::Visibility::Restricted(vis)
         }
         // Switch pub(self) to pub(super)
-        syn::Visibility::Restricted(vis)
+        syn::Visibility::Restricted(mut vis)
             if vis.path.leading_colon.is_none()
                 && vis.path.segments.first().is_some_and(|segment| {
                     segment.arguments.is_empty() && segment.ident == "self"
                 }) =>
         {
-            let mut vis = vis.clone();
             vis.path.segments[0] = parse_quote!(super);
             syn::Visibility::Restricted(vis)
         }
-        vis => vis.clone(),
+        vis => vis,
     }
 }
 
