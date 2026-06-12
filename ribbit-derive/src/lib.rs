@@ -73,7 +73,7 @@ fn pack_impl(input: syn::DeriveInput, output: &mut TokenStream) -> Result<(), da
 
                 #into_raw
 
-                #from_raw_unchecked
+                #(#from_raw_unchecked)*
 
                 #(#get)*
 

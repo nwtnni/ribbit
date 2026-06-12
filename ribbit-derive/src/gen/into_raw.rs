@@ -10,21 +10,21 @@ use crate::ir;
 #[derive(FromMeta, Clone, Debug, Default)]
 pub(crate) struct StructOpt(ir::CommonOpt);
 
-pub(crate) fn into_raw<'ir>(ir: &'ir ir::Ir) -> TokenStream {
-    let opt = &ir.opt().into_raw.0;
+pub(crate) fn into_raw(ir: &ir::Ir) -> TokenStream {
+    let opt = &ir.opt().into_raw;
 
-    if opt.skip {
+    if opt.0.skip {
         return TokenStream::default();
     }
 
-    let vis = opt.vis(&ir.vis);
-    let into_raw = opt.rename_with(|| Cow::Owned(format_ident!("into_raw")));
+    let vis = opt.0.vis(&ir.vis);
+    let name = opt.0.rename_with(|| Cow::Owned(format_ident!("into_raw")));
     let tight = ir.r#type().as_tight();
     let precondition = crate::gen::precondition::assert();
 
     quote! {
         #[inline]
-        #vis const fn #into_raw(self) -> #tight {
+        #vis const fn #name(self) -> #tight {
             #precondition
             self.value
         }

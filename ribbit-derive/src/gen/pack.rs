@@ -1,4 +1,3 @@
-use heck::ToSnakeCase as _;
 use proc_macro2::TokenStream;
 use quote::quote;
 
@@ -25,8 +24,7 @@ pub(crate) fn pack(ir: &ir::Ir) -> TokenStream {
                     .iter()
                     .map(|field| field.ident.pattern());
 
-                let suffix = variant.r#struct.unpacked.to_string().to_snake_case();
-                let new = ir.opt().new.name(Some(&suffix));
+                let new = ir.opt().new.name(Some(variant.r#struct.unpacked));
 
                 let arguments = variant.r#struct.fields.iter().map(|field| {
                     let name = field.ident.escape();

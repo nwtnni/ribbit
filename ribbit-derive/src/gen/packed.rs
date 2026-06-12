@@ -22,8 +22,9 @@ impl StructOpt {
 }
 
 pub(crate) fn packed(ir: &ir::Ir) -> TokenStream {
+    let opt = &ir.opt().packed;
     let forward = &ir.opt().forward;
-    let vis = ir.opt().packed.0.vis(&ir.vis);
+    let vis = opt.0.vis(&ir.vis);
     let packed = ir.ident_packed();
     let tight = ir.r#type().as_tight();
 
