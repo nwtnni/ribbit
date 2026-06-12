@@ -40,14 +40,14 @@ fn precondition_struct<'ir>(r#struct: &'ir ir::Struct) -> impl Iterator<Item = T
         // Only need to check user-defined types
         .filter(|r#type| r#type.is_user());
 
-    let nonzero = fields
+    let non_zero = fields
         .clone()
-        .filter(|r#type| r#type.is_nonzero())
+        .filter(|r#type| r#type.is_non_zero())
         .map(|r#type| {
             let span = r#type.span();
             let r#type = r#type.deref();
             quote_spanned! {span=>
-                ::ribbit::private::assert_nonzero::<#r#type>();
+                ::ribbit::private::assert_non_zero::<#r#type>();
             }
         });
 
@@ -65,5 +65,5 @@ fn precondition_struct<'ir>(r#struct: &'ir ir::Struct) -> impl Iterator<Item = T
         }
     });
 
-    nonzero.chain(pack)
+    non_zero.chain(pack)
 }

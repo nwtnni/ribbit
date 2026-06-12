@@ -250,7 +250,7 @@ impl Struct<'_> {
             })
             .collect::<Result<Vec<_>, _>>()?;
 
-        if tight.is_nonzero() && fields.iter().all(|field| !field.r#type.is_nonzero()) {
+        if tight.is_non_zero() && fields.iter().all(|field| !field.r#type.is_non_zero()) {
             bail!(opt.non_zero=> crate::Error::StructNonZero);
         }
 
@@ -375,7 +375,7 @@ impl<'input> Field<'input> {
 #[derive(FromMeta, Clone, Debug, Default)]
 pub(crate) struct FieldOpt {
     #[darling(default)]
-    pub(crate) nonzero: SpannedValue<bool>,
+    pub(crate) non_zero: SpannedValue<bool>,
     #[darling(default)]
     pub(crate) size: SpannedValue<Option<usize>>,
     #[darling(default)]

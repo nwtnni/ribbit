@@ -57,10 +57,10 @@ impl Type {
             return Ok(SpannedValue::new(Self::Tight { tight }, span));
         };
 
-        // For convenience, forward nonzero and size annotations
+        // For convenience, forward non_zero and size annotations
         // for newtype structs.
-        let nonzero = match (newtype, *opt_field.nonzero) {
-            (false, nonzero) | (true, nonzero @ true) => nonzero,
+        let non_zero = match (newtype, *opt_field.non_zero) {
+            (false, non_zero) | (true, non_zero @ true) => non_zero,
             (true, false) => *opt_struct.non_zero,
         };
         let size = match (newtype, *opt_field.size) {
@@ -72,7 +72,7 @@ impl Type {
             bail!(span=> Error::OpaqueSize);
         };
 
-        let tight = Tight::from_size(nonzero, size);
+        let tight = Tight::from_size(non_zero, size);
 
         let tight = match tight {
             Ok(tight) => tight,
@@ -159,8 +159,8 @@ impl Type {
         self.as_tight().size()
     }
 
-    pub(crate) fn is_nonzero(&self) -> bool {
-        self.as_tight().is_nonzero()
+    pub(crate) fn is_non_zero(&self) -> bool {
+        self.as_tight().is_non_zero()
     }
 
     pub(crate) fn is_zst(&self) -> bool {

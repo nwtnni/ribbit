@@ -28,8 +28,8 @@ impl From<Loose> for Tight {
 }
 
 impl Tight {
-    pub(crate) fn from_size(nonzero: bool, size: usize) -> Result<Self, crate::Error> {
-        Self::new(nonzero, false, size)
+    pub(crate) fn from_size(non_zero: bool, size: usize) -> Result<Self, crate::Error> {
+        Self::new(non_zero, false, size)
     }
 
     pub(crate) fn from_path(path: &syn::TypePath) -> Option<Self> {
@@ -40,8 +40,8 @@ impl Tight {
             segment => segment.ident.to_string(),
         };
 
-        let nonzero = ident.starts_with("NonZero");
-        let signed = match nonzero {
+        let non_zero = ident.starts_with("NonZero");
+        let signed = match non_zero {
             false => match &ident[..1] {
                 "u" => false,
                 "i" => true,
@@ -54,24 +54,24 @@ impl Tight {
             },
         };
 
-        let size = ident[1 + match nonzero {
+        let size = ident[1 + match non_zero {
             false => 0,
             true => "NonZero".len(),
         }..]
             .parse::<usize>()
             .ok()?;
 
-        Self::new(nonzero, signed, size).ok()
+        Self::new(non_zero, signed, size).ok()
     }
 
-    fn new(nonzero: bool, signed: bool, size: usize) -> Result<Self, crate::Error> {
+    fn new(non_zero: bool, signed: bool, size: usize) -> Result<Self, crate::Error> {
         if size == 0 {
             return Ok(Self::Unit);
         }
 
         let loose = Loose::new(size);
 
-        if nonzero {
+        if non_zero {
             let loose = loose.ok_or(crate::Error::ArbitraryNonZero)?;
             return Ok(Self::NonZero { signed, loose });
         }
@@ -102,7 +102,7 @@ impl Tight {
         }
     }
 
-    pub(crate) fn is_nonzero(&self) -> bool {
+    pub(crate) fn is_non_zero(&self) -> bool {
         matches!(self, Self::NonZero { .. })
     }
 
