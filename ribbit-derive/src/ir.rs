@@ -275,6 +275,7 @@ impl Struct<'_> {
 
 #[derive(FromMeta, Clone, Debug)]
 pub(crate) struct StructOpt {
+    pub(crate) forward: Option<Forward>,
     #[darling(default)]
     pub(crate) size: SpannedValue<Option<usize>>,
     #[darling(default)]
@@ -480,5 +481,22 @@ fn raise_vis(vis: &syn::Visibility) -> syn::Visibility {
             syn::Visibility::Restricted(vis)
         }
         vis => vis.clone(),
+    }
+}
+
+#[derive(FromMeta, Clone, Debug)]
+pub(crate) struct Forward(syn::Meta);
+
+impl ToTokens for Forward {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let list = &self
+            .0
+            .require_list()
+            .ok()
+            .filter(|name| name.path.is_ident("forward"))
+            .expect("Name should be 'forward'")
+            .tokens;
+
+        quote!(#[#list]).to_tokens(tokens)
     }
 }

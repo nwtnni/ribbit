@@ -7,8 +7,8 @@ use darling::FromVariant;
 use crate::ir;
 
 #[derive(FromDeriveInput, Debug)]
-#[darling(attributes(ribbit), forward_attrs)]
-pub struct Item {
+#[darling(attributes(ribbit))]
+pub(crate) struct Item {
     #[darling(flatten)]
     pub(crate) opt: ir::StructOpt,
     pub(crate) vis: syn::Visibility,
@@ -18,7 +18,7 @@ pub struct Item {
 }
 
 #[derive(FromVariant, Clone, Debug)]
-#[darling(attributes(ribbit), forward_attrs)]
+#[darling(attributes(ribbit))]
 pub(crate) struct Variant {
     #[darling(flatten)]
     pub(crate) opt: ir::StructOpt,
@@ -28,7 +28,7 @@ pub(crate) struct Variant {
 }
 
 #[derive(FromField, Clone, Debug)]
-#[darling(attributes(ribbit), forward_attrs)]
+#[darling(attributes(ribbit))]
 pub(crate) struct Field {
     #[darling(flatten)]
     pub(crate) opt: ir::FieldOpt,

@@ -22,6 +22,7 @@ impl StructOpt {
 }
 
 pub(crate) fn packed(ir: &ir::Ir) -> TokenStream {
+    let forward = &ir.opt().forward;
     let vis = ir.opt().packed.0.vis(&ir.vis);
     let packed = ir.ident_packed();
     let tight = ir.r#type().as_tight();
@@ -34,6 +35,7 @@ pub(crate) fn packed(ir: &ir::Ir) -> TokenStream {
     let types = generics.type_params();
 
     quote! {
+        #forward
         #[repr(transparent)]
         #vis struct #packed #generics_type {
             value: #tight,
