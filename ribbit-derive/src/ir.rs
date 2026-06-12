@@ -278,9 +278,9 @@ pub(crate) struct ItemOpt {
     #[darling(flatten)]
     variant: VariantOpt,
     #[darling(default)]
-    pub(crate) packed: gen::packed::StructOpt,
+    pub(crate) packed: gen::packed::ItemOpt,
     #[darling(default)]
-    pub(crate) into_raw: gen::into_raw::StructOpt,
+    pub(crate) into_raw: gen::into_raw::ItemOpt,
     #[darling(default)]
     pub(crate) derive: Derive,
 }
@@ -300,19 +300,19 @@ pub(crate) struct VariantOpt {
     #[darling(default)]
     pub(crate) non_zero: SpannedValue<bool>,
     #[darling(default)]
-    pub(crate) from_raw_unchecked: gen::from_raw_unchecked::StructOpt,
+    pub(crate) from_raw_unchecked: gen::from_raw_unchecked::VariantOpt,
     #[darling(default)]
-    pub(crate) new: gen::new::StructOpt,
+    pub(crate) new: gen::new::VariantOpt,
 }
 
 #[derive(FromMeta, Clone, Default, Debug)]
 #[darling(rename_all = "PascalCase")]
 pub(crate) struct Derive {
-    pub(crate) debug: Option<gen::debug::StructOpt>,
-    pub(crate) eq: Option<gen::eq::StructOpt>,
-    pub(crate) ord: Option<gen::ord::StructOpt>,
-    pub(crate) hash: Option<gen::hash::StructOpt>,
-    pub(crate) from: Option<gen::from::StructOpt>,
+    pub(crate) debug: Option<gen::debug::ItemOpt>,
+    pub(crate) eq: Option<gen::eq::ItemOpt>,
+    pub(crate) ord: Option<gen::ord::ItemOpt>,
+    pub(crate) hash: Option<gen::hash::ItemOpt>,
+    pub(crate) from: Option<gen::from::ItemOpt>,
 }
 
 pub(crate) struct Field<'input> {

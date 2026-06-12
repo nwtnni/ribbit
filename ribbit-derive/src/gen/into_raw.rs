@@ -8,7 +8,7 @@ use quote::quote;
 use crate::ir;
 
 #[derive(FromMeta, Clone, Debug, Default)]
-pub(crate) struct StructOpt(ir::CommonOpt);
+pub(crate) struct ItemOpt(ir::CommonOpt);
 
 pub(crate) fn into_raw(ir: &ir::Ir) -> TokenStream {
     let opt = &ir.opt().into_raw;

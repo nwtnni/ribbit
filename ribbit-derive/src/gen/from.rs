@@ -5,10 +5,10 @@ use quote::quote;
 use crate::ir;
 
 #[derive(FromMeta, Clone, Debug)]
-pub(crate) struct StructOpt;
+pub(crate) struct ItemOpt;
 
 pub(crate) fn from(ir: &ir::Ir) -> TokenStream {
-    let Some(StructOpt) = &ir.opt().derive.from else {
+    let Some(ItemOpt) = &ir.opt().derive.from else {
         return TokenStream::new();
     };
 

@@ -6,7 +6,7 @@ use syn::parse_quote;
 use crate::ir;
 
 #[derive(FromMeta, Clone, Debug)]
-pub(crate) struct StructOpt;
+pub(crate) struct ItemOpt;
 
 pub(crate) fn debug(ir: &ir::Ir) -> TokenStream {
     if ir.opt().derive.debug.is_none() {

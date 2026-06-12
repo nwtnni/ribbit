@@ -5,7 +5,7 @@ use quote::quote;
 use crate::ir;
 
 #[derive(FromMeta, Clone, Debug)]
-pub(crate) struct StructOpt;
+pub(crate) struct ItemOpt;
 
 pub(crate) fn eq(ir: &ir::Ir) -> TokenStream {
     if ir.opt().derive.eq.is_none() {

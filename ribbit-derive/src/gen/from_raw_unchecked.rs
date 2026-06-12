@@ -13,7 +13,7 @@ use crate::r#type::Tight;
 use crate::Or;
 
 #[derive(FromMeta, Clone, Debug, Default)]
-pub(crate) struct StructOpt(ir::CommonOpt);
+pub(crate) struct VariantOpt(ir::CommonOpt);
 
 pub(crate) fn from_raw_unchecked<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 'ir {
     let opt = &ir.opt().from_raw_unchecked;
@@ -79,7 +79,7 @@ fn from_raw_unchecked_struct<'ir, F: FnOnce(lift::Expr<'ir>) -> TokenStream>(
     }
 }
 
-impl StructOpt {
+impl VariantOpt {
     fn name<'ir>(&'ir self, variant: Option<&syn::Ident>) -> Cow<'ir, syn::Ident> {
         self.0.rename_with(|| match variant {
             None => Cow::Owned(format_ident!("from_raw_unchecked")),

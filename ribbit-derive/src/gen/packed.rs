@@ -8,9 +8,9 @@ use quote::quote;
 use crate::ir;
 
 #[derive(FromMeta, Clone, Debug, Default)]
-pub(crate) struct StructOpt(ir::CommonOpt);
+pub(crate) struct ItemOpt(ir::CommonOpt);
 
-impl StructOpt {
+impl ItemOpt {
     pub(crate) fn name<'ir>(&'ir self, unpacked: &'ir syn::Ident) -> Cow<'ir, syn::Ident> {
         self.0
             .rename_with(|| Cow::Owned(format_ident!("{}Packed", unpacked)))
