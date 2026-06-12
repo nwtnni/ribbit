@@ -1,273 +1,565 @@
 #![no_std]
+//! This crate provides a procedural macro ([`Pack`]) for deriving a
+//! [bit field](https://en.wikipedia.org/wiki/Bit_field) from a Rust type.
+//!
+//! # Differentiation
+//!
+//! The driving motivation for this crate is lock-free programming,
+//! which often requires packing data into a `u64` or `u128` so it
+//! can be atomically updated. As a result, we don't support
+//! parsing-related functionality, like checked construction of a packed
+//! type from arbitrary bytes, packed types larger than 128 bits,
+//! or non-native endianness. We also don't suport arrays or
+//! anonymous tuples.
+//!
+//! This crate does provide the following features that were hard to
+//! find in existing crates:
+//!
+//! - Composition of bit fields
+//! - Generic bit fields
+//! - Enums with struct and tuple variants
+//! - `const` inherent methods and constructors (that work with generics, on stable Rust)
+//! - Append-only: does not overwrite original type
+//! - Nonzero support (e.g., can use [`NonZeroU64`] to enable niche optimizations)
+//!
+//! See also:
+//! - [bilge](https://github.com/hecatia-elegua/bilge)
+//! - [modular_bitfield](https://github.com/modular-bitfield/modular-bitfield)
+//! - [bitbybit](https://github.com/danlehmann/bitfield)
 
+#[doc(inline)]
+pub use ribbit_derive::Pack;
+
+#[doc(no_inline)]
 pub use core::marker::PhantomData;
+#[doc(no_inline)]
 pub use core::num::NonZeroI128;
+#[doc(no_inline)]
 pub use core::num::NonZeroI16;
+#[doc(no_inline)]
 pub use core::num::NonZeroI32;
+#[doc(no_inline)]
 pub use core::num::NonZeroI64;
+#[doc(no_inline)]
 pub use core::num::NonZeroI8;
+#[doc(no_inline)]
 pub use core::num::NonZeroU128;
+#[doc(no_inline)]
 pub use core::num::NonZeroU16;
+#[doc(no_inline)]
 pub use core::num::NonZeroU32;
+#[doc(no_inline)]
 pub use core::num::NonZeroU64;
+#[doc(no_inline)]
 pub use core::num::NonZeroU8;
+#[doc(no_inline)]
 pub use core::primitive::bool;
+#[doc(no_inline)]
 pub use core::primitive::u128;
+#[doc(no_inline)]
 pub use core::primitive::u16;
+#[doc(no_inline)]
 pub use core::primitive::u32;
+#[doc(no_inline)]
 pub use core::primitive::u64;
+#[doc(no_inline)]
 pub use core::primitive::u8;
 pub type Unit = ();
 
+#[doc(no_inline)]
 pub use arbitrary_int::i1;
+#[doc(no_inline)]
 pub use arbitrary_int::i10;
+#[doc(no_inline)]
 pub use arbitrary_int::i100;
+#[doc(no_inline)]
 pub use arbitrary_int::i101;
+#[doc(no_inline)]
 pub use arbitrary_int::i102;
+#[doc(no_inline)]
 pub use arbitrary_int::i103;
+#[doc(no_inline)]
 pub use arbitrary_int::i104;
+#[doc(no_inline)]
 pub use arbitrary_int::i105;
+#[doc(no_inline)]
 pub use arbitrary_int::i106;
+#[doc(no_inline)]
 pub use arbitrary_int::i107;
+#[doc(no_inline)]
 pub use arbitrary_int::i108;
+#[doc(no_inline)]
 pub use arbitrary_int::i109;
+#[doc(no_inline)]
 pub use arbitrary_int::i11;
+#[doc(no_inline)]
 pub use arbitrary_int::i110;
+#[doc(no_inline)]
 pub use arbitrary_int::i111;
+#[doc(no_inline)]
 pub use arbitrary_int::i112;
+#[doc(no_inline)]
 pub use arbitrary_int::i113;
+#[doc(no_inline)]
 pub use arbitrary_int::i114;
+#[doc(no_inline)]
 pub use arbitrary_int::i115;
+#[doc(no_inline)]
 pub use arbitrary_int::i116;
+#[doc(no_inline)]
 pub use arbitrary_int::i117;
+#[doc(no_inline)]
 pub use arbitrary_int::i118;
+#[doc(no_inline)]
 pub use arbitrary_int::i119;
+#[doc(no_inline)]
 pub use arbitrary_int::i12;
+#[doc(no_inline)]
 pub use arbitrary_int::i120;
+#[doc(no_inline)]
 pub use arbitrary_int::i121;
+#[doc(no_inline)]
 pub use arbitrary_int::i122;
+#[doc(no_inline)]
 pub use arbitrary_int::i123;
+#[doc(no_inline)]
 pub use arbitrary_int::i124;
+#[doc(no_inline)]
 pub use arbitrary_int::i125;
+#[doc(no_inline)]
 pub use arbitrary_int::i126;
+#[doc(no_inline)]
 pub use arbitrary_int::i127;
+#[doc(no_inline)]
 pub use arbitrary_int::i13;
+#[doc(no_inline)]
 pub use arbitrary_int::i14;
+#[doc(no_inline)]
 pub use arbitrary_int::i15;
+#[doc(no_inline)]
 pub use arbitrary_int::i17;
+#[doc(no_inline)]
 pub use arbitrary_int::i18;
+#[doc(no_inline)]
 pub use arbitrary_int::i19;
+#[doc(no_inline)]
 pub use arbitrary_int::i2;
+#[doc(no_inline)]
 pub use arbitrary_int::i20;
+#[doc(no_inline)]
 pub use arbitrary_int::i21;
+#[doc(no_inline)]
 pub use arbitrary_int::i22;
+#[doc(no_inline)]
 pub use arbitrary_int::i23;
+#[doc(no_inline)]
 pub use arbitrary_int::i24;
+#[doc(no_inline)]
 pub use arbitrary_int::i25;
+#[doc(no_inline)]
 pub use arbitrary_int::i26;
+#[doc(no_inline)]
 pub use arbitrary_int::i27;
+#[doc(no_inline)]
 pub use arbitrary_int::i28;
+#[doc(no_inline)]
 pub use arbitrary_int::i29;
+#[doc(no_inline)]
 pub use arbitrary_int::i3;
+#[doc(no_inline)]
 pub use arbitrary_int::i30;
+#[doc(no_inline)]
 pub use arbitrary_int::i31;
+#[doc(no_inline)]
 pub use arbitrary_int::i33;
+#[doc(no_inline)]
 pub use arbitrary_int::i34;
+#[doc(no_inline)]
 pub use arbitrary_int::i35;
+#[doc(no_inline)]
 pub use arbitrary_int::i36;
+#[doc(no_inline)]
 pub use arbitrary_int::i37;
+#[doc(no_inline)]
 pub use arbitrary_int::i38;
+#[doc(no_inline)]
 pub use arbitrary_int::i39;
+#[doc(no_inline)]
 pub use arbitrary_int::i4;
+#[doc(no_inline)]
 pub use arbitrary_int::i40;
+#[doc(no_inline)]
 pub use arbitrary_int::i41;
+#[doc(no_inline)]
 pub use arbitrary_int::i42;
+#[doc(no_inline)]
 pub use arbitrary_int::i43;
+#[doc(no_inline)]
 pub use arbitrary_int::i44;
+#[doc(no_inline)]
 pub use arbitrary_int::i45;
+#[doc(no_inline)]
 pub use arbitrary_int::i46;
+#[doc(no_inline)]
 pub use arbitrary_int::i47;
+#[doc(no_inline)]
 pub use arbitrary_int::i48;
+#[doc(no_inline)]
 pub use arbitrary_int::i49;
+#[doc(no_inline)]
 pub use arbitrary_int::i5;
+#[doc(no_inline)]
 pub use arbitrary_int::i50;
+#[doc(no_inline)]
 pub use arbitrary_int::i51;
+#[doc(no_inline)]
 pub use arbitrary_int::i52;
+#[doc(no_inline)]
 pub use arbitrary_int::i53;
+#[doc(no_inline)]
 pub use arbitrary_int::i54;
+#[doc(no_inline)]
 pub use arbitrary_int::i55;
+#[doc(no_inline)]
 pub use arbitrary_int::i56;
+#[doc(no_inline)]
 pub use arbitrary_int::i57;
+#[doc(no_inline)]
 pub use arbitrary_int::i58;
+#[doc(no_inline)]
 pub use arbitrary_int::i59;
+#[doc(no_inline)]
 pub use arbitrary_int::i6;
+#[doc(no_inline)]
 pub use arbitrary_int::i60;
+#[doc(no_inline)]
 pub use arbitrary_int::i61;
+#[doc(no_inline)]
 pub use arbitrary_int::i62;
+#[doc(no_inline)]
 pub use arbitrary_int::i63;
+#[doc(no_inline)]
 pub use arbitrary_int::i65;
+#[doc(no_inline)]
 pub use arbitrary_int::i66;
+#[doc(no_inline)]
 pub use arbitrary_int::i67;
+#[doc(no_inline)]
 pub use arbitrary_int::i68;
+#[doc(no_inline)]
 pub use arbitrary_int::i69;
+#[doc(no_inline)]
 pub use arbitrary_int::i7;
+#[doc(no_inline)]
 pub use arbitrary_int::i70;
+#[doc(no_inline)]
 pub use arbitrary_int::i71;
+#[doc(no_inline)]
 pub use arbitrary_int::i72;
+#[doc(no_inline)]
 pub use arbitrary_int::i73;
+#[doc(no_inline)]
 pub use arbitrary_int::i74;
+#[doc(no_inline)]
 pub use arbitrary_int::i75;
+#[doc(no_inline)]
 pub use arbitrary_int::i76;
+#[doc(no_inline)]
 pub use arbitrary_int::i77;
+#[doc(no_inline)]
 pub use arbitrary_int::i78;
+#[doc(no_inline)]
 pub use arbitrary_int::i79;
+#[doc(no_inline)]
 pub use arbitrary_int::i80;
+#[doc(no_inline)]
 pub use arbitrary_int::i81;
+#[doc(no_inline)]
 pub use arbitrary_int::i82;
+#[doc(no_inline)]
 pub use arbitrary_int::i83;
+#[doc(no_inline)]
 pub use arbitrary_int::i84;
+#[doc(no_inline)]
 pub use arbitrary_int::i85;
+#[doc(no_inline)]
 pub use arbitrary_int::i86;
+#[doc(no_inline)]
 pub use arbitrary_int::i87;
+#[doc(no_inline)]
 pub use arbitrary_int::i88;
+#[doc(no_inline)]
 pub use arbitrary_int::i89;
+#[doc(no_inline)]
 pub use arbitrary_int::i9;
+#[doc(no_inline)]
 pub use arbitrary_int::i90;
+#[doc(no_inline)]
 pub use arbitrary_int::i91;
+#[doc(no_inline)]
 pub use arbitrary_int::i92;
+#[doc(no_inline)]
 pub use arbitrary_int::i93;
+#[doc(no_inline)]
 pub use arbitrary_int::i94;
+#[doc(no_inline)]
 pub use arbitrary_int::i95;
+#[doc(no_inline)]
 pub use arbitrary_int::i96;
+#[doc(no_inline)]
 pub use arbitrary_int::i97;
+#[doc(no_inline)]
 pub use arbitrary_int::i98;
+#[doc(no_inline)]
 pub use arbitrary_int::i99;
+#[doc(no_inline)]
 pub use arbitrary_int::traits::Integer;
+#[doc(no_inline)]
 pub use arbitrary_int::u1;
+#[doc(no_inline)]
 pub use arbitrary_int::u10;
+#[doc(no_inline)]
 pub use arbitrary_int::u100;
+#[doc(no_inline)]
 pub use arbitrary_int::u101;
+#[doc(no_inline)]
 pub use arbitrary_int::u102;
+#[doc(no_inline)]
 pub use arbitrary_int::u103;
+#[doc(no_inline)]
 pub use arbitrary_int::u104;
+#[doc(no_inline)]
 pub use arbitrary_int::u105;
+#[doc(no_inline)]
 pub use arbitrary_int::u106;
+#[doc(no_inline)]
 pub use arbitrary_int::u107;
+#[doc(no_inline)]
 pub use arbitrary_int::u108;
+#[doc(no_inline)]
 pub use arbitrary_int::u109;
+#[doc(no_inline)]
 pub use arbitrary_int::u11;
+#[doc(no_inline)]
 pub use arbitrary_int::u110;
+#[doc(no_inline)]
 pub use arbitrary_int::u111;
+#[doc(no_inline)]
 pub use arbitrary_int::u112;
+#[doc(no_inline)]
 pub use arbitrary_int::u113;
+#[doc(no_inline)]
 pub use arbitrary_int::u114;
+#[doc(no_inline)]
 pub use arbitrary_int::u115;
+#[doc(no_inline)]
 pub use arbitrary_int::u116;
+#[doc(no_inline)]
 pub use arbitrary_int::u117;
+#[doc(no_inline)]
 pub use arbitrary_int::u118;
+#[doc(no_inline)]
 pub use arbitrary_int::u119;
+#[doc(no_inline)]
 pub use arbitrary_int::u12;
+#[doc(no_inline)]
 pub use arbitrary_int::u120;
+#[doc(no_inline)]
 pub use arbitrary_int::u121;
+#[doc(no_inline)]
 pub use arbitrary_int::u122;
+#[doc(no_inline)]
 pub use arbitrary_int::u123;
+#[doc(no_inline)]
 pub use arbitrary_int::u124;
+#[doc(no_inline)]
 pub use arbitrary_int::u125;
+#[doc(no_inline)]
 pub use arbitrary_int::u126;
+#[doc(no_inline)]
 pub use arbitrary_int::u127;
+#[doc(no_inline)]
 pub use arbitrary_int::u13;
+#[doc(no_inline)]
 pub use arbitrary_int::u14;
+#[doc(no_inline)]
 pub use arbitrary_int::u15;
+#[doc(no_inline)]
 pub use arbitrary_int::u17;
+#[doc(no_inline)]
 pub use arbitrary_int::u18;
+#[doc(no_inline)]
 pub use arbitrary_int::u19;
+#[doc(no_inline)]
 pub use arbitrary_int::u2;
+#[doc(no_inline)]
 pub use arbitrary_int::u20;
+#[doc(no_inline)]
 pub use arbitrary_int::u21;
+#[doc(no_inline)]
 pub use arbitrary_int::u22;
+#[doc(no_inline)]
 pub use arbitrary_int::u23;
+#[doc(no_inline)]
 pub use arbitrary_int::u24;
+#[doc(no_inline)]
 pub use arbitrary_int::u25;
+#[doc(no_inline)]
 pub use arbitrary_int::u26;
+#[doc(no_inline)]
 pub use arbitrary_int::u27;
+#[doc(no_inline)]
 pub use arbitrary_int::u28;
+#[doc(no_inline)]
 pub use arbitrary_int::u29;
+#[doc(no_inline)]
 pub use arbitrary_int::u3;
+#[doc(no_inline)]
 pub use arbitrary_int::u30;
+#[doc(no_inline)]
 pub use arbitrary_int::u31;
+#[doc(no_inline)]
 pub use arbitrary_int::u33;
+#[doc(no_inline)]
 pub use arbitrary_int::u34;
+#[doc(no_inline)]
 pub use arbitrary_int::u35;
+#[doc(no_inline)]
 pub use arbitrary_int::u36;
+#[doc(no_inline)]
 pub use arbitrary_int::u37;
+#[doc(no_inline)]
 pub use arbitrary_int::u38;
+#[doc(no_inline)]
 pub use arbitrary_int::u39;
+#[doc(no_inline)]
 pub use arbitrary_int::u4;
+#[doc(no_inline)]
 pub use arbitrary_int::u40;
+#[doc(no_inline)]
 pub use arbitrary_int::u41;
+#[doc(no_inline)]
 pub use arbitrary_int::u42;
+#[doc(no_inline)]
 pub use arbitrary_int::u43;
+#[doc(no_inline)]
 pub use arbitrary_int::u44;
+#[doc(no_inline)]
 pub use arbitrary_int::u45;
+#[doc(no_inline)]
 pub use arbitrary_int::u46;
+#[doc(no_inline)]
 pub use arbitrary_int::u47;
+#[doc(no_inline)]
 pub use arbitrary_int::u48;
+#[doc(no_inline)]
 pub use arbitrary_int::u49;
+#[doc(no_inline)]
 pub use arbitrary_int::u5;
+#[doc(no_inline)]
 pub use arbitrary_int::u50;
+#[doc(no_inline)]
 pub use arbitrary_int::u51;
+#[doc(no_inline)]
 pub use arbitrary_int::u52;
+#[doc(no_inline)]
 pub use arbitrary_int::u53;
+#[doc(no_inline)]
 pub use arbitrary_int::u54;
+#[doc(no_inline)]
 pub use arbitrary_int::u55;
+#[doc(no_inline)]
 pub use arbitrary_int::u56;
+#[doc(no_inline)]
 pub use arbitrary_int::u57;
+#[doc(no_inline)]
 pub use arbitrary_int::u58;
+#[doc(no_inline)]
 pub use arbitrary_int::u59;
+#[doc(no_inline)]
 pub use arbitrary_int::u6;
+#[doc(no_inline)]
 pub use arbitrary_int::u60;
+#[doc(no_inline)]
 pub use arbitrary_int::u61;
+#[doc(no_inline)]
 pub use arbitrary_int::u62;
+#[doc(no_inline)]
 pub use arbitrary_int::u63;
+#[doc(no_inline)]
 pub use arbitrary_int::u65;
+#[doc(no_inline)]
 pub use arbitrary_int::u66;
+#[doc(no_inline)]
 pub use arbitrary_int::u67;
+#[doc(no_inline)]
 pub use arbitrary_int::u68;
+#[doc(no_inline)]
 pub use arbitrary_int::u69;
+#[doc(no_inline)]
 pub use arbitrary_int::u7;
+#[doc(no_inline)]
 pub use arbitrary_int::u70;
+#[doc(no_inline)]
 pub use arbitrary_int::u71;
+#[doc(no_inline)]
 pub use arbitrary_int::u72;
+#[doc(no_inline)]
 pub use arbitrary_int::u73;
+#[doc(no_inline)]
 pub use arbitrary_int::u74;
+#[doc(no_inline)]
 pub use arbitrary_int::u75;
+#[doc(no_inline)]
 pub use arbitrary_int::u76;
+#[doc(no_inline)]
 pub use arbitrary_int::u77;
+#[doc(no_inline)]
 pub use arbitrary_int::u78;
+#[doc(no_inline)]
 pub use arbitrary_int::u79;
+#[doc(no_inline)]
 pub use arbitrary_int::u80;
+#[doc(no_inline)]
 pub use arbitrary_int::u81;
+#[doc(no_inline)]
 pub use arbitrary_int::u82;
+#[doc(no_inline)]
 pub use arbitrary_int::u83;
+#[doc(no_inline)]
 pub use arbitrary_int::u84;
+#[doc(no_inline)]
 pub use arbitrary_int::u85;
+#[doc(no_inline)]
 pub use arbitrary_int::u86;
+#[doc(no_inline)]
 pub use arbitrary_int::u87;
+#[doc(no_inline)]
 pub use arbitrary_int::u88;
+#[doc(no_inline)]
 pub use arbitrary_int::u89;
+#[doc(no_inline)]
 pub use arbitrary_int::u9;
+#[doc(no_inline)]
 pub use arbitrary_int::u90;
+#[doc(no_inline)]
 pub use arbitrary_int::u91;
+#[doc(no_inline)]
 pub use arbitrary_int::u92;
+#[doc(no_inline)]
 pub use arbitrary_int::u93;
+#[doc(no_inline)]
 pub use arbitrary_int::u94;
+#[doc(no_inline)]
 pub use arbitrary_int::u95;
+#[doc(no_inline)]
 pub use arbitrary_int::u96;
+#[doc(no_inline)]
 pub use arbitrary_int::u97;
+#[doc(no_inline)]
 pub use arbitrary_int::u98;
+#[doc(no_inline)]
 pub use arbitrary_int::u99;
-
-pub use ribbit_derive::Pack;
 
 /// Support for atomic operations on packed representations.
 #[cfg(feature = "atomic")]
