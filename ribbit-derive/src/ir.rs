@@ -259,6 +259,7 @@ pub(crate) struct ItemOpt {
     pub(crate) into_raw: gen::into_raw::ItemOpt,
     #[darling(default)]
     pub(crate) derive: Derive,
+    pub(crate) forward: Option<Forward>,
 }
 
 impl core::ops::Deref for ItemOpt {
@@ -270,7 +271,6 @@ impl core::ops::Deref for ItemOpt {
 
 #[derive(FromMeta, Clone, Debug)]
 pub(crate) struct VariantOpt {
-    pub(crate) forward: Option<Forward>,
     #[darling(default)]
     pub(crate) size: SpannedValue<Option<usize>>,
     #[darling(default)]
