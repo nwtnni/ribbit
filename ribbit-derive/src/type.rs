@@ -61,7 +61,7 @@ impl Type {
         // for newtype structs.
         let nonzero = match (newtype, *opt_field.nonzero) {
             (false, nonzero) | (true, nonzero @ true) => nonzero,
-            (true, false) => *opt_struct.nonzero,
+            (true, false) => *opt_struct.non_zero,
         };
         let size = match (newtype, *opt_field.size) {
             (false, size) | (true, size @ Some(_)) => size,

@@ -38,7 +38,7 @@ impl<'input> Ir<'input> {
                     bail!(Span::call_site()=> crate::Error::TopLevelSize);
                 };
 
-                let tight = match Tight::from_size(*item.opt.nonzero, size) {
+                let tight = match Tight::from_size(*item.opt.non_zero, size) {
                     Ok(tight) => tight,
                     // FIXME: span
                     Err(error) => bail!(item.opt.size=> error),
@@ -79,13 +79,13 @@ impl<'input> Ir<'input> {
                     })
                     .collect::<darling::Result<Vec<_>>>()?;
 
-                if *item.opt.nonzero {
+                if *item.opt.non_zero {
                     if let Some((variant, span)) = variants_ir
                         .iter()
                         .zip(variants)
                         .find(|(variant, _)| variant.discriminant == 0)
                     {
-                        if !*variant.r#struct.opt.nonzero {
+                        if !*variant.r#struct.opt.non_zero {
                             bail!(span=> crate::Error::VariantNonZero);
                         }
                     }
@@ -233,10 +233,10 @@ impl Struct<'_> {
             bail!(Span::call_site()=> crate::Error::TopLevelSize);
         };
 
-        let tight = match Tight::from_size(*opt.nonzero, size) {
+        let tight = match Tight::from_size(*opt.non_zero, size) {
             Ok(tight) => tight,
             // FIXME: span
-            Err(error) => bail!(opt.nonzero=> error),
+            Err(error) => bail!(opt.non_zero=> error),
         };
 
         let mut bits = 1u128.unbounded_shl(tight.size() as u32).wrapping_sub(1);
@@ -251,7 +251,7 @@ impl Struct<'_> {
             .collect::<Result<Vec<_>, _>>()?;
 
         if tight.is_nonzero() && fields.iter().all(|field| !field.r#type.is_nonzero()) {
-            bail!(opt.nonzero=> crate::Error::StructNonZero);
+            bail!(opt.non_zero=> crate::Error::StructNonZero);
         }
 
         Ok(Struct {
@@ -279,7 +279,7 @@ pub(crate) struct StructOpt {
     #[darling(default)]
     pub(crate) size: SpannedValue<Option<usize>>,
     #[darling(default)]
-    pub(crate) nonzero: SpannedValue<bool>,
+    pub(crate) non_zero: SpannedValue<bool>,
     #[darling(default)]
     pub(crate) packed: gen::packed::StructOpt,
     #[darling(default)]
@@ -288,6 +288,13 @@ pub(crate) struct StructOpt {
     pub(crate) into_raw: gen::into_raw::StructOpt,
     #[darling(default)]
     pub(crate) from_raw_unchecked: gen::from_raw_unchecked::StructOpt,
+    #[darling(default)]
+    pub(crate) derive: Derive,
+}
+
+#[derive(FromMeta, Clone, Default, Debug)]
+#[darling(rename_all = "PascalCase")]
+pub(crate) struct Derive {
     pub(crate) debug: Option<gen::debug::StructOpt>,
     pub(crate) eq: Option<gen::eq::StructOpt>,
     pub(crate) ord: Option<gen::ord::StructOpt>,

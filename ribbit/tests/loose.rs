@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use ribbit::Pack as _;
 
 #[derive(ribbit::Pack, Copy, Clone, Debug)]
-#[ribbit(size = 32, hash, debug, eq, ord)]
+#[ribbit(size = 32, derive(Hash, Debug, Eq, Ord))]
 struct Outer<T> {
     #[ribbit(size = 32)]
     inner: T,

@@ -118,7 +118,7 @@ fn two_bit() {
 }
 
 #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
-#[ribbit(size = 16, nonzero)]
+#[ribbit(size = 16, non_zero)]
 struct NonZero {
     nonzero: ribbit::NonZeroU16,
 }
@@ -175,7 +175,7 @@ fn annotated_size_larger() {
 }
 
 #[derive(ribbit::Pack, Copy, Clone)]
-#[ribbit(size = 32, nonzero)]
+#[ribbit(size = 32, non_zero)]
 struct AbsolutePath {
     a: ::core::num::NonZeroU8,
     b: ribbit::u24,
@@ -201,7 +201,7 @@ struct Tuple128(u32, u32, u64);
 #[cfg(feature = "u128")]
 #[expect(dead_code)]
 #[derive(ribbit::Pack, Copy, Clone)]
-#[ribbit(size = 128, nonzero)]
+#[ribbit(size = 128, non_zero)]
 struct NonZero128(ribbit::NonZeroU128);
 
 #[cfg(feature = "u128")]

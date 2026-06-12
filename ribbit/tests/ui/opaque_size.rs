@@ -1,5 +1,5 @@
 #[derive(ribbit::Pack, Copy, Clone)]
-#[ribbit(size = 16, nonzero)]
+#[ribbit(size = 16, non_zero)]
 struct Inner(ribbit::NonZeroU16);
 
 #[derive(ribbit::Pack, Copy, Clone)]

@@ -8,7 +8,7 @@ use crate::ir;
 pub(crate) struct StructOpt;
 
 pub(crate) fn from(ir: &ir::Ir) -> TokenStream {
-    let Some(StructOpt) = &ir.opt().from else {
+    let Some(StructOpt) = &ir.opt().derive.from else {
         return TokenStream::new();
     };
 

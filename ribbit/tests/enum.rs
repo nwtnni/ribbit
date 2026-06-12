@@ -2,7 +2,7 @@ use ribbit::Pack as _;
 use ribbit::Unpack as _;
 
 #[derive(ribbit::Pack, Copy, Clone, Debug)]
-#[ribbit(size = 16, debug, eq)]
+#[ribbit(size = 16, derive(Debug, Eq))]
 enum SingleNamed {
     #[ribbit(size = 16)]
     A { a: u16 },
@@ -59,7 +59,7 @@ fn single_unit() {
 }
 
 #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
-#[ribbit(size = 34, eq, debug)]
+#[ribbit(size = 34, derive(Debug, Eq))]
 enum Mixed {
     #[ribbit(size = 16)]
     X { a: u16 },
@@ -110,7 +110,7 @@ fn mixed() {
 
 #[repr(u8)]
 #[derive(ribbit::Pack, Copy, Clone, Debug)]
-#[ribbit(size = 48, eq, debug)]
+#[ribbit(size = 48, derive(Debug, Eq))]
 enum Discriminant {
     #[ribbit(size = 16)]
     X { a: u16 } = 3,
@@ -146,7 +146,7 @@ fn discriminant() {
 
 #[repr(u8)]
 #[derive(ribbit::Pack, Copy, Clone, Debug)]
-#[ribbit(size = 64, eq, debug, nonzero)]
+#[ribbit(size = 64, non_zero, derive(Debug, Eq))]
 enum NonZero {
     #[ribbit(size = 16)]
     X { a: u16 } = 3,
@@ -186,7 +186,7 @@ fn nonzero() {
 }
 
 #[derive(ribbit::Pack, Copy, Clone, Debug)]
-#[ribbit(size = 8, debug, eq)]
+#[ribbit(size = 8, derive(Debug, Eq))]
 enum UnitOmitSize {
     A,
     B,
@@ -201,7 +201,7 @@ fn unit_omit_size() {
 }
 
 #[derive(ribbit::Pack, Copy, Clone, Debug)]
-#[ribbit(size = 8, debug, eq)]
+#[ribbit(size = 8, derive(Debug, Eq))]
 enum UnitDiscriminant {
     A = 1,
     B = 5,

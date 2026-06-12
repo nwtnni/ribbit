@@ -8,7 +8,7 @@ use ribbit::u9;
 use ribbit::Atomic;
 
 #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
-#[ribbit(size = 32, debug, eq)]
+#[ribbit(size = 32, derive(Debug, Eq))]
 struct Aligned {
     lo: u16,
     hi: u16,
@@ -32,7 +32,7 @@ fn aligned() {
 }
 
 #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
-#[ribbit(size = 32, debug, eq)]
+#[ribbit(size = 32, derive(Debug, Eq))]
 struct Unaligned {
     lo: u9,
     hi: u22,
@@ -75,7 +75,7 @@ fn unaligned() {
 }
 
 #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
-#[ribbit(size = 64, debug, eq)]
+#[ribbit(size = 64, derive(Debug, Eq))]
 struct Undersized {
     lo: u9,
     hi: u26,
@@ -118,7 +118,7 @@ fn undersized() {
 }
 
 #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
-#[ribbit(size = 64, debug, eq)]
+#[ribbit(size = 64, derive(Debug, Eq))]
 struct Mutable {
     lo: u9,
     hi: u26,

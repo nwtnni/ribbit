@@ -20,7 +20,7 @@ struct Whole {
 }
 
 #[derive(ribbit::Pack, Copy, Clone)]
-#[ribbit(size = 16, nonzero)]
+#[ribbit(size = 16, non_zero)]
 struct LowNonZero {
     a: NonZeroU16,
 }
@@ -29,7 +29,7 @@ struct LowNonZero {
 #[derive(ribbit::Pack, Copy, Clone)]
 #[ribbit(size = 48)]
 struct WholeNonZero {
-    #[ribbit(size = 16, nonzero)]
+    #[ribbit(size = 16, non_zero)]
     low: crate::LowNonZero,
     b: u32,
 }

@@ -1073,7 +1073,7 @@ impl_u128!(
 #[allow(private_bounds)]
 unsafe trait NonZero {}
 
-macro_rules! impl_nonzero {
+macro_rules! impl_non_zero {
     ($unsigned:ty, $signed:ty, $loose:ty, $bits:expr) => {
         impl_pack!($unsigned);
         impl_unpack!($unsigned, $bits, $loose);
@@ -1085,12 +1085,12 @@ macro_rules! impl_nonzero {
     };
 }
 
-impl_nonzero!(NonZeroU8, NonZeroI8, u8, 8);
-impl_nonzero!(NonZeroU16, NonZeroI16, u16, 16);
-impl_nonzero!(NonZeroU32, NonZeroI32, u32, 32);
-impl_nonzero!(NonZeroU64, NonZeroI64, u64, 64);
+impl_non_zero!(NonZeroU8, NonZeroI8, u8, 8);
+impl_non_zero!(NonZeroU16, NonZeroI16, u16, 16);
+impl_non_zero!(NonZeroU32, NonZeroI32, u32, 32);
+impl_non_zero!(NonZeroU64, NonZeroI64, u64, 64);
 #[cfg(feature = "u128")]
-impl_nonzero!(NonZeroU128, NonZeroI128, u128, 128);
+impl_non_zero!(NonZeroU128, NonZeroI128, u128, 128);
 
 unsafe impl<T> Pack for Option<T>
 where
@@ -1144,7 +1144,7 @@ where
 pub mod private {
     /// `const` assertion that `T` is backed by a non-zero type.
     #[expect(private_bounds)]
-    pub const fn assert_nonzero<T>()
+    pub const fn assert_non_zero<T>()
     where
         T: crate::Pack,
         <T::Packed as crate::Unpack>::Raw: crate::NonZero,

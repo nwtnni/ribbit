@@ -9,7 +9,7 @@ use crate::ir;
 pub(crate) struct StructOpt;
 
 pub(crate) fn debug(ir: &ir::Ir) -> TokenStream {
-    if ir.opt().debug.is_none() {
+    if ir.opt().derive.debug.is_none() {
         return TokenStream::new();
     }
 

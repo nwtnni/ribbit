@@ -56,7 +56,7 @@ fn phantom_last() {
 }
 
 #[derive(ribbit::Pack)]
-#[ribbit(size = 64, nonzero)]
+#[ribbit(size = 64, non_zero)]
 struct Phantom<A> {
     a: NonZeroU64,
     #[ribbit(size = 0)]
@@ -83,7 +83,7 @@ fn phantom_nonzero() {
 }
 
 #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
-#[ribbit(size = 0, debug, eq)]
+#[ribbit(size = 0, derive(Debug, Eq))]
 struct Zst;
 
 #[test]

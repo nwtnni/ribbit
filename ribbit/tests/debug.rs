@@ -5,7 +5,7 @@ use ribbit::Pack as _;
 use ribbit::Unpack as _;
 
 #[derive(ribbit::Pack, Copy, Clone, Debug)]
-#[ribbit(size = 26, debug)]
+#[ribbit(size = 26, derive(Debug))]
 pub struct NamedStruct {
     l: u16,
     m: NonZeroU8,
@@ -24,7 +24,7 @@ fn named_struct() {
 }
 
 #[derive(ribbit::Pack, Copy, Clone, Debug)]
-#[ribbit(size = 5, debug)]
+#[ribbit(size = 5, derive(Debug))]
 struct TupleStruct(bool, #[ribbit(offset = 3)] u2);
 
 #[test]
@@ -34,7 +34,7 @@ fn tuple_struct() {
 }
 
 #[derive(ribbit::Pack, Copy, Clone, Debug)]
-#[ribbit(size = 32, debug)]
+#[ribbit(size = 32, derive(Debug))]
 enum Enum {
     #[ribbit(size = 0)]
     Foo,

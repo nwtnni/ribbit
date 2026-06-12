@@ -72,7 +72,7 @@ fn compose() {
 }
 
 #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
-#[ribbit(size = 8, debug, eq)]
+#[ribbit(size = 8, derive(Debug, Eq))]
 enum EnumNewtype<T> {
     #[ribbit(size = 7)]
     Left(T),
@@ -99,14 +99,14 @@ fn r#enum_newtype() {
 }
 
 #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
-#[ribbit(size = 8, debug, eq)]
+#[ribbit(size = 8, derive(Debug, Eq))]
 enum EnumNamed<T> {
-    #[ribbit(size = 7, debug, from)]
+    #[ribbit(size = 7)]
     Left {
         #[ribbit(size = 7)]
         l: T,
     },
-    #[ribbit(size = 7, debug, from)]
+    #[ribbit(size = 7)]
     Right {
         #[ribbit(size = 7)]
         r: T,
@@ -132,11 +132,11 @@ fn r#enum_named() {
 }
 
 #[derive(ribbit::Pack, Copy, Clone, Debug)]
-#[ribbit(size = 3, debug, eq)]
+#[ribbit(size = 3, derive(Debug, Eq))]
 struct Small(ribbit::u3);
 
 #[derive(ribbit::Pack, Copy, Clone)]
-#[ribbit(size = 24, debug)]
+#[ribbit(size = 24, derive(Debug))]
 struct Large<T> {
     #[ribbit(size = 16)]
     a: T,
@@ -207,7 +207,7 @@ fn const_new() {
 }
 
 #[derive(Debug, PartialEq, Eq, ribbit::Pack)]
-#[ribbit(size = 64, debug, eq)]
+#[ribbit(size = 64, derive(Debug, Eq))]
 struct Phantom<T> {
     data: u64,
     _type: ribbit::PhantomData<T>,
