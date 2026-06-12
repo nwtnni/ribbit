@@ -34,7 +34,7 @@ pub(crate) enum Type {
 impl Type {
     pub(crate) fn parse(
         newtype: bool,
-        opt_struct: &ir::StructOpt,
+        opt_variant: &ir::VariantOpt,
         opt_field: &ir::FieldOpt,
         type_params: &IdentSet,
         ty: syn::Type,
@@ -61,11 +61,11 @@ impl Type {
         // for newtype structs.
         let non_zero = match (newtype, *opt_field.non_zero) {
             (false, non_zero) | (true, non_zero @ true) => non_zero,
-            (true, false) => *opt_struct.non_zero,
+            (true, false) => *opt_variant.non_zero,
         };
         let size = match (newtype, *opt_field.size) {
             (false, size) | (true, size @ Some(_)) => size,
-            (true, None) => *opt_struct.size,
+            (true, None) => *opt_variant.size,
         };
 
         let Some(size) = size else {

@@ -10,7 +10,7 @@ use crate::ir;
 #[darling(attributes(ribbit))]
 pub(crate) struct Item {
     #[darling(flatten)]
-    pub(crate) opt: ir::StructOpt,
+    pub(crate) opt: ir::ItemOpt,
     pub(crate) vis: syn::Visibility,
     pub(crate) ident: syn::Ident,
     pub(crate) generics: syn::Generics,
@@ -21,7 +21,7 @@ pub(crate) struct Item {
 #[darling(attributes(ribbit))]
 pub(crate) struct Variant {
     #[darling(flatten)]
-    pub(crate) opt: ir::StructOpt,
+    pub(crate) opt: ir::VariantOpt,
     pub(crate) ident: syn::Ident,
     pub(crate) fields: Fields<SpannedValue<Field>>,
     pub(crate) discriminant: Option<syn::Expr>,

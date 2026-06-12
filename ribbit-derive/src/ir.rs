@@ -19,6 +19,7 @@ use crate::r#type::Tight;
 use crate::Type;
 
 pub(crate) struct Ir<'input> {
+    opt: &'input ItemOpt,
     pub(crate) vis: syn::Visibility,
     generics: &'input syn::Generics,
     generics_bounded: syn::Generics,
@@ -54,6 +55,7 @@ impl<'input> Ir<'input> {
                             &mut generics_where.predicates,
                             &variant.opt,
                             &variant.ident,
+                            Cow::Borrowed(&variant.ident),
                             &variant.fields,
                         )?;
 
@@ -73,6 +75,7 @@ impl<'input> Ir<'input> {
                         current_discriminant = discriminant + 1;
 
                         Ok(Variant {
+                            opt: &variant.opt,
                             discriminant,
                             r#struct,
                         })
@@ -85,7 +88,7 @@ impl<'input> Ir<'input> {
                         .zip(variants)
                         .find(|(variant, _)| variant.discriminant == 0)
                     {
-                        if !*variant.r#struct.opt.non_zero {
+                        if !*variant.opt.non_zero {
                             bail!(span=> crate::Error::VariantNonZero);
                         }
                     }
@@ -114,7 +117,6 @@ impl<'input> Ir<'input> {
 
                 let unpacked = &item.ident;
                 let r#enum = Enum {
-                    opt: &item.opt,
                     packed: item.opt.packed.name(unpacked),
                     unpacked,
                     r#type: Type::User {
@@ -136,12 +138,14 @@ impl<'input> Ir<'input> {
                 &mut generics_where.predicates,
                 &item.opt,
                 &item.ident,
+                item.opt.packed.name(&item.ident),
                 r#struct,
             )
             .map(Data::Struct)?,
         };
 
         Ok(Ir {
+            opt: &item.opt,
             vis: raise_vis(&item.vis),
             generics: &item.generics,
             generics_bounded,
@@ -167,11 +171,8 @@ impl<'input> Ir<'input> {
         }
     }
 
-    pub(crate) fn opt(&self) -> &StructOpt {
-        match &self.data {
-            Data::Enum(r#enum) => r#enum.opt,
-            Data::Struct(r#struct) => r#struct.opt,
-        }
+    pub(crate) fn opt(&self) -> &ItemOpt {
+        self.opt
     }
 
     pub(crate) fn r#type(&self) -> &Type {
@@ -192,7 +193,6 @@ pub(crate) enum Data<'input> {
 }
 
 pub(crate) struct Enum<'input> {
-    pub(crate) opt: &'input StructOpt,
     pub(crate) unpacked: &'input syn::Ident,
     pub(crate) packed: Cow<'input, syn::Ident>,
     pub(crate) r#type: Type,
@@ -207,6 +207,7 @@ pub(crate) struct Discriminant {
 }
 
 pub(crate) struct Variant<'input> {
+    pub(crate) opt: &'input VariantOpt,
     pub(crate) discriminant: usize,
     pub(crate) r#struct: Struct<'input>,
 }
@@ -215,7 +216,6 @@ pub(crate) struct Struct<'input> {
     pub(crate) unpacked: &'input syn::Ident,
     pub(crate) packed: Cow<'input, syn::Ident>,
     pub(crate) r#type: Type,
-    pub(crate) opt: &'input StructOpt,
 
     pub(crate) max_offset: usize,
     pub(crate) fields: Vec<Field<'input>>,
@@ -225,8 +225,9 @@ impl Struct<'_> {
     fn new<'input>(
         type_params: &darling::usage::IdentSet,
         bounds: &mut Punctuated<syn::WherePredicate, syn::Token![,]>,
-        opt: &'input StructOpt,
+        opt: &'input VariantOpt,
         unpacked: &'input syn::Ident,
+        packed: Cow<'input, syn::Ident>,
         fields: &'input darling::ast::Fields<SpannedValue<input::Field>>,
     ) -> darling::Result<Struct<'input>> {
         let Some(size) = opt.size.or_else(|| fields.is_unit().then_some(0)) else {
@@ -255,14 +256,13 @@ impl Struct<'_> {
         }
 
         Ok(Struct {
-            packed: opt.packed.name(unpacked),
             unpacked,
+            packed,
             r#type: Type::User {
                 path: parse_quote!(#unpacked),
                 uses: Default::default(),
                 tight,
             },
-            opt,
             max_offset: fields.iter().map(|field| field.offset).max().unwrap_or(0),
             fields,
         })
@@ -274,22 +274,35 @@ impl Struct<'_> {
 }
 
 #[derive(FromMeta, Clone, Debug)]
-pub(crate) struct StructOpt {
+pub(crate) struct ItemOpt {
+    #[darling(flatten)]
+    variant: VariantOpt,
+    #[darling(default)]
+    pub(crate) packed: gen::packed::StructOpt,
+    #[darling(default)]
+    pub(crate) into_raw: gen::into_raw::StructOpt,
+    #[darling(default)]
+    pub(crate) derive: Derive,
+}
+
+impl core::ops::Deref for ItemOpt {
+    type Target = VariantOpt;
+    fn deref(&self) -> &Self::Target {
+        &self.variant
+    }
+}
+
+#[derive(FromMeta, Clone, Debug)]
+pub(crate) struct VariantOpt {
     pub(crate) forward: Option<Forward>,
     #[darling(default)]
     pub(crate) size: SpannedValue<Option<usize>>,
     #[darling(default)]
     pub(crate) non_zero: SpannedValue<bool>,
     #[darling(default)]
-    pub(crate) packed: gen::packed::StructOpt,
-    #[darling(default)]
-    pub(crate) new: gen::new::StructOpt,
-    #[darling(default)]
-    pub(crate) into_raw: gen::into_raw::StructOpt,
-    #[darling(default)]
     pub(crate) from_raw_unchecked: gen::from_raw_unchecked::StructOpt,
     #[darling(default)]
-    pub(crate) derive: Derive,
+    pub(crate) new: gen::new::StructOpt,
 }
 
 #[derive(FromMeta, Clone, Default, Debug)]
@@ -312,7 +325,7 @@ pub(crate) struct Field<'input> {
 
 impl<'input> Field<'input> {
     fn new(
-        opt: &StructOpt,
+        opt: &VariantOpt,
         type_params: &darling::usage::IdentSet,
         bounds: &mut Punctuated<syn::WherePredicate, syn::Token![,]>,
         bits: &mut u128,

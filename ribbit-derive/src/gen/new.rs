@@ -32,7 +32,7 @@ pub(crate) fn new<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + '
         )))),
         ir::Data::Enum(r#enum @ ir::Enum { variants, .. }) => {
             Or::R(Or::R(variants.iter().filter_map(move |variant| {
-                let opt = &variant.r#struct.opt.new;
+                let opt = &variant.opt.new;
                 if opt.0.skip {
                     return None;
                 }

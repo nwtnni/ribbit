@@ -34,7 +34,7 @@ pub(crate) fn from_raw_unchecked<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = T
         ir::Data::Struct(_) => Or::L(core::iter::empty()),
         ir::Data::Enum(r#enum @ ir::Enum { variants, .. }) => {
             Or::R(variants.iter().filter_map(move |variant| {
-                let opt = &variant.r#struct.opt.from_raw_unchecked;
+                let opt = &variant.opt.from_raw_unchecked;
                 if opt.0.skip {
                     return None;
                 }
