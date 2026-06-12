@@ -7,13 +7,13 @@ use crate::ir;
 #[derive(FromMeta, Clone, Debug)]
 pub(crate) struct ItemOpt;
 
-pub(crate) fn ord(ir: &ir::Ir) -> TokenStream {
-    if ir.opt().derive.ord.is_none() {
+pub(crate) fn ord(item: &ir::Item) -> TokenStream {
+    if item.opt().derive.ord.is_none() {
         return TokenStream::new();
     }
 
-    let (generics_impl, generics_type, generics_where) = ir.generics().split_for_impl();
-    let packed = ir.ident_packed();
+    let (generics_impl, generics_type, generics_where) = item.generics().split_for_impl();
+    let packed = item.ident_packed();
 
     quote! {
         impl #generics_impl PartialOrd for #packed #generics_type #generics_where {

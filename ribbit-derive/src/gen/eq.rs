@@ -7,13 +7,13 @@ use crate::ir;
 #[derive(FromMeta, Clone, Debug)]
 pub(crate) struct ItemOpt;
 
-pub(crate) fn eq(ir: &ir::Ir) -> TokenStream {
-    if ir.opt().derive.eq.is_none() {
+pub(crate) fn eq(item: &ir::Item) -> TokenStream {
+    if item.opt().derive.eq.is_none() {
         return TokenStream::new();
     }
 
-    let (generics_impl, generics_type, generics_where) = ir.generics().split_for_impl();
-    let packed = ir.ident_packed();
+    let (generics_impl, generics_type, generics_where) = item.generics().split_for_impl();
+    let packed = item.ident_packed();
 
     quote!(
         impl #generics_impl Eq for #packed #generics_type #generics_where {}

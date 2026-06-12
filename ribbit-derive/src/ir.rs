@@ -18,7 +18,7 @@ use crate::input;
 use crate::r#type::Tight;
 use crate::Type;
 
-pub(crate) struct Ir<'input> {
+pub(crate) struct Item<'input> {
     opt: &'input ItemOpt,
     pub(crate) vis: syn::Visibility,
     generics: &'input syn::Generics,
@@ -27,7 +27,7 @@ pub(crate) struct Ir<'input> {
     pub(crate) data: Data<'input>,
 }
 
-impl<'input> Ir<'input> {
+impl<'input> Item<'input> {
     pub(crate) fn new(item: &'input input::Item) -> darling::Result<Self> {
         let type_params = item.generics.declared_type_params();
 
@@ -142,7 +142,7 @@ impl<'input> Ir<'input> {
             .map(Data::Struct)?,
         };
 
-        Ok(Ir {
+        Ok(Item {
             packed: item.opt.packed.name(&item.ident),
             opt: &item.opt,
             vis: raise_vis(&item.vis),

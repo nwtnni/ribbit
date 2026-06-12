@@ -22,8 +22,8 @@ impl FieldOpt {
     }
 }
 
-pub(crate) fn with<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 'ir {
-    let ir::Data::Struct(r#struct) = &ir.data else {
+pub(crate) fn with<'ir>(item: &'ir ir::Item) -> impl Iterator<Item = TokenStream> + 'ir {
+    let ir::Data::Struct(r#struct) = &item.data else {
         return Or::L(iter::empty());
     };
 
@@ -40,7 +40,7 @@ pub(crate) fn with<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 
                         !(field.r#type.mask() << field.offset) & r#struct.r#type.as_tight().mask(),
                     ),
                 ])
-                .compile(ir.r#type().as_tight());
+                .compile(item.r#type().as_tight());
 
                 let vis = field.opt.with.0.vis(&field.vis);
                 let with = FieldOpt::name(field);

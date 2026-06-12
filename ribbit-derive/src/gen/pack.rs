@@ -3,11 +3,11 @@ use quote::quote;
 
 use crate::ir;
 
-pub(crate) fn pack(ir: &ir::Ir) -> TokenStream {
-    let unpacked = ir.ident_unpacked();
-    let packed = ir.ident_packed();
+pub(crate) fn pack(item: &ir::Item) -> TokenStream {
+    let unpacked = item.ident_unpacked();
+    let packed = item.ident_packed();
 
-    let pack = match &ir.data {
+    let pack = match &item.data {
         ir::Data::Struct(r#struct) => {
             let arguments = r#struct
                 .iter()
@@ -24,7 +24,7 @@ pub(crate) fn pack(ir: &ir::Ir) -> TokenStream {
                     .iter()
                     .map(|field| field.ident.pattern());
 
-                let new = ir.opt().new.name(Some(variant.r#struct.unpacked));
+                let new = item.opt().new.name(Some(variant.r#struct.unpacked));
 
                 let arguments = variant.r#struct.fields.iter().map(|field| {
                     let name = field.ident.escape();
@@ -45,7 +45,7 @@ pub(crate) fn pack(ir: &ir::Ir) -> TokenStream {
         }
     };
 
-    let generics = ir.generics_bounded();
+    let generics = item.generics_bounded();
     let (generics_impl, generics_type, generics_where) = generics.split_for_impl();
 
     quote! {

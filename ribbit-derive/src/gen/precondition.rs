@@ -13,8 +13,8 @@ pub(crate) fn assert() -> TokenStream {
     }
 }
 
-pub(crate) fn precondition(ir: &ir::Ir) -> TokenStream {
-    let assertions = match &ir.data {
+pub(crate) fn precondition(item: &ir::Item) -> TokenStream {
+    let assertions = match &item.data {
         ir::Data::Struct(r#struct) => Or::L(precondition_struct(r#struct)),
         ir::Data::Enum(r#enum) => Or::R(
             r#enum

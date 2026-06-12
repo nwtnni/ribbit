@@ -8,17 +8,17 @@ use crate::ir;
 #[derive(FromMeta, Clone, Debug)]
 pub(crate) struct ItemOpt;
 
-pub(crate) fn debug(ir: &ir::Ir) -> TokenStream {
-    if ir.opt().derive.debug.is_none() {
+pub(crate) fn debug(item: &ir::Item) -> TokenStream {
+    if item.opt().derive.debug.is_none() {
         return TokenStream::new();
     }
 
-    let packed = ir.ident_packed();
-    let unpacked = ir.ident_unpacked();
+    let packed = item.ident_packed();
+    let unpacked = item.ident_unpacked();
 
     // Add Unpacked: Debug clause to where bound
-    let mut generics = ir.generics_bounded().clone();
-    let (_, generics_type, _) = ir.generics().split_for_impl();
+    let mut generics = item.generics_bounded().clone();
+    let (_, generics_type, _) = item.generics().split_for_impl();
     generics
         .make_where_clause()
         .predicates

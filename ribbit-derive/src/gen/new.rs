@@ -14,16 +14,16 @@ use crate::Or;
 #[derive(FromMeta, Clone, Debug, Default)]
 pub(crate) struct VariantOpt(ir::CommonOpt);
 
-pub(crate) fn new<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 'ir {
-    let opt = &ir.opt().new;
+pub(crate) fn new<'ir>(item: &'ir ir::Item) -> impl Iterator<Item = TokenStream> + 'ir {
+    let opt = &item.opt().new;
     if opt.0.skip {
         return Or::L(iter::empty());
     }
 
-    let vis = opt.0.vis(&ir.vis);
-    let tight = ir.r#type().as_tight();
+    let vis = opt.0.vis(&item.vis);
+    let tight = item.r#type().as_tight();
 
-    match &ir.data {
+    match &item.data {
         ir::Data::Struct(r#struct) => Or::R(Or::L(iter::once(new_struct(
             vis,
             &opt.name(None),

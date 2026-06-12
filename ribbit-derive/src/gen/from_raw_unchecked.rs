@@ -15,22 +15,24 @@ use crate::Or;
 #[derive(FromMeta, Clone, Debug, Default)]
 pub(crate) struct VariantOpt(ir::CommonOpt);
 
-pub(crate) fn from_raw_unchecked<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 'ir {
-    let opt = &ir.opt().from_raw_unchecked;
-    let vis = opt.0.vis(&ir.vis);
-    let tight = ir.r#type().as_tight();
+pub(crate) fn from_raw_unchecked<'ir>(
+    item: &'ir ir::Item,
+) -> impl Iterator<Item = TokenStream> + 'ir {
+    let opt = &item.opt().from_raw_unchecked;
+    let vis = opt.0.vis(&item.vis);
+    let tight = item.r#type().as_tight();
 
     if opt.0.skip {
         Or::L(core::iter::empty())
     } else {
         Or::R(iter::once(from_raw_unchecked_struct(
             vis,
-            &ir.opt().from_raw_unchecked.name(None),
+            &item.opt().from_raw_unchecked.name(None),
             tight,
             |expr| expr.compile(tight),
         )))
     }
-    .chain(match &ir.data {
+    .chain(match &item.data {
         ir::Data::Struct(_) => Or::L(core::iter::empty()),
         ir::Data::Enum(r#enum @ ir::Enum { variants, .. }) => {
             Or::R(variants.iter().filter_map(move |variant| {

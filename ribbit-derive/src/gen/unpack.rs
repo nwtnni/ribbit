@@ -4,11 +4,11 @@ use quote::quote;
 use crate::ir;
 use crate::lift;
 
-pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
-    let unpacked = ir.ident_unpacked();
-    let packed = ir.ident_packed();
+pub(crate) fn unpack(item: &ir::Item) -> TokenStream {
+    let unpacked = item.ident_unpacked();
+    let packed = item.ident_packed();
 
-    let unpack = match &ir.data {
+    let unpack = match &item.data {
         ir::Data::Struct(r#struct) => {
             let fields = r#struct.iter().map(|field| {
                 let unescaped = &field.ident;
@@ -67,10 +67,10 @@ pub(crate) fn unpack(ir: &ir::Ir) -> TokenStream {
         }
     };
 
-    let generics = ir.generics_bounded();
+    let generics = item.generics_bounded();
     let (generics_impl, generics_type, generics_where) = generics.split_for_impl();
 
-    let tight = ir.r#type().as_tight();
+    let tight = item.r#type().as_tight();
     let size = tight.size();
     let loose = tight.to_loose();
 

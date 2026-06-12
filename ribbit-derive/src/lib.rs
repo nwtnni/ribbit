@@ -10,7 +10,7 @@ pub(crate) use r#type::Type;
 
 use darling::FromDeriveInput as _;
 use heck::ToSnakeCase as _;
-use ir::Ir;
+use ir::Item;
 use proc_macro2::TokenStream;
 use quote::format_ident;
 use quote::quote;
@@ -32,29 +32,29 @@ pub fn pack(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
 // (2) handles errors by writing them out.
 fn pack_impl(input: syn::DeriveInput, output: &mut TokenStream) -> Result<(), darling::Error> {
     let input = input::Item::from_derive_input(&input)?;
-    let ir = Ir::new(&input)?;
+    let item = Item::new(&input)?;
 
-    let precondition = gen::precondition(&ir);
-    let new = gen::new(&ir);
-    let pack = gen::pack(&ir);
-    let packed = gen::packed(&ir);
-    let unpack = gen::unpack(&ir);
-    let get = gen::get(&ir);
-    let with = gen::with(&ir);
-    let into_raw = gen::into_raw(&ir);
-    let from_raw_unchecked = gen::from_raw_unchecked(&ir);
-    let from = gen::from(&ir);
-    let debug = gen::debug(&ir);
-    let hash = gen::hash(&ir);
-    let eq = gen::eq(&ir);
-    let ord = gen::ord(&ir);
+    let precondition = gen::precondition(&item);
+    let new = gen::new(&item);
+    let pack = gen::pack(&item);
+    let packed = gen::packed(&item);
+    let unpack = gen::unpack(&item);
+    let get = gen::get(&item);
+    let with = gen::with(&item);
+    let into_raw = gen::into_raw(&item);
+    let from_raw_unchecked = gen::from_raw_unchecked(&item);
+    let from = gen::from(&item);
+    let debug = gen::debug(&item);
+    let hash = gen::hash(&item);
+    let eq = gen::eq(&item);
+    let ord = gen::ord(&item);
 
-    let generics = ir.generics_bounded();
+    let generics = item.generics_bounded();
     let (generics_impl, generics_type, generics_where) = generics.split_for_impl();
-    let ident_unpacked = ir.ident_unpacked();
-    let ident_packed = ir.ident_packed();
-    let ident_module = format_ident!("{}", ir.ident_packed().to_string().to_snake_case());
-    let vis_packed = ir.opt().packed.vis(&input.vis);
+    let ident_unpacked = item.ident_unpacked();
+    let ident_packed = item.ident_packed();
+    let ident_module = format_ident!("{}", item.ident_packed().to_string().to_snake_case());
+    let vis_packed = item.opt().packed.vis(&input.vis);
 
     output.append_all(quote! {
         #pack

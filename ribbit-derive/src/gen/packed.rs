@@ -21,14 +21,14 @@ impl ItemOpt {
     }
 }
 
-pub(crate) fn packed(ir: &ir::Ir) -> TokenStream {
-    let opt = &ir.opt().packed;
-    let forward = &ir.opt().forward;
-    let vis = opt.0.vis(&ir.vis);
-    let packed = ir.ident_packed();
-    let tight = ir.r#type().as_tight();
+pub(crate) fn packed(item: &ir::Item) -> TokenStream {
+    let opt = &item.opt().packed;
+    let forward = &item.opt().forward;
+    let vis = opt.0.vis(&item.vis);
+    let packed = item.ident_packed();
+    let tight = item.r#type().as_tight();
 
-    let generics = ir.generics();
+    let generics = item.generics();
     let (generics_impl, generics_type, generics_where) = generics.split_for_impl();
 
     // https://github.com/MrGVSV/to_phantom/blob/main/src/lib.rs

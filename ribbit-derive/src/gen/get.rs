@@ -18,8 +18,8 @@ impl FieldOpt {
     }
 }
 
-pub(crate) fn get<'ir>(ir: &'ir ir::Ir) -> impl Iterator<Item = TokenStream> + 'ir {
-    let ir::Data::Struct(r#struct) = &ir.data else {
+pub(crate) fn get<'ir>(item: &'ir ir::Item) -> impl Iterator<Item = TokenStream> + 'ir {
+    let ir::Data::Struct(r#struct) = &item.data else {
         return Or::L(core::iter::empty());
     };
 
