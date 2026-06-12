@@ -13,7 +13,7 @@ pub(crate) fn unpack(item: &ir::Item) -> TokenStream {
             let fields = r#struct.iter().map(|field| {
                 let unescaped = &field.ident;
                 let value = field.r#type.unpack(crate::gen::get::get_field(
-                    &r#struct.r#type,
+                    &r#struct.tight,
                     field,
                     r#struct.max_offset,
                     field.offset as u8,
@@ -32,7 +32,7 @@ pub(crate) fn unpack(item: &ir::Item) -> TokenStream {
                 let fields = variant.r#struct.fields.iter().map(|field| {
                     let name = &field.ident;
                     let value = field.r#type.unpack(crate::gen::get::get_field(
-                        &r#enum.r#type,
+                        &r#enum.tight,
                         field,
                         r#enum.discriminant.size + variant.r#struct.max_offset,
                         (r#enum.discriminant.size + field.offset) as u8,
@@ -42,8 +42,7 @@ pub(crate) fn unpack(item: &ir::Item) -> TokenStream {
                 });
 
                 let discriminant = r#enum
-                    .r#type
-                    .as_tight()
+                    .tight
                     .to_loose()
                     .literal(variant.discriminant as u128);
 
@@ -52,9 +51,9 @@ pub(crate) fn unpack(item: &ir::Item) -> TokenStream {
                 quote!(#discriminant => #unpacked::#ident { #(#fields ,)* })
             });
 
-            let discriminant = lift::Expr::value_self(&r#enum.r#type)
+            let discriminant = lift::Expr::value_self(&r#enum.tight)
                 .and(r#enum.discriminant.mask)
-                .compile(r#enum.r#type.to_loose());
+                .compile(r#enum.tight.to_loose());
 
             quote! {
                 match #discriminant {
@@ -70,7 +69,7 @@ pub(crate) fn unpack(item: &ir::Item) -> TokenStream {
     let generics = item.generics_bounded();
     let (generics_impl, generics_type, generics_where) = generics.split_for_impl();
 
-    let tight = item.r#type().as_tight();
+    let tight = item.tight();
     let size = tight.size();
     let loose = tight.to_loose();
 

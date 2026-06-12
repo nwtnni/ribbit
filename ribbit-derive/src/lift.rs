@@ -44,10 +44,10 @@ impl<'ir> Expr<'ir> {
         }
     }
 
-    pub(crate) fn value_self(r#type: &'ir Type) -> Self {
+    pub(crate) fn value_self(tight: &'ir Tight) -> Self {
         Self::ValueTight {
             value: quote!(self.value),
-            tight: r#type.as_tight(),
+            tight,
         }
     }
 

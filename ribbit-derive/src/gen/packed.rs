@@ -26,7 +26,7 @@ pub(crate) fn packed(item: &ir::Item) -> TokenStream {
     let forward = &item.opt().forward;
     let vis = opt.0.vis(&item.vis);
     let packed = item.ident_packed();
-    let tight = item.r#type().as_tight();
+    let tight = item.tight();
 
     let generics = item.generics();
     let (generics_impl, generics_type, generics_where) = generics.split_for_impl();

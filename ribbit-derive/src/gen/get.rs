@@ -6,8 +6,8 @@ use quote::quote;
 
 use crate::ir;
 use crate::lift;
+use crate::r#type::Tight;
 use crate::Or;
-use crate::Type;
 
 #[derive(FromMeta, Clone, Debug, Default)]
 pub(crate) struct FieldOpt(ir::CommonOpt);
@@ -32,7 +32,7 @@ pub(crate) fn get<'ir>(item: &'ir ir::Item) -> impl Iterator<Item = TokenStream>
             .filter(|field| !field.opt.get.0.skip)
             .map(move |field| {
                 let value = get_field(
-                    &r#struct.r#type,
+                    &r#struct.tight,
                     field,
                     r#struct.max_offset,
                     field.offset as u8,
@@ -53,7 +53,7 @@ pub(crate) fn get<'ir>(item: &'ir ir::Item) -> impl Iterator<Item = TokenStream>
 }
 
 pub(crate) fn get_field(
-    r#type: &Type,
+    tight: &Tight,
     field: &ir::Field,
     max_offset: usize,
     offset: u8,
@@ -66,7 +66,7 @@ pub(crate) fn get_field(
         _ => offset,
     };
 
-    let expr = lift::Expr::value_self(r#type).shift_right(offset);
+    let expr = lift::Expr::value_self(tight).shift_right(offset);
 
     // Loose type will be implicitly truncated by `as` cast
     match field.r#type.is_loose()

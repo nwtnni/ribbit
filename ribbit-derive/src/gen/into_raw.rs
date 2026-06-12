@@ -19,7 +19,7 @@ pub(crate) fn into_raw(item: &ir::Item) -> TokenStream {
 
     let vis = opt.0.vis(&item.vis);
     let name = opt.0.rename_with(|| Cow::Owned(format_ident!("into_raw")));
-    let tight = item.r#type().as_tight();
+    let tight = item.tight();
     let precondition = crate::gen::precondition::assert();
 
     quote! {

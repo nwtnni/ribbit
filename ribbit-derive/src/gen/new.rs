@@ -21,7 +21,7 @@ pub(crate) fn new<'ir>(item: &'ir ir::Item) -> impl Iterator<Item = TokenStream>
     }
 
     let vis = opt.0.vis(&item.vis);
-    let tight = item.r#type().as_tight();
+    let tight = item.tight();
 
     match &item.data {
         ir::Data::Struct(r#struct) => Or::R(Or::L(iter::once(new_struct(

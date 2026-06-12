@@ -20,7 +20,7 @@ pub(crate) fn from_raw_unchecked<'ir>(
 ) -> impl Iterator<Item = TokenStream> + 'ir {
     let opt = &item.opt().from_raw_unchecked;
     let vis = opt.0.vis(&item.vis);
-    let tight = item.r#type().as_tight();
+    let tight = item.tight();
 
     if opt.0.skip {
         Or::L(core::iter::empty())
@@ -52,7 +52,7 @@ pub(crate) fn from_raw_unchecked<'ir>(
                 Some(from_raw_unchecked_struct(
                     opt.0.vis(vis),
                     &opt.name(Some(variant.ident)),
-                    variant.r#struct.r#type.as_tight(),
+                    &variant.r#struct.tight,
                     compile,
                 ))
             }))

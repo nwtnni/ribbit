@@ -36,11 +36,10 @@ pub(crate) fn with<'ir>(item: &'ir ir::Item) -> impl Iterator<Item = TokenStream
                 let value = lift::Expr::or([
                     lift::Expr::value(field.ident.escape(), &field.r#type)
                         .shift_left(field.offset as u8),
-                    lift::Expr::value_self(&r#struct.r#type).and(
-                        !(field.r#type.mask() << field.offset) & r#struct.r#type.as_tight().mask(),
-                    ),
+                    lift::Expr::value_self(&r#struct.tight)
+                        .and(!(field.r#type.mask() << field.offset) & r#struct.tight.mask()),
                 ])
-                .compile(item.r#type().as_tight());
+                .compile(item.tight());
 
                 let vis = field.opt.with.0.vis(&field.vis);
                 let with = FieldOpt::name(field);

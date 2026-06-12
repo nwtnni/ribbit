@@ -56,7 +56,6 @@ impl<'input> Item<'input> {
                             &type_params,
                             &mut generics_where.predicates,
                             &variant.opt,
-                            &variant.ident,
                             &variant.fields,
                         )?;
 
@@ -107,23 +106,18 @@ impl<'input> Item<'input> {
                     .trailing_zeros() as usize;
 
                 for (variant, span) in variants_ir.iter().zip(variants) {
-                    let size_variant = variant.r#struct.r#type.as_tight().size();
+                    let size_variant = variant.r#struct.tight.size();
                     if size_variant + size_discriminant > size {
                         bail!(span=> crate::Error::VariantSize {
-                            variant: r#variant.r#struct.r#type.as_tight().size(),
+                            variant: r#variant.r#struct.tight.size(),
                             r#enum: size,
                             discriminant: size_discriminant,
                         });
                     }
                 }
 
-                let unpacked = &item.ident;
                 let r#enum = Enum {
-                    r#type: Type::User {
-                        path: parse_quote!(#unpacked),
-                        uses: Default::default(),
-                        tight,
-                    },
+                    tight,
                     discriminant: Discriminant {
                         size: size_discriminant,
                         mask: crate::mask(size_discriminant),
@@ -137,7 +131,6 @@ impl<'input> Item<'input> {
                 &type_params,
                 &mut generics_where.predicates,
                 &item.opt,
-                &item.ident,
                 r#struct,
             )
             .map(Data::Struct)?,
@@ -170,10 +163,10 @@ impl<'input> Item<'input> {
         self.opt
     }
 
-    pub(crate) fn r#type(&self) -> &Type {
+    pub(crate) fn tight(&self) -> &Tight {
         match &self.data {
-            Data::Enum(r#enum) => &r#enum.r#type,
-            Data::Struct(r#struct) => &r#struct.r#type,
+            Data::Enum(r#enum) => &r#enum.tight,
+            Data::Struct(r#struct) => &r#struct.tight,
         }
     }
 
@@ -188,8 +181,8 @@ pub(crate) enum Data<'input> {
 }
 
 pub(crate) struct Enum<'input> {
-    pub(crate) r#type: Type,
     pub(crate) discriminant: Discriminant,
+    pub(crate) tight: Tight,
     pub(crate) variants: Vec<Variant<'input>>,
 }
 
@@ -207,9 +200,8 @@ pub(crate) struct Variant<'input> {
 }
 
 pub(crate) struct Struct<'input> {
-    pub(crate) r#type: Type,
-
     pub(crate) max_offset: usize,
+    pub(crate) tight: Tight,
     pub(crate) fields: Vec<Field<'input>>,
 }
 
@@ -218,7 +210,6 @@ impl Struct<'_> {
         type_params: &darling::usage::IdentSet,
         bounds: &mut Punctuated<syn::WherePredicate, syn::Token![,]>,
         opt: &'input VariantOpt,
-        ident: &'input syn::Ident,
         fields: &'input darling::ast::Fields<SpannedValue<input::Field>>,
     ) -> darling::Result<Struct<'input>> {
         let Some(size) = opt.size.or_else(|| fields.is_unit().then_some(0)) else {
@@ -247,12 +238,8 @@ impl Struct<'_> {
         }
 
         Ok(Struct {
-            r#type: Type::User {
-                path: parse_quote!(#ident),
-                uses: Default::default(),
-                tight,
-            },
             max_offset: fields.iter().map(|field| field.offset).max().unwrap_or(0),
+            tight,
             fields,
         })
     }
