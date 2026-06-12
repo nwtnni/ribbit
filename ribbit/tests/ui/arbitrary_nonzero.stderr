@@ -1,5 +1,0 @@
-error: Unknown field: `nonzero`. Did you mean `non_zero`?
- --> tests/ui/arbitrary_nonzero.rs:6:21
-  |
-6 | #[ribbit(size = 15, nonzero)]
-  |                     ^^^^^^^

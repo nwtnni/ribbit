@@ -5,6 +5,7 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use quote::ToTokens;
 
+use crate::r#type::Arbitrary;
 use crate::r#type::Tight;
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -40,10 +41,6 @@ impl Loose {
         }
     }
 
-    pub(crate) fn mask(&self) -> u128 {
-        crate::mask(self.size())
-    }
-
     #[track_caller]
     pub(crate) fn literal(&self, value: u128) -> TokenStream {
         TokenStream::from_str(&format!("{value:#X}{self}")).unwrap()
@@ -51,26 +48,11 @@ impl Loose {
 
     pub(crate) fn as_tight(&self) -> &'static Tight {
         match self {
-            Loose::N8 => &Tight::Loose {
-                signed: false,
-                loose: Loose::N8,
-            },
-            Loose::N16 => &Tight::Loose {
-                signed: false,
-                loose: Loose::N16,
-            },
-            Loose::N32 => &Tight::Loose {
-                signed: false,
-                loose: Loose::N32,
-            },
-            Loose::N64 => &Tight::Loose {
-                signed: false,
-                loose: Loose::N64,
-            },
-            Loose::N128 => &Tight::Loose {
-                signed: false,
-                loose: Loose::N128,
-            },
+            Loose::N8 => &Tight::Arbitrary(Arbitrary::N8),
+            Loose::N16 => &Tight::Arbitrary(Arbitrary::N16),
+            Loose::N32 => &Tight::Arbitrary(Arbitrary::N32),
+            Loose::N64 => &Tight::Arbitrary(Arbitrary::N64),
+            Loose::N128 => &Tight::Arbitrary(Arbitrary::N128),
         }
     }
 }

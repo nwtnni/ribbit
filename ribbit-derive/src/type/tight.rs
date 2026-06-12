@@ -1,7 +1,6 @@
 use core::fmt::Display;
 
 use proc_macro2::TokenStream;
-use quote::format_ident;
 use quote::quote;
 use quote::ToTokens;
 
@@ -13,18 +12,7 @@ pub(crate) enum Tight {
     Unit,
     PhantomData,
     Bool,
-    Loose { signed: bool, loose: Loose },
     Arbitrary(Arbitrary),
-    NonZero { signed: bool, loose: Loose },
-}
-
-impl From<Loose> for Tight {
-    fn from(loose: Loose) -> Self {
-        Self::Loose {
-            signed: false,
-            loose,
-        }
-    }
 }
 
 impl Tight {
@@ -69,26 +57,14 @@ impl Tight {
             return Ok(Self::Unit);
         }
 
-        let loose = Loose::new(size);
-
-        if non_zero {
-            let loose = loose.ok_or(crate::Error::ArbitraryNonZero)?;
-            return Ok(Self::NonZero { signed, loose });
-        }
-
-        match loose {
-            Some(loose) => Ok(Self::Loose { signed, loose }),
-            None => Arbitrary::new(signed, size).map(Self::Arbitrary),
-        }
+        Arbitrary::new(signed, non_zero, size).map(Self::Arbitrary)
     }
 
     pub(crate) fn size(&self) -> usize {
         match self {
             Tight::Unit | Tight::PhantomData => 0,
             Tight::Bool => 1,
-            Tight::Loose { signed: _, loose } => loose.size(),
             Tight::Arbitrary(arbitrary) => arbitrary.size(),
-            Tight::NonZero { signed: _, loose } => loose.size(),
         }
     }
 
@@ -96,24 +72,21 @@ impl Tight {
         match self {
             Tight::Unit | Tight::PhantomData => 0,
             Tight::Bool => 1,
-            Tight::Loose { signed: _, loose } => loose.mask(),
             Tight::Arbitrary(arbitrary) => arbitrary.mask(),
-            Tight::NonZero { signed: _, loose } => loose.mask(),
         }
     }
 
     pub(crate) fn is_non_zero(&self) -> bool {
-        matches!(self, Self::NonZero { .. })
+        matches!(self, Self::Arbitrary(arbitrary) if arbitrary.is_non_zero())
     }
 
     pub(crate) fn is_loose(&self) -> bool {
-        matches!(self, Self::Loose { .. })
+        matches!(self, Self::Arbitrary(arbitrary) if arbitrary.is_loose())
     }
 
     pub(crate) fn to_loose(self) -> Loose {
         match self {
             Tight::Unit | Tight::PhantomData | Tight::Bool => Loose::N8,
-            Tight::Loose { loose, .. } | Tight::NonZero { signed: _, loose } => loose,
             Tight::Arbitrary(arbitrary) => arbitrary.to_loose(),
         }
     }
@@ -133,30 +106,7 @@ impl Tight {
                     }
                 }
             }
-            Tight::Loose {
-                signed: false,
-                loose: _,
-            } => expression,
-            Tight::Loose {
-                signed: true,
-                loose,
-            } => quote!((#expression as #loose)),
-
-            Tight::Arbitrary(arbitrary) if arbitrary.is_signed() => {
-                let loose = arbitrary.to_loose();
-                quote!((#expression.value() as #loose))
-            }
-            Tight::Arbitrary(_) => quote!(#expression.value()),
-
-            Tight::NonZero {
-                signed: false,
-                loose: _,
-            } => quote!(#expression.get()),
-
-            Tight::NonZero {
-                signed: true,
-                loose,
-            } => quote!((#expression.get() as #loose)),
+            Tight::Arbitrary(arbitrary) => arbitrary.convert_to_loose(expression),
         }
     }
 
@@ -168,16 +118,7 @@ impl Tight {
                 let zero = proc_macro2::Literal::usize_unsuffixed(0);
                 quote!((#expression != #zero))
             }
-            Tight::Loose { signed: false, .. } => expression,
-            Tight::Loose {
-                signed: true,
-                loose: _,
-            } => quote!((#expression as #self)),
-
-            // Skip validation logic in `NonZero` and `Arbitrary` constructors
-            Tight::NonZero { .. } | Tight::Arbitrary(_) => {
-                quote!(unsafe { ::ribbit::convert::loose_to_packed::<#self>(#expression) })
-            }
+            Tight::Arbitrary(arbitrary) => arbitrary.convert_from_loose(expression),
         }
     }
 }
@@ -188,31 +129,6 @@ impl ToTokens for Tight {
             Tight::Unit => return quote!(()).to_tokens(tokens),
             Tight::PhantomData => return quote!(::ribbit::PhantomData).to_tokens(tokens),
             Tight::Bool => quote!(bool),
-            Tight::Loose {
-                signed: true,
-                loose,
-            } => {
-                return match loose {
-                    Loose::N8 => quote!(i8),
-                    Loose::N16 => quote!(i8),
-                    Loose::N32 => quote!(i32),
-                    Loose::N64 => quote!(i64),
-                    Loose::N128 => quote!(i128),
-                }
-                .to_tokens(tokens)
-            }
-            Tight::Loose {
-                signed: false,
-                loose,
-            } => return loose.to_tokens(tokens),
-            Tight::NonZero { signed, loose } => {
-                let signed = match signed {
-                    true => 'I',
-                    false => 'U',
-                };
-                let size = loose.size();
-                format_ident!("NonZero{}{}", signed, size).to_token_stream()
-            }
             Tight::Arbitrary(arbitrary) => return arbitrary.to_tokens(tokens),
         };
 
@@ -226,22 +142,6 @@ impl Display for Tight {
             Tight::Unit => "()".fmt(f),
             Tight::PhantomData => "PhantomData".fmt(f),
             Tight::Bool => "bool".fmt(f),
-            Tight::Loose {
-                signed: true,
-                loose: _,
-            } => todo!(),
-            Tight::Loose {
-                signed: false,
-                loose,
-            } => loose.fmt(f),
-            Tight::NonZero { signed, loose } => {
-                let signed = match signed {
-                    true => 'I',
-                    false => 'U',
-                };
-                let size = loose.size();
-                write!(f, "NonZero{signed}{size}")
-            }
             Tight::Arbitrary(arbitrary) => arbitrary.fmt(f),
         }
     }

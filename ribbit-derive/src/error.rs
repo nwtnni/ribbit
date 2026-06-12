@@ -23,7 +23,6 @@ pub enum Error {
         expected: usize,
         actual: usize,
     },
-    ArbitraryNonZero,
     ArbitrarySize {
         size: usize,
     },
@@ -78,9 +77,6 @@ impl Display for Error {
                     f,
                     "Size attribute #[ribbit(size = {expected})] does not match size of {tight}: {actual}",
                 )
-            }
-            Error::ArbitraryNonZero => {
-                write!(f, "Nonzero arbitrary sizes are currently unsupported",)
             }
             Error::ArbitrarySize { size } => {
                 write!(f, "Arbitrary size {size} unsupported")
