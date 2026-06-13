@@ -1,6 +1,6 @@
 # ribbit
 
-This crate provides a procedural macro ([`Pack`](macro@Pack)) for deriving a
+This crate provides a procedural macro (`Pack`) for deriving a
 [bit field](https://en.wikipedia.org/wiki/Bit_field) from a Rust type.
 
 ## Differentiation

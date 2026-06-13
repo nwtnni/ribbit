@@ -2,7 +2,10 @@
 name = "ribbit-derive"
 version = "0.1.0"
 edition = "2021"
+description = "Procedural macro backend for ribbit"
+repository = "https://github.com/nwtnni/ribbit"
 license = "MIT OR Apache-2.0"
+keywords = ["bitfield"]
 
 [lib]
 proc-macro = true
