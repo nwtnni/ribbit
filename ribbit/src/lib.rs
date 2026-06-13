@@ -34,6 +34,110 @@
 //! - The `u128` feature enables support for packed types up to 128 bits instead of 64 bits.
 //! - The `atomic-u128` feature enables support for atomic operations on 128 bit packed types via
 //!   the [`portable-atomic`](https://github.com/taiki-e/portable-atomic) crate.
+//!
+//! # Examples
+//!
+//! ```rust
+//! # mod example {
+//! use core::marker::PhantomData;
+//! use ribbit::u12;
+//! use ribbit::u52;
+//! use ribbit::u31;
+//!
+//! // Enums with data
+//! #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
+//! #[ribbit(size = 34, derive(Debug, Eq))]
+//! pub enum Enum {
+//!     Unit,
+//!     #[ribbit(size = 16)]
+//!     Tuple(u8, u8),
+//!     #[ribbit(size = 32)]
+//!     Struct {
+//!         a: bool,
+//!         b: u31,
+//!     }
+//! }
+//!
+//! // Generic types
+//! #[derive(ribbit::Pack)]
+//! #[ribbit(size = 64)]
+//! pub struct Versioned<T, U> {
+//!     // Configurable method generation
+//!     #[ribbit(with(vis = "pub"))]
+//!     version: u12,
+//!     // Composition of bit fields
+//!     #[ribbit(size = 52, get(vis = "pub"), with(skip))]
+//!     data: T,
+//!     _type: PhantomData<U>,
+//! }
+//!
+//! impl<T: Copy, U> Clone for Versioned<T, U> {
+//!     fn clone(&self) -> Self {
+//!         *self
+//!     }
+//! }
+//! impl<T: Copy, U> Copy for Versioned<T, U> {}
+//!
+//! // Non-zero support
+//! use core::num::NonZeroU8;
+//! use ribbit::u3;
+//!
+//! #[derive(ribbit::Pack, Copy, Clone)]
+//! #[ribbit(size = 11, non_zero)]
+//! struct NonZero(u3, NonZeroU8);
+//!
+//! const _: () = {
+//!     assert!(
+//!         core::mem::size_of::<ribbit::Packed<NonZero>>() ==
+//!         core::mem::size_of::<Option<ribbit::Packed<NonZero>>>(),
+//!     );
+//!     assert!(
+//!         core::mem::align_of::<ribbit::Packed<NonZero>>() ==
+//!         core::mem::align_of::<Option<ribbit::Packed<NonZero>>>()
+//!     );
+//! };
+//!
+//! # }
+//! # // HACK: needed to resolve module paths correctly
+//! # // https://users.rust-lang.org/t/private-fields-in-macro-generated-structs/120052
+//! # fn main() {
+//! # pub use example::*;
+//! # use ribbit::u12;
+//! # use ribbit::u52;
+//! # use ribbit::u31;
+//! // Const operations on stable
+//! let unit = const {
+//!     ribbit::Packed::<Versioned<Enum, ()>>::new(u12::new(5), ribbit::Packed::<Enum>::new_unit())
+//!         .with_version(u12::new(6))
+//!         .data()
+//! };
+//!
+//! use ribbit::Unpack as _;
+//! assert_eq!(unit.unpack(), Enum::Unit);
+//!
+//! let tuple = const { ribbit::Packed::<Enum>::new_tuple(12, 15) };
+//! assert_ne!(tuple.unpack(), Enum::Unit);
+//!
+//! // Atomic support
+//! use core::sync::atomic::Ordering;
+//! let atomic = ribbit::Atomic::<Enum>::new_packed(tuple);
+//! // Operate on packed types
+//! assert_eq!(
+//!     atomic.compare_exchange_packed(unit, tuple, Ordering::Relaxed, Ordering::Relaxed),
+//!     Err(tuple),
+//! );
+//! // Or on unpacked types
+//! assert_eq!(
+//!     atomic.compare_exchange(tuple.unpack(), unit.unpack(), Ordering::Relaxed, Ordering::Relaxed),
+//!     Ok(tuple.unpack()),
+//! );
+//!
+//! assert_eq!(
+//!     atomic.load(Ordering::Relaxed),
+//!     unit.unpack(),
+//! );
+//! # }
+//! ```
 
 /// Derive a packed representation of the (unpacked) input type.
 ///
@@ -84,29 +188,29 @@
 /// These can be used on top-level structs and enum variants.
 ///
 /// ```rust
-/// mod variant_attributes {
-///     use core::num::NonZeroU64;
+/// # mod variant_attributes {
+/// use core::num::NonZeroU64;
 ///
-///     #[derive(ribbit::Pack, Copy, Clone)]
-///     #[ribbit(
-///         // Indicate the size of this variant or struct in bits (validated at compile time).
-///         // Note: this can be larger than the actual number of bits required,
-///         // in which case the most significant unoccupied bits must be zero.
-///         //
-///         // Currently required for top-level items.
-///         size = 64,
-///         // Mark this type as non-zero (validated at compile time).
-///         // A struct is non-zero if it contains a non-zero field.
-///         // An enum is non-zero if either (a) all variant discriminant values are non-zero,
-///         // or (b) the variant with a zero discriminant contains a non-zero field.
-///         non_zero,
-///         // Control generation of safe constructor function.
-///         new(vis = "pub", rename = "new", skip = false),
-///         // Control generation of unsafe constructor function.
-///         from_raw_unchecked(vis = "", rename = "from_raw_unchecked", skip = false),
-///     )]
-///     pub struct Struct(NonZeroU64);
-/// }
+/// #[derive(ribbit::Pack, Copy, Clone)]
+/// #[ribbit(
+///     // Indicate the size of this variant or struct in bits (validated at compile time).
+///     // Note: this can be larger than the actual number of bits required,
+///     // in which case the most significant unoccupied bits must be zero.
+///     //
+///     // Currently required for top-level items.
+///     size = 64,
+///     // Mark this type as non-zero (validated at compile time).
+///     // A struct is non-zero if it contains a non-zero field.
+///     // An enum is non-zero if either (a) all variant discriminant values are non-zero,
+///     // or (b) the variant with a zero discriminant contains a non-zero field.
+///     non_zero,
+///     // Control generation of safe constructor function.
+///     new(vis = "pub", rename = "new", skip = false),
+///     // Control generation of unsafe constructor function.
+///     from_raw_unchecked(vis = "", rename = "from_raw_unchecked", skip = false),
+/// )]
+/// pub struct Struct(NonZeroU64);
+/// # }
 /// ```
 ///
 /// **Item attributes**.
@@ -114,22 +218,22 @@
 /// These can be used on top-level structs and enums, in addition to all variant attributes above.
 ///
 /// ```rust
-/// mod item_attributes {
-///     #[derive(ribbit::Pack, Copy, Clone, Debug)]
-///     #[ribbit(
-///         // Just here to make example compile.
-///         size = 0,
-///         // Control visibility and naming of packed type.
-///         packed(vis = "pub(self)", rename = "EnumPacked"),
-///         // Control generation of packed to raw conversion method.
-///         into_raw(vis = "pub(self)", rename = "into_raw", skip = false),
-///         // Custom derives for the packed type.
-///         derive(Debug, From, Hash, Ord, Eq),
-///         // Forward arbitrary tokens as attributes on the packed type.
-///         forward(doc = "Hello"),
-///     )]
-///     enum Enum {}
-/// }
+/// # mod item_attributes {
+/// #[derive(ribbit::Pack, Copy, Clone, Debug)]
+/// #[ribbit(
+///     // Just here to make example compile.
+///     size = 0,
+///     // Control visibility and naming of packed type.
+///     packed(vis = "pub(self)", rename = "EnumPacked"),
+///     // Control generation of packed to raw conversion method.
+///     into_raw(vis = "pub(self)", rename = "into_raw", skip = false),
+///     // Custom derives for the packed type.
+///     derive(Debug, From, Hash, Ord, Eq),
+///     // Forward arbitrary tokens as attributes on the packed type.
+///     forward(doc = "Hello"),
+/// )]
+/// enum Enum {}
+/// # }
 /// ```
 ///
 /// **Field attributes**.
@@ -137,27 +241,27 @@
 /// These can be used on enum variant and struct fields.
 ///
 /// ```
-/// mod field_attributes {
-///     use core::num::NonZeroU8;
+/// # mod field_attributes {
+/// use core::num::NonZeroU8;
 ///
-///     #[derive(ribbit::Pack, Copy, Clone)]
-///     #[ribbit(size = 8, non_zero)]
-///     struct Struct {
-///         #[ribbit(
-///             // Size of field in bits (required for user-defined types).
-///             size = 8,
-///             // Offset of field in bits, starting from least significant bit.
-///             offset = 0,
-///             // Mark this type as non-zero (validated at compile time).
-///             non_zero,
-///             // Control generation of get method.
-///             get(vis = "pub", rename = "field", skip = false),
-///             // Control generation of update method.
-///             with(vis = "pub", rename = "with_field", skip = false),
-///         )]
-///         field: NonZeroU8,
-///     }
+/// #[derive(ribbit::Pack, Copy, Clone)]
+/// #[ribbit(size = 8, non_zero)]
+/// struct Struct {
+///     #[ribbit(
+///         // Size of field in bits (required for user-defined types).
+///         size = 8,
+///         // Offset of field in bits, starting from least significant bit.
+///         offset = 0,
+///         // Mark this type as non-zero (validated at compile time).
+///         non_zero,
+///         // Control generation of get method.
+///         get(vis = "pub", rename = "field", skip = false),
+///         // Control generation of update method.
+///         with(vis = "pub", rename = "with_field", skip = false),
+///     )]
+///     field: NonZeroU8,
 /// }
+/// # }
 /// ```
 #[doc(inline)]
 pub use ribbit_derive::Pack;
