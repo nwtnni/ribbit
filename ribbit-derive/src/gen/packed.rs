@@ -7,24 +7,34 @@ use quote::quote;
 
 use crate::ir;
 
+// NOTE: does not use `ir::CommonOpt` because `vis` needs special handling and `skip` is ignored
 #[derive(FromMeta, Clone, Debug, Default)]
-pub(crate) struct ItemOpt(ir::CommonOpt);
+pub(crate) struct ItemOpt {
+    vis: Option<syn::Visibility>,
+    rename: Option<syn::Ident>,
+}
 
 impl ItemOpt {
     pub(crate) fn name<'ir>(&'ir self, unpacked: &'ir syn::Ident) -> Cow<'ir, syn::Ident> {
-        self.0
-            .rename_with(|| Cow::Owned(format_ident!("{}Packed", unpacked)))
+        self.rename
+            .as_ref()
+            .map(Cow::Borrowed)
+            .unwrap_or_else(|| Cow::Owned(format_ident!("{}Packed", unpacked)))
     }
 
     pub(crate) fn vis<'ir>(&'ir self, default: &'ir syn::Visibility) -> &'ir syn::Visibility {
-        self.0.vis(default)
+        self.vis.as_ref().unwrap_or(default)
     }
 }
 
 pub(crate) fn packed(item: &ir::Item) -> TokenStream {
     let opt = &item.opt().packed;
     let forward = &item.opt().forward;
-    let vis = opt.0.vis(&item.vis);
+    let vis = opt
+        .vis
+        .clone()
+        .map(ir::raise_vis)
+        .unwrap_or_else(|| item.vis.clone());
     let packed = item.ident_packed();
     let tight = item.tight();
 

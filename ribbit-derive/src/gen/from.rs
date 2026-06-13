@@ -21,14 +21,14 @@ pub(crate) fn from(item: &ir::Item) -> TokenStream {
         impl #generics_impl From<#unpacked #generics_type> for #packed #generics_type #generics_where {
             #[inline]
             fn from(unpacked: #unpacked #generics_type) -> Self {
-                unpacked.pack()
+                ::ribbit::Pack::pack(unpacked)
             }
         }
 
         impl #generics_impl From<#packed #generics_type> for #unpacked #generics_type #generics_where {
             #[inline]
             fn from(packed: #packed #generics_type) -> Self {
-                packed.unpack()
+                ::ribbit::Unpack::unpack(packed)
             }
         }
     }

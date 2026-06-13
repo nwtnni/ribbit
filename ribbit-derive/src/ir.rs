@@ -455,7 +455,7 @@ fn raise_vis_opt(vis: Option<syn::Visibility>) -> Option<syn::Visibility> {
 // NOTE: doesn't handle types within functions
 // - https://bon-rs.com/blog/the-weird-of-function-local-types-in-rust
 // - https://github.com/rust-lang/rust/issues/79260
-fn raise_vis(vis: syn::Visibility) -> syn::Visibility {
+pub(crate) fn raise_vis(vis: syn::Visibility) -> syn::Visibility {
     match vis {
         syn::Visibility::Inherited => parse_quote!(pub(super)),
         // Prepend super to relative paths beginning with super
