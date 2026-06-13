@@ -1,5 +1,5 @@
 #![no_std]
-//! This crate provides a procedural macro ([`Pack`]) for deriving a
+//! This crate provides a procedural macro ([`Pack`](macro@Pack)) for deriving a
 //! [bit field](https://en.wikipedia.org/wiki/Bit_field) from a Rust type.
 //!
 //! # Differentiation
@@ -23,10 +23,142 @@
 //! - Nonzero support (e.g., can use [`NonZeroU64`] to enable niche optimizations)
 //!
 //! See also:
+//! - [bitfield-struct-rs](https://github.com/wrenger/bitfield-struct-rs)
 //! - [bilge](https://github.com/hecatia-elegua/bilge)
 //! - [modular_bitfield](https://github.com/modular-bitfield/modular-bitfield)
 //! - [bitbybit](https://github.com/danlehmann/bitfield)
+//!
+//! # Conditional compilation
+//!
+//! - The `atomic` feature enables support for atomic operations on packed types.
+//! - The `u128` feature enables support for packed types up to 128 bits instead of 64 bits.
+//! - The `atomic-u128` feature enables support for atomic operations on 128 bit packed types via
+//!   the [`portable-atomic`](https://github.com/taiki-e/portable-atomic) crate.
 
+/// Derive a packed representation of the (unpacked) input type.
+///
+/// The packed type is backed by a single raw type ([`Unpack::Raw`])
+/// and `[repr(transparent)]`.
+///
+/// **Trait implementations**.
+///
+/// Some traits are implemented unconditionally---[`Pack`](trait@Pack) for the unpacked type,
+/// and [`Unpack`][trait@Unpack], [`Copy`], and [`Clone`] for the packed type---while
+/// other traits can optionally be derived for the packed type:
+/// - [`From`]: generates bidirectional implementations between packed and unpacked types
+/// - [`Debug`][core::fmt::Debug]: forwards to [`Debug`][core::fmt::Debug] on the unpacked type
+/// - [`Hash`][core::hash::Hash], [`Ord`], and [`Eq`]: same as the standard derives,
+///   but with no bounds on generic parameters
+///   ([perfect derives](https://smallcultfollowing.com/babysteps//blog/2022/04/12/implied-bounds-and-perfect-derive/)).
+///
+/// **Method implementations**.
+///
+/// The following inherent methods on the packed type are `const` and implemented by default:
+/// - `new`: Safe constructors (enum variants with name `v` have function `new_v`)
+/// - `get`: Field getters (fields with name `n` have method `n`; fields with index `i` have method `_i`)
+/// - `with`: Field updaters (immutable) (fields with name `n` have method `with_n`; fields with index `i` have method `with_i`)
+/// - `into_raw`: Conversion to raw type
+/// - `from_raw_unchecked`: Unsafe constructors from raw type (enum variants with name `v` have function `v_from_raw_unchecked`)
+///
+/// <div class = "warning">
+///
+/// **NOTE**: the packed type is generated inside a private module to prevent
+/// tampering with its internal fields. We're mostly able to hide this implementation
+/// detail, with two exceptions:
+///
+/// 1. Any field with a user-defined type needs to use an absolute path (e.g., `crate::Struct`),
+///    so it resolves correctly from both the outer and inner modules.
+///
+/// 2. This derive cannot be used on types inside a function or an anonymous scope,
+///    as the packed type must be able to resolve the unpacked type via `super`
+///    (see also: [this bon blog post](https://bon-rs.com/blog/the-weird-of-function-local-types-in-rust)).
+///
+/// </div>
+///
+/// # Attributes
+///
+/// This derive macro is controlled by attributes under the `ribbit` namespace.
+///
+/// **Variant attributes**.
+///
+/// These can be used on top-level structs and enum variants.
+///
+/// ```rust
+/// mod variant_attributes {
+///     use core::num::NonZeroU64;
+///
+///     #[derive(ribbit::Pack, Copy, Clone)]
+///     #[ribbit(
+///         // Indicate the size of this variant or struct in bits (validated at compile time).
+///         // Note: this can be larger than the actual number of bits required,
+///         // in which case the most significant unoccupied bits must be zero.
+///         //
+///         // Currently required for top-level items.
+///         size = 64,
+///         // Mark this type as non-zero (validated at compile time).
+///         // A struct is non-zero if it contains a non-zero field.
+///         // An enum is non-zero if either (a) all variant discriminant values are non-zero,
+///         // or (b) the variant with a zero discriminant contains a non-zero field.
+///         non_zero,
+///         // Control generation of safe constructor function.
+///         new(vis = "pub", rename = "new", skip = false),
+///         // Control generation of unsafe constructor function.
+///         from_raw_unchecked(vis = "", rename = "from_raw_unchecked", skip = false),
+///     )]
+///     pub struct Struct(NonZeroU64);
+/// }
+/// ```
+///
+/// **Item attributes**.
+///
+/// These can be used on top-level structs and enums, in addition to all variant attributes above.
+///
+/// ```rust
+/// mod item_attributes {
+///     #[derive(ribbit::Pack, Copy, Clone, Debug)]
+///     #[ribbit(
+///         // Just here to make example compile.
+///         size = 0,
+///         // Control visibility and naming of packed type.
+///         packed(vis = "pub(self)", rename = "EnumPacked"),
+///         // Control generation of packed to raw conversion method.
+///         into_raw(vis = "pub(self)", rename = "into_raw", skip = false),
+///         // Custom derives for the packed type.
+///         derive(Debug, From, Hash, Ord, Eq),
+///         // Forward arbitrary tokens as attributes on the packed type.
+///         forward(doc = "Hello"),
+///     )]
+///     enum Enum {}
+/// }
+/// ```
+///
+/// **Field attributes**.
+///
+/// These can be used on enum variant and struct fields.
+///
+/// ```
+/// mod field_attributes {
+///     use core::num::NonZeroU8;
+///
+///     #[derive(ribbit::Pack, Copy, Clone)]
+///     #[ribbit(size = 8, non_zero)]
+///     struct Struct {
+///         #[ribbit(
+///             // Size of field in bits (required for user-defined types).
+///             size = 8,
+///             // Offset of field in bits, starting from least significant bit.
+///             offset = 0,
+///             // Mark this type as non-zero (validated at compile time).
+///             non_zero,
+///             // Control generation of get method.
+///             get(vis = "pub", rename = "field", skip = false),
+///             // Control generation of update method.
+///             with(vis = "pub", rename = "with_field", skip = false),
+///         )]
+///         field: NonZeroU8,
+///     }
+/// }
+/// ```
 #[doc(inline)]
 pub use ribbit_derive::Pack;
 
@@ -55,6 +187,16 @@ pub use core::num::NonZeroU8;
 #[doc(no_inline)]
 pub use core::primitive::bool;
 #[doc(no_inline)]
+pub use core::primitive::i128;
+#[doc(no_inline)]
+pub use core::primitive::i16;
+#[doc(no_inline)]
+pub use core::primitive::i32;
+#[doc(no_inline)]
+pub use core::primitive::i64;
+#[doc(no_inline)]
+pub use core::primitive::i8;
+#[doc(no_inline)]
 pub use core::primitive::u128;
 #[doc(no_inline)]
 pub use core::primitive::u16;
@@ -64,7 +206,6 @@ pub use core::primitive::u32;
 pub use core::primitive::u64;
 #[doc(no_inline)]
 pub use core::primitive::u8;
-pub type Unit = ();
 
 #[doc(no_inline)]
 pub use arbitrary_int::i1;
@@ -568,6 +709,9 @@ pub mod atomic;
 #[doc(inline)]
 pub use atomic::Atomic;
 
+/// Internal type alias for `()`.
+pub type Unit = ();
+
 /// Convenience type alias for the packed representation of `T`.
 pub type Packed<T> = <T as Pack>::Packed;
 
@@ -617,12 +761,16 @@ pub unsafe trait Unpack: Copy {
 
     /// Convert from typed to raw representation.
     ///
-    /// For a `const`-compatible function, see [`crate::convert::packed_to_raw`].
+    /// The [`Pack`](`macro@Pack`) macro implements a `const` inherent method
+    /// with the same name. See [`crate::convert::packed_to_raw`] if generics
+    /// are involved and `const` is required.
     fn into_raw(self) -> Self::Raw;
 
     /// Convert from raw to typed representation.
     ///
-    /// For a `const`-compatible function, see [`crate::convert::raw_to_packed`].
+    /// The [`Pack`](`macro@Pack`) macro implements a `const` inherent associated function
+    /// with the same name. See [`crate::convert::raw_to_packed`] if generics
+    /// are involved and `const` is required.
     ///
     /// # Safety
     ///
@@ -638,6 +786,7 @@ pub unsafe trait Unpack: Copy {
 pub trait Loose:
     Copy + Sized + Unpack<Unpacked = Self, Loose = Self, Raw = Self> + seal::Seal
 {
+    /// Default atomic integer type.
     #[cfg(feature = "atomic")]
     type Atomic: atomic::Raw<Self>;
 }
@@ -779,6 +928,14 @@ macro_rules! impl_unpack {
 
             #[inline]
             fn unpack(self) -> Self::Unpacked {
+                const {
+                    assert!(core::mem::size_of::<Self>() == core::mem::size_of::<Self::Loose>());
+                    assert!(core::mem::align_of::<Self>() == core::mem::align_of::<Self::Loose>());
+
+                    assert!(core::mem::size_of::<Self>() == core::mem::size_of::<Self::Raw>());
+                    assert!(core::mem::align_of::<Self>() == core::mem::align_of::<Self::Raw>());
+                }
+
                 self
             }
 

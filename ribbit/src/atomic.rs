@@ -7,13 +7,22 @@ use crate::Loose;
 use crate::Pack;
 use crate::Unpack;
 
+#[doc(no_inline)]
 pub use core::sync::atomic::AtomicU16;
+#[doc(no_inline)]
 pub use core::sync::atomic::AtomicU32;
+#[doc(no_inline)]
 pub use core::sync::atomic::AtomicU64;
+#[doc(no_inline)]
 pub use core::sync::atomic::AtomicU8;
 #[cfg(feature = "u128")]
+#[doc(no_inline)]
 pub use portable_atomic::AtomicU128;
 
+/// Type-safe atomic wrapper for types implementing [`Pack`] and [`Unpack`].
+///
+/// Generic type parameter `R` defaults to standard library and `portable_atomic`
+/// atomic integer types, but can be overridden.
 #[repr(transparent)]
 pub struct Atomic<T: Pack, R = <<<T as Pack>::Packed as Unpack>::Loose as Loose>::Atomic> {
     raw: R,
@@ -204,7 +213,7 @@ where
     }
 }
 
-/// Interface for underlying atomic library.
+/// Interface for underlying atomic integer.
 pub trait Raw<T>: core::fmt::Debug + Default + Send + Sync {
     fn new_(loose: T) -> Self;
 
@@ -235,6 +244,7 @@ pub trait Raw<T>: core::fmt::Debug + Default + Send + Sync {
     fn swap_(&self, value: T, ordering: Ordering) -> T;
 }
 
+/// Convenience macro for implementing [`Raw`].
 #[macro_export]
 macro_rules! impl_raw {
     ($loose:ty, $atomic:ty) => {
