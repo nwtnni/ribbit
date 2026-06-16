@@ -24,9 +24,19 @@ pub use portable_atomic::AtomicU128;
 /// Generic type parameter `R` defaults to standard library and `portable_atomic`
 /// atomic integer types, but can be overridden.
 #[repr(transparent)]
-pub struct Atomic<T: Pack, R = <<<T as Pack>::Packed as Unpack>::Loose as Loose>::Atomic> {
+pub struct Atomic<T, R = <<<T as Pack>::Packed as Unpack>::Loose as Loose>::Atomic> {
     raw: R,
-    r#type: PhantomData<T>,
+    unpacked: PhantomData<T>,
+}
+
+impl<T, R> Atomic<T, R> {
+    #[inline]
+    pub const fn from_raw(raw: R) -> Self {
+        Self {
+            raw,
+            unpacked: PhantomData,
+        }
+    }
 }
 
 impl<T, R> Atomic<T, R>
@@ -41,15 +51,7 @@ where
 
     #[inline]
     pub fn new_packed(packed: T::Packed) -> Self {
-        Self::new_raw(R::new_(Self::packed_to_loose(packed)))
-    }
-
-    #[inline]
-    pub const fn new_raw(raw: R) -> Self {
-        Self {
-            raw,
-            r#type: PhantomData,
-        }
+        Self::from_raw(R::new_(Self::packed_to_loose(packed)))
     }
 
     #[inline]
@@ -177,6 +179,18 @@ where
     }
 }
 
+impl<T, R> Clone for Atomic<T, R>
+where
+    R: Clone,
+{
+    fn clone(&self) -> Self {
+        Self {
+            raw: self.raw.clone(),
+            unpacked: PhantomData,
+        }
+    }
+}
+
 impl<T, R> Debug for Atomic<T, R>
 where
     T: Pack,
@@ -203,13 +217,18 @@ where
 
 impl<T, R> Default for Atomic<T, R>
 where
-    T: Pack,
-    T::Packed: Default,
-    R: Raw<<<T as Pack>::Packed as Unpack>::Loose>,
+    R: Default,
 {
     #[inline]
     fn default() -> Self {
-        Self::new_packed(T::Packed::default())
+        Self::from_raw(R::default())
+    }
+}
+
+impl<T, R> From<R> for Atomic<T, R> {
+    #[inline]
+    fn from(raw: R) -> Self {
+        Self::from_raw(raw)
     }
 }
 
