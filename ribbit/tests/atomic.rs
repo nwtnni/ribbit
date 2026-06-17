@@ -6,6 +6,8 @@ use ribbit::u22;
 use ribbit::u26;
 use ribbit::u9;
 use ribbit::Atomic;
+use ribbit::Pack as _;
+use ribbit::Unpack as _;
 
 #[derive(ribbit::Pack, Copy, Clone, Debug, PartialEq, Eq)]
 #[ribbit(size = 32, derive(Debug, Eq))]
@@ -132,16 +134,22 @@ fn mutable() {
         hi: 10u8.into(),
     });
 
-    mutable.set(Mutable {
+    let a = Mutable {
         lo: 9u8.into(),
         hi: 3u8.into(),
-    });
+    };
+    mutable.set(a);
+    assert_eq!(mutable.get(), a);
+
+    let b = Mutable {
+        lo: 57u8.into(),
+        hi: 92u8.into(),
+    };
 
     assert_eq!(
-        mutable.get(),
-        Mutable {
-            lo: 9u8.into(),
-            hi: 3u8.into()
-        },
+        core::mem::replace(mutable.get_mut_packed(), b.pack()).unpack(),
+        a
     );
+
+    assert_eq!(mutable.get_mut_packed().unpack(), b);
 }
