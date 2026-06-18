@@ -152,6 +152,16 @@ fn actual_size_lt_expected() {
     assert_eq!(b.b(), 7);
 }
 
+#[test]
+fn const_different_size() {
+    const LARGE_UNIT: ribbit::Packed<Large<()>> = ribbit::Packed::<Large<()>>::new((), 5);
+    assert_eq!(LARGE_UNIT.b(), 5);
+
+    const LARGE_U8: ribbit::Packed<Large<u8>> = ribbit::Packed::<Large<_>>::new(8, 5);
+    assert_eq!(LARGE_U8.a(), 8);
+    assert_eq!(LARGE_U8.b(), 5);
+}
+
 trait Foo {
     type Bar: Copy + core::fmt::Debug + Eq;
 }

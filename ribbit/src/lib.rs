@@ -890,6 +890,7 @@ pub unsafe trait Unpack: Copy {
 pub trait Loose:
     Copy + Sized + Unpack<Unpacked = Self, Loose = Self, Raw = Self> + seal::Seal
 {
+    const ZERO: Self;
     /// Default atomic integer type.
     #[cfg(feature = "atomic")]
     type Atomic: atomic::Raw<Self>;
@@ -922,21 +923,30 @@ pub mod convert {
     #[doc(hidden)]
     #[inline]
     pub const fn packed_to_loose<T: Unpack>(packed: T) -> T::Loose {
-        // SAFETY: `T` and `T::Loose` have the same layout
-        unsafe {
-            let mut zeroed = MaybeUninit::<Transmute<T>>::zeroed();
-            zeroed.write(Transmute { packed }).loose
+        // Zero sized types are the only types where the
+        // loose and packed representations differ.
+        if const { T::BITS == 0 } {
+            assert!(core::mem::size_of::<T>() == 0);
+            assert!(core::mem::align_of::<T>() == 1);
+
+            assert!(core::mem::size_of::<T::Loose>() == 1);
+            assert!(core::mem::align_of::<T::Loose>() == 1);
+            return T::Loose::ZERO;
+        } else {
+            assert_size_align::<T, T::Loose>()
         }
+
+        // SAFETY: `T` and `T::Loose` have the same layout
+        unsafe { Transmute { packed }.loose }
     }
 
     /// `const`-compatible version of [`Unpack::into_raw`].
     #[inline]
     pub const fn packed_to_raw<T: Unpack>(packed: T) -> T::Raw {
+        const { assert_size_align::<T, T::Raw>() }
+
         // SAFETY: `T` and `T::Raw` have the same layout
-        unsafe {
-            let mut zeroed = MaybeUninit::<Transmute<T>>::zeroed();
-            zeroed.write(Transmute { packed }).raw
-        }
+        unsafe { Transmute { packed }.raw }
     }
 
     /// Convert from a native integer type to a packed struct.
@@ -947,11 +957,21 @@ pub mod convert {
     #[doc(hidden)]
     #[inline]
     pub const unsafe fn loose_to_packed<T: Unpack>(loose: T::Loose) -> T {
-        // SAFETY: `T` and `T::Loose` have the same layout, and caller guarantees bit pattern is valid
-        unsafe {
-            let mut zeroed = MaybeUninit::<Transmute<T>>::zeroed();
-            zeroed.write(Transmute { loose }).packed
+        // Zero sized types are the only types where the
+        // loose and packed representations differ.
+        if const { T::BITS == 0 } {
+            assert!(core::mem::size_of::<T>() == 0);
+            assert!(core::mem::align_of::<T>() == 1);
+
+            assert!(core::mem::size_of::<T::Loose>() == 1);
+            assert!(core::mem::align_of::<T::Loose>() == 1);
+            return core::mem::transmute_copy::<(), T>(&());
+        } else {
+            assert_size_align::<T::Loose, T>()
         }
+
+        // SAFETY: `T` and `T::Loose` have the same layout, and caller guarantees bit pattern is valid
+        unsafe { Transmute { loose }.packed }
     }
 
     /// `const`-compatible version of [`Unpack::from_raw_unchecked`].
@@ -961,11 +981,10 @@ pub mod convert {
     /// Caller must guarantee that `raw` is a valid bit pattern for type `T`.
     #[inline]
     pub const unsafe fn raw_to_packed<T: Unpack>(raw: T::Raw) -> T {
+        const { assert_size_align::<T::Raw, T>() }
+
         // SAFETY: `T` and `T::Raw` have the same layout, and caller guarantees bit pattern is valid
-        unsafe {
-            let mut zeroed = MaybeUninit::<Transmute<T>>::zeroed();
-            zeroed.write(Transmute { raw }).packed
-        }
+        unsafe { Transmute { raw }.packed }
     }
 
     #[repr(C)]
@@ -1006,6 +1025,11 @@ pub mod convert {
             zeroed.as_mut_ptr().byte_add(offset).cast::<F>().write(from);
             zeroed.assume_init().into
         }
+    }
+
+    const fn assert_size_align<T, U>() {
+        assert!(core::mem::size_of::<T>() == core::mem::size_of::<U>());
+        assert!(core::mem::align_of::<T>() == core::mem::align_of::<U>());
     }
 }
 
@@ -1153,6 +1177,7 @@ unsafe impl Unpack for bool {
 }
 
 impl Loose for u8 {
+    const ZERO: Self = 0;
     #[cfg(feature = "atomic")]
     type Atomic = atomic::AtomicU8;
 }
@@ -1169,6 +1194,7 @@ impl_u8!(
 );
 
 impl Loose for u16 {
+    const ZERO: Self = 0;
     #[cfg(feature = "atomic")]
     type Atomic = atomic::AtomicU16;
 }
@@ -1185,6 +1211,7 @@ impl_u16!(
 );
 
 impl Loose for u32 {
+    const ZERO: Self = 0;
     #[cfg(feature = "atomic")]
     type Atomic = atomic::AtomicU32;
 }
@@ -1209,6 +1236,7 @@ impl_u32!(
 );
 
 impl Loose for u64 {
+    const ZERO: Self = 0;
     #[cfg(feature = "atomic")]
     type Atomic = atomic::AtomicU64;
 }
@@ -1250,6 +1278,7 @@ impl_u64!(
 
 #[cfg(feature = "u128")]
 impl Loose for u128 {
+    const ZERO: Self = 0;
     #[cfg(feature = "atomic")]
     type Atomic = atomic::AtomicU128;
 }
