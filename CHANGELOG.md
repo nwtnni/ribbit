@@ -1,3 +1,7 @@
+# v0.2.1
+
+- Fix generic conversions for zero-sized types.
+
 # v0.2.0
 
 - Tweak trait bounds and implementations for `ribbit::Atomic`
